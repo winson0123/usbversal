@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-05-22T00:00:00Z",
+  "allowed_patterns": [
+    "adapter_per_vendor",
+    "thin_cli",
+    "asyncio_job_runner",
+    "event_bus_in_process",
+    "backup_before_write",
+    "write_context_requires_backup_path",
+    "domain_models_in_core",
+    "storage_own_mount_and_backup",
+    "unknown_field_preservation",
+    "single_active_task_per_agent"
+  ],
+  "forbidden_patterns": [
+    "cli_business_logic",
+    "write_without_backup",
+    "schema_rebuild_wholesale",
+    "adapter_imports_cli",
+    "core_imports_vendor_sql_directly",
+    "parallel_agent_tasks",
+    "silent_drop_unknown_fields",
+    "assume_schema_stable"
+  ],
+  "constraints": {
+    "language": "python",
+    "min_python": "3.11",
+    "lint": "ruff",
+    "test": "pytest",
+    "async": "asyncio",
+    "packaging": "pyinstaller",
+    "primary_test_mount": "/mnt/usb",
+    "vendors": ["rekordbox", "serato"],
+    "metadata_only": true,
+    "no_audio_processing": true
+  },
+  "layer_dependencies": {
+    "cli": ["jobs", "core"],
+    "jobs": ["core", "storage", "adapters"],
+    "core": [],
+    "adapters": ["core", "storage"],
+    "storage": ["core"]
+  }
+}

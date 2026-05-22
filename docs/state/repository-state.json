@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-05-22T00:00:00Z",
+  "project": "usbversal",
+  "language": "python",
+  "python_version": "3.11+",
+  "modules_created": [],
+  "features_implemented": {},
+  "packaging": {
+    "pyinstaller": false,
+    "readiness": "not_started"
+  },
+  "test_status": {
+    "ruff": "not_configured",
+    "pytest": "not_configured",
+    "last_run": null,
+    "tests_passed": 0,
+    "tests_failed": 0
+  },
+  "documentation": {
+    "agent_md": true,
+    "readme": true,
+    "contributing": true,
+    "architecture_md": true,
+    "docs_scaffolding": true,
+    "adrs": 3
+  },
+  "primary_test_usb": {
+    "linux_wsl": "/mnt/usb"
+  },
+  "execution_policy": "AGENT.md"
+}

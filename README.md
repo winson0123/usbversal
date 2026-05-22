@@ -1,0 +1,115 @@
+# Usbversal
+
+Python CLI for **safe, metadata-only** manipulation of DJ library databases on USB-mounted media. Supports **Rekordbox** and **Serato**. No audio processing. No cloud dependency.
+
+| | |
+|--|--|
+| **Platforms** | Windows, Linux (WSL supported) |
+| **DJ systems** | Rekordbox (SQLite), Serato (proprietary; adapter-isolated) |
+| **Primary test USB** | `/mnt/usb` (WSL) — see [docs/storage/usb-detection.md](docs/storage/usb-detection.md) |
+| **Status** | Scaffolding — see [docs/state/repository-state.json](docs/state/repository-state.json) |
+
+## Purpose
+
+Usbversal helps DJs and tool authors inspect and modify library metadata on removable drives without corrupting vendor databases. All write paths require backup-first safety.
+
+## Goals
+
+- Detect USB-mounted DJ libraries (Rekordbox, Serato)
+- List playlists, crates, and track metadata (database fields only)
+- Apply safe writes with **mandatory backup and rollback**
+- Run long operations as **async jobs** with progress events
+- Ship as **PyInstaller executables** for Windows and Linux
+
+## Safety guarantees
+
+1. Full database file backup to `backups/<timestamp>/` before any write
+2. Integrity checks when the adapter supports them (Rekordbox: SQLite `PRAGMA integrity_check`)
+3. Writes rejected when backup cannot be created or verified
+4. Rollback restores from backup metadata
+
+## USB-based workflow
+
+Development and validation use a mounted USB path:
+
+```text
+/mnt/usb
+```
+
+Use this mount only for integration validation tasks explicitly scoped in `docs/tasks/`. Do not assume it is always present.
+
+## CLI usage (placeholders)
+
+Commands are **not implemented** during scaffolding. Planned surface:
+
+```bash
+# Discovery
+usbversal scan --mount /mnt/usb
+
+# Read-only inspection
+usbversal list-playlists --mount /mnt/usb --vendor rekordbox
+usbversal list-crates --mount /mnt/usb --vendor serato
+
+# Safety
+usbversal backup --mount /mnt/usb --target ./backups/
+usbversal rollback --mount /mnt/usb --backup-id <id>
+
+# Writes (backup required)
+usbversal apply --mount /mnt/usb --plan <file.json>
+
+# Jobs
+usbversal jobs list
+usbversal jobs resume <job-id>
+usbversal jobs cancel <job-id>
+```
+
+## Packaging intent
+
+Distribution target is standalone executables via **PyInstaller**:
+
+- `usbversal` CLI binary per platform
+- Bundled Python runtime; no separate interpreter install required for end users
+
+See [docs/decisions/0003-use-pyinstaller.md](docs/decisions/0003-use-pyinstaller.md).
+
+## Project layout (planned)
+
+| Path | Role |
+|------|------|
+| `src/usbversal/` | Package root |
+| `src/usbversal/cli/` | Thin CLI entrypoints |
+| `src/usbversal/core/` | Domain models and traits |
+| `src/usbversal/adapters/` | Rekordbox / Serato adapters |
+| `src/usbversal/jobs/` | Async job runner |
+| `src/usbversal/storage/` | Mount detection, backup, rollback |
+| `tests/` | Unit and integration tests |
+| `docs/` | Architecture, ADRs, tasks, machine state |
+
+## Documentation
+
+| Audience | Start here |
+|----------|------------|
+| Autonomous agents | [`AGENT.md`](AGENT.md) |
+| Architecture | [`ARCHITECTURE.md`](ARCHITECTURE.md) |
+| Contributing | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| Tasks | [`docs/tasks/current-task.md`](docs/tasks/current-task.md) |
+
+## Development (future)
+
+```bash
+# Setup (when pyproject.toml exists)
+pip install -e ".[dev]"
+
+# Verify
+ruff check .
+ruff format --check .
+pytest
+```
+
+## Autonomous agents
+
+Read [`AGENT.md`](AGENT.md) before any work. Update [`docs/state/`](docs/state/) after every task.
+
+## License
+
+TBD
