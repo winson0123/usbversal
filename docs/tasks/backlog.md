@@ -20,7 +20,7 @@ Priority order (top first). Decompose before starting if scope exceeds one commi
 |----|-------|-------|
 | `TASK-010` | Mount path validation utilities | No auto-detect yet |
 | `TASK-011` | Backup copy + manifest.json | See `docs/storage/backup-strategy.md` |
-| `TASK-012` | Rollback from manifest | See `docs/storage/rollback-flow.md` |
+| `TASK-012` | ~~Rollback from manifest~~ | Done — `rollback` CLI |
 
 ## M3 — Core Domain
 

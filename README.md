@@ -51,6 +51,9 @@ python -m app.cli list-playlists --mount /mnt/usb --json
 # Backup (read-only copy to <mount>/backups/<timestamp>/)
 python -m app.cli backup --mount /mnt/usb
 
+# Rollback (restore from a prior backup; creates pre-rollback copy by default)
+python -m app.cli rollback --mount /mnt/usb --backup-id 20260525T075946Z
+
 # Serato crates (read-only)
 python -m app.cli list-crates --mount /mnt/usb
 

@@ -1,6 +1,6 @@
 # Backup Strategy
 
-**Status:** implemented (file copy + manifest; rollback in TASK-012).
+**Status:** implemented (file copy + manifest; rollback via `rollback` CLI).
 
 ## Principle
 

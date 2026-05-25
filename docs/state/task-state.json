@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-25T20:10:00Z",
+  "updated_at": "2026-05-25T20:20:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -11,7 +11,6 @@
   "pending_tasks": [
     "TASK-002",
     "TASK-003",
-    "TASK-012",
     "TASK-022",
     "TASK-032",
     "TASK-040",
@@ -45,6 +44,11 @@
       "id": "TASK-031",
       "title": "Serato read-only crate listing (list-crates CLI)",
       "completed_at": "2026-05-25T20:10:00Z"
+    },
+    {
+      "id": "TASK-012",
+      "title": "Rollback from backup manifest (rollback CLI)",
+      "completed_at": "2026-05-25T20:20:00Z"
     }
   ],
   "history": [
@@ -77,6 +81,12 @@
       "title": "Serato read-only crate listing (list-crates CLI)",
       "status": "completed",
       "completed_at": "2026-05-25T20:10:00Z"
+    },
+    {
+      "id": "TASK-012",
+      "title": "Rollback from backup manifest (rollback CLI)",
+      "status": "completed",
+      "completed_at": "2026-05-25T20:20:00Z"
     }
   ]
 }

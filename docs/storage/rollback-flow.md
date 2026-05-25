@@ -1,6 +1,6 @@
 # Rollback Flow
 
-**Status:** design placeholder — not implemented.
+**Status:** implemented (manual CLI rollback; automatic job rollback deferred).
 
 ## When Rollback Runs
 
@@ -19,10 +19,11 @@
 5. Verify integrity (Rekordbox adapter)
 6. Emit `storage.rollback_done`
 
-## CLI (Planned)
+## CLI
 
 ```bash
-usbversal rollback --mount /mnt/usb --backup-id <id>
+python -m app.cli rollback --mount /mnt/usb --backup-id <id>
+python -m app.cli rollback --mount /mnt/usb --backup-id <id> --no-pre-rollback
 ```
 
 ## Safety

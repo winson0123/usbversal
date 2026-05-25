@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-25T20:10:00Z",
+  "updated_at": "2026-05-25T20:20:00Z",
   "project": "usbversal",
   "language": "python",
   "python_version": "3.11+",
@@ -28,6 +28,8 @@
     "cli_list_playlists": true,
     "backup_copy_manifest": true,
     "cli_backup": true,
+    "rollback_from_manifest": true,
+    "cli_rollback": true,
     "serato_read_crates_serato_tools": true,
     "cli_list_crates": true
   },
@@ -38,8 +40,8 @@
   "test_status": {
     "ruff": "pass",
     "pytest": "pass",
-    "last_run": "2026-05-25T20:10:00Z",
-    "tests_passed": 31,
+    "last_run": "2026-05-25T20:20:00Z",
+    "tests_passed": 39,
     "tests_failed": 0
   },
   "dependencies": {

@@ -171,6 +171,7 @@ def create_backup(
     source_mount: Path,
     files: list[Path],
     backup_root: Path | None = None,
+    backup_id: str | None = None,
 ) -> BackupResult:
     """
     Copy files from a mount into a timestamped backup directory.
@@ -179,6 +180,7 @@ def create_backup(
         source_mount: Mount root; relative paths in manifest are from here.
         files: Absolute or mount-relative file paths to copy.
         backup_root: Parent directory for backups; defaults to mount/backups.
+        backup_id: Optional directory name; defaults to UTC timestamp.
 
     Returns:
         BackupResult with backup_dir and manifest.
@@ -192,7 +194,7 @@ def create_backup(
 
     mount = source_mount.resolve()
     created_at = datetime.now(UTC)
-    backup_id = created_at.strftime("%Y%m%dT%H%M%SZ")
+    backup_id = backup_id or created_at.strftime("%Y%m%dT%H%M%SZ")
     root = (backup_root or (mount / "backups")).resolve()
     backup_dir = root / backup_id
     backup_dir.mkdir(parents=True, exist_ok=False)

@@ -14,7 +14,13 @@ from app.adapters.base import (
 from app.services.backup_service import backup_mount_libraries, backup_result_to_dict
 from app.services.crate_service import list_serato_crates
 from app.services.playlist_service import list_rekordbox_playlists
+from app.services.rollback_service import rollback_mount_libraries, rollback_result_to_dict
 from app.services.scan_service import run_scan
+from app.storage.rollback import (
+    BackupNotFoundError,
+    BackupVerificationError,
+    MountMismatchError,
+)
 
 structlog.configure(
     processors=[
@@ -81,6 +87,36 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Backup parent directory (default: <mount>/backups)",
     )
     backup_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output machine-readable JSON",
+    )
+
+    rollback_parser = sub.add_parser(
+        "rollback",
+        help="Restore library files from a prior backup manifest",
+    )
+    rollback_parser.add_argument(
+        "--mount",
+        required=True,
+        help="Mount path (e.g. /mnt/usb)",
+    )
+    rollback_parser.add_argument(
+        "--backup-id",
+        required=True,
+        help="Backup directory name under backups/ (e.g. 20260525T075946Z)",
+    )
+    rollback_parser.add_argument(
+        "--target",
+        default=None,
+        help="Backup parent directory (default: <mount>/backups)",
+    )
+    rollback_parser.add_argument(
+        "--no-pre-rollback",
+        action="store_true",
+        help="Skip safety backup of current files before restore",
+    )
+    rollback_parser.add_argument(
         "--json",
         action="store_true",
         help="Output machine-readable JSON",
@@ -208,6 +244,45 @@ def _cmd_backup(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_rollback(args: argparse.Namespace) -> int:
+    """
+    Run the rollback command.
+
+    Args:
+        args: Parsed namespace with mount, backup_id, target, and json flags.
+
+    Returns:
+        Exit code 0 on success, 1 on failure.
+    """
+    log = structlog.get_logger()
+    try:
+        result = rollback_mount_libraries(
+            args.mount,
+            args.backup_id,
+            backup_root=args.target,
+            pre_rollback=not args.no_pre_rollback,
+        )
+    except (BackupNotFoundError, BackupVerificationError, MountMismatchError) as exc:
+        log.error("rollback_failed", error=str(exc))
+        return 1
+    except (FileNotFoundError, ValueError, OSError) as exc:
+        log.error("rollback_failed", error=str(exc))
+        return 1
+
+    if args.json:
+        print(json.dumps(rollback_result_to_dict(result), indent=2))
+        return 0
+
+    print(f"Restored from backup: {result.backup_id}")
+    print(f"Backup directory: {result.backup_dir}")
+    print(f"Files restored: {len(result.restored_paths)}")
+    for relative in result.restored_paths:
+        print(f"  {relative}")
+    if result.pre_rollback_backup_dir:
+        print(f"Pre-rollback safety copy: {result.pre_rollback_backup_dir}")
+    return 0
+
+
 def _cmd_list_crates(args: argparse.Namespace) -> int:
     """
     Run the list-crates command.
@@ -263,6 +338,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_list_playlists(args)
     if args.command == "backup":
         return _cmd_backup(args)
+    if args.command == "rollback":
+        return _cmd_rollback(args)
     if args.command == "list-crates":
         return _cmd_list_crates(args)
 
