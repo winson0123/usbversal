@@ -6,6 +6,8 @@ import sys
 
 import structlog
 
+from app.adapters.base import DatabaseNotFoundError, UnsupportedDatabaseError
+from app.services.playlist_service import list_rekordbox_playlists
 from app.services.scan_service import run_scan
 
 structlog.configure(
@@ -27,7 +29,7 @@ def _build_parser() -> argparse.ArgumentParser:
     """
     parser = argparse.ArgumentParser(
         prog="usbversal",
-        description="Usbversal DJ database CLI (read-only discovery)",
+        description="Usbversal DJ database CLI (read-only)",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -38,6 +40,21 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
     )
     scan_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output machine-readable JSON",
+    )
+
+    list_parser = sub.add_parser(
+        "list-playlists",
+        help="List Rekordbox playlists on a mount (read-only)",
+    )
+    list_parser.add_argument(
+        "--mount",
+        required=True,
+        help="Mount path (e.g. /mnt/usb)",
+    )
+    list_parser.add_argument(
         "--json",
         action="store_true",
         help="Output machine-readable JSON",
@@ -79,6 +96,44 @@ def _cmd_scan(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_list_playlists(args: argparse.Namespace) -> int:
+    """
+    Run the list-playlists command.
+
+    Args:
+        args: Parsed namespace with mount and json flags.
+
+    Returns:
+        Exit code 0 on success, 1 on user/adapter error, 2 on unsupported format.
+    """
+    log = structlog.get_logger()
+    try:
+        result = list_rekordbox_playlists(args.mount)
+    except DatabaseNotFoundError as exc:
+        log.error("list_playlists_failed", error=str(exc))
+        return 1
+    except UnsupportedDatabaseError as exc:
+        log.error("list_playlists_unsupported", error=str(exc))
+        return 2
+    except OSError as exc:
+        log.error("list_playlists_failed", error=str(exc))
+        return 1
+
+    if args.json:
+        print(json.dumps(result.to_dict(), indent=2))
+        return 0
+
+    lib = result.library
+    print(f"Database: {lib.database_path} ({lib.db_format.value})")
+    print(f"Playlists: {len(result.playlists)}\n")
+    for pl in sorted(result.playlists, key=lambda p: (p.parent_id or 0, p.name)):
+        kind = "folder" if pl.is_folder else "playlist"
+        parent = f" parent={pl.parent_id}" if pl.parent_id is not None else ""
+        tracks = f" tracks={pl.track_count}" if pl.track_count is not None else ""
+        print(f"  [{kind}] {pl.id}: {pl.name}{parent}{tracks}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """
     CLI entrypoint.
@@ -94,6 +149,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "scan":
         return _cmd_scan(args)
+    if args.command == "list-playlists":
+        return _cmd_list_playlists(args)
 
     parser.print_help()
     return 1

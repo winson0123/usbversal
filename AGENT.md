@@ -51,11 +51,11 @@ Document in `docs/tasks/current-task.md`:
 Run all applicable checks before marking complete:
 
 ```bash
-ruff check .
-ruff format --check .
-pytest
+.venv/bin/ruff check .
+.venv/bin/ruff format --check .
+.venv/bin/pytest
 # CLI smoke (when CLI exists):
-# python -m usbversal --help
+# .venv/bin/python -m app.cli --help
 ```
 
 Record results in the verification log section of `current-task.md`.

@@ -12,22 +12,12 @@ No task is in progress.
 
 ---
 
-## Last Completed: TASK-050
+## Last Completed: TASK-030
 
-> USB mount scanner + DJ library discovery (`scan` command)
+> Rekordbox read-only playlist listing (`list-playlists` CLI)
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-050` |
-| Objective | Read-only mount scan and Rekordbox/Serato detection via CLI |
-| Files touched | `pyproject.toml`, `app/**`, `tests/**`, `docs/state/*`, `docs/schemas/*` |
-
-### Verification Log
-
-| Command | Result | Notes |
-|---------|--------|-------|
-| `ruff check .` | pass | |
-| `ruff format --check .` | pass | |
-| `pytest` | pass | 12 tests |
-| `python -m app.cli scan` | pass | /mnt/usb: 5 detections |
-| `python -m app.cli scan --mount /mnt/usb --json` | pass | |
+| Task ID | `TASK-030` |
+| Objective | List playlists via rbox on exportLibrary.db; domain models + adapter protocol |
+| Verification | ruff pass, pytest 20 passed, list-playlists on /mnt/usb: 70 playlists |

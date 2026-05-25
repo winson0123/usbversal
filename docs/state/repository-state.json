@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-25T00:00:00Z",
+  "updated_at": "2026-05-25T12:00:00Z",
   "project": "usbversal",
   "language": "python",
   "python_version": "3.11+",
@@ -9,7 +9,9 @@
     "app.cli",
     "app.core",
     "app.storage",
-    "app.services"
+    "app.services",
+    "app.adapters",
+    "app.adapters.rekordbox"
   ],
   "features_implemented": {
     "mount_scanner_linux": true,
@@ -18,7 +20,11 @@
     "library_discovery_rekordbox": true,
     "library_discovery_serato": true,
     "event_system_minimal": true,
-    "cli_scan": true
+    "cli_scan": true,
+    "domain_playlist_models": true,
+    "adapter_write_context": true,
+    "rekordbox_read_playlists_rbox": true,
+    "cli_list_playlists": true
   },
   "packaging": {
     "pyinstaller": false,
@@ -27,9 +33,13 @@
   "test_status": {
     "ruff": "pass",
     "pytest": "pass",
-    "last_run": "2026-05-25T00:00:00Z",
-    "tests_passed": 12,
+    "last_run": "2026-05-25T12:00:00Z",
+    "tests_passed": 20,
     "tests_failed": 0
+  },
+  "dependencies": {
+    "rbox": "0.1.7",
+    "structlog": "25.5.0"
   },
   "documentation": {
     "agent_md": true,
@@ -37,11 +47,12 @@
     "contributing": true,
     "architecture_md": true,
     "docs_scaffolding": true,
-    "adrs": 3
+    "adrs": 4
   },
   "primary_test_usb": {
     "linux_wsl": "/mnt/usb",
-    "last_scan_libraries_found": 5
+    "rekordbox_playlists_listed": 70,
+    "rekordbox_db": "/mnt/usb/PIONEER/rekordbox/exportLibrary.db"
   },
   "execution_policy": "AGENT.md"
 }

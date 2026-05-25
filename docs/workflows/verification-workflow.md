@@ -4,32 +4,28 @@ Commands to run before marking any task complete.
 
 ## Standard Checks
 
+Run from repo root using **`.venv`** (create via `./scripts/setup-dev.sh`):
+
 ```bash
-# Lint
-ruff check .
-
-# Format
-ruff format --check .
-
-# Tests
-pytest -v
-
-# Type check (when mypy configured)
-# mypy src/usbversal
+.venv/bin/ruff check .
+.venv/bin/ruff format --check .
+.venv/bin/pytest -v
 ```
 
-## CLI Smoke (when CLI exists)
+Or after `source .venv/bin/activate`, use `ruff`, `pytest`, and `python` directly.
+
+## CLI Smoke
 
 ```bash
-python -m usbversal --help
-python -m usbversal scan --help
+.venv/bin/python -m app.cli --help
+.venv/bin/python -m app.cli scan --help
 ```
 
 ## Integration (scoped tasks only)
 
 ```bash
 # Requires /mnt/usb mounted — do not run in CI by default
-python -m usbversal scan --mount /mnt/usb --json
+.venv/bin/python -m app.cli scan --mount /mnt/usb --json
 ```
 
 ## Recording Results

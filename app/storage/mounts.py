@@ -34,7 +34,9 @@ class LinuxMntScanner(MountScanner):
         Args:
             excluded_names: Basenames under /mnt to skip (defaults to WSL/system binds).
         """
-        self._excluded = excluded_names if excluded_names is not None else _DEFAULT_EXCLUDED_MNT_NAMES
+        self._excluded = (
+            excluded_names if excluded_names is not None else _DEFAULT_EXCLUDED_MNT_NAMES
+        )
 
     def list_mounts(self) -> list[MountPoint]:
         """

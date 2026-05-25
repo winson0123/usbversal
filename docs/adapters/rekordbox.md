@@ -1,6 +1,6 @@
 # Rekordbox Adapter
 
-**Status:** placeholder — not implemented.
+**Status:** read-only playlists implemented for One Library (`exportLibrary.db`) via **rbox**.
 
 ## Overview
 
@@ -33,11 +33,22 @@ Rekordbox stores library metadata primarily in **SQLite** databases on USB/expor
 | Locked DB | Detect `-wal`/`-shm` or lock files; warn, prefer read-only |
 | DJ software running | Warn if Rekordbox process detected (platform-specific, future) |
 
-## Read Operations (Planned)
+## Read Operations
 
-- Detect library root via `export.pdb` signature
-- List playlists and folders
-- Read track metadata (no audio file modification)
+| Operation | Status | Notes |
+|-----------|--------|-------|
+| Resolve DB path | implemented | Prefers `exportLibrary.db`, falls back detection of `export.pdb` |
+| List playlists | implemented | `rbox.OneLibrary` → domain `Playlist` models |
+| Read track metadata | planned | Not in TASK-030 scope |
+
+### Supported formats
+
+| File | Format | Reader |
+|------|--------|--------|
+| `PIONEER/rekordbox/exportLibrary.db` | SQLCipher One Library | `rbox` (ADR 0004) |
+| `PIONEER/rekordbox/export.pdb` | DeviceSQL | **unsupported** — clear error |
+
+CLI: `python -m app.cli list-playlists --mount /mnt/usb`
 
 ## Write Operations (Planned)
 

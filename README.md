@@ -38,17 +38,18 @@ Development and validation use a mounted USB path:
 
 Use this mount only for integration validation tasks explicitly scoped in `docs/tasks/`. Do not assume it is always present.
 
-## CLI usage (placeholders)
-
-Commands are **not implemented** during scaffolding. Planned surface:
+## CLI usage
 
 ```bash
 # Discovery
-usbversal scan --mount /mnt/usb
+python -m app.cli scan --mount /mnt/usb
 
-# Read-only inspection
-usbversal list-playlists --mount /mnt/usb --vendor rekordbox
-usbversal list-crates --mount /mnt/usb --vendor serato
+# Rekordbox playlists (exportLibrary.db via rbox)
+python -m app.cli list-playlists --mount /mnt/usb
+python -m app.cli list-playlists --mount /mnt/usb --json
+
+# Planned
+# list-crates --mount /mnt/usb --vendor serato
 
 # Safety
 usbversal backup --mount /mnt/usb --target ./backups/
@@ -94,16 +95,19 @@ See [docs/decisions/0003-use-pyinstaller.md](docs/decisions/0003-use-pyinstaller
 | Contributing | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | Tasks | [`docs/tasks/current-task.md`](docs/tasks/current-task.md) |
 
-## Development (future)
+## Development
+
+Use the project virtual environment (required):
 
 ```bash
-# Setup (when pyproject.toml exists)
-pip install -e ".[dev]"
+./scripts/setup-dev.sh
+source .venv/bin/activate
 
-# Verify
-ruff check .
-ruff format --check .
-pytest
+# Verify (always use .venv/bin/python or an activated shell)
+.venv/bin/ruff check .
+.venv/bin/ruff format --check .
+.venv/bin/pytest
+.venv/bin/python -m app.cli scan --mount /mnt/usb
 ```
 
 ## Autonomous agents

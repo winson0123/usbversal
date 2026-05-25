@@ -1,4 +1,4 @@
-"""Domain models for library discovery."""
+"""Domain models for library discovery and metadata reads."""
 
 from dataclasses import dataclass
 from enum import StrEnum
@@ -10,6 +10,15 @@ class LibraryType(StrEnum):
 
     REKORDBOX = "rekordbox"
     SERATO = "serato"
+    UNKNOWN = "unknown"
+
+
+class RekordboxDbFormat(StrEnum):
+    """Rekordbox on-disk database format."""
+
+    ONE_LIBRARY = "exportLibrary.db"
+    DEVICE_SQL = "export.pdb"
+    SQLITE_DJMD = "sqlite_djmd"
     UNKNOWN = "unknown"
 
 
@@ -45,3 +54,39 @@ class LibraryLocation:
     confidence: float
     mount_path: Path
     indicators: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class Playlist:
+    """
+    A playlist or folder node in a DJ library hierarchy.
+
+    Attributes:
+        id: Vendor-specific playlist identifier.
+        name: Display name.
+        parent_id: Parent playlist/folder id, or None for root children.
+        is_folder: True when the node is a folder, not a leaf playlist.
+        track_count: Number of tracks when known (read-only listing may omit).
+    """
+
+    id: int
+    name: str
+    parent_id: int | None
+    is_folder: bool
+    track_count: int | None = None
+
+
+@dataclass(frozen=True)
+class RekordboxLibrary:
+    """
+    Resolved Rekordbox library opened for read-only access.
+
+    Attributes:
+        mount_path: USB or directory root used for resolution.
+        database_path: Path to the opened database file.
+        db_format: Detected Rekordbox database format.
+    """
+
+    mount_path: Path
+    database_path: Path
+    db_format: RekordboxDbFormat

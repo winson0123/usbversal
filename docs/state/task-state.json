@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-25T00:00:00Z",
+  "updated_at": "2026-05-25T12:00:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -13,13 +13,11 @@
     "TASK-003",
     "TASK-011",
     "TASK-012",
-    "TASK-020",
-    "TASK-021",
-    "TASK-030",
+    "TASK-022",
     "TASK-031",
+    "TASK-032",
     "TASK-040",
     "TASK-041",
-    "TASK-051",
     "TASK-052",
     "TASK-060"
   ],
@@ -34,6 +32,11 @@
       "id": "TASK-050",
       "title": "USB mount scanner and DJ library discovery (scan command)",
       "completed_at": "2026-05-25T00:00:00Z"
+    },
+    {
+      "id": "TASK-030",
+      "title": "Rekordbox read-only playlist listing (rbox / exportLibrary.db)",
+      "completed_at": "2026-05-25T12:00:00Z"
     }
   ],
   "history": [
@@ -48,6 +51,12 @@
       "title": "USB mount scanner and DJ library discovery (scan command)",
       "status": "completed",
       "completed_at": "2026-05-25T00:00:00Z"
+    },
+    {
+      "id": "TASK-030",
+      "title": "Rekordbox read-only playlist listing (rbox / exportLibrary.db)",
+      "status": "completed",
+      "completed_at": "2026-05-25T12:00:00Z"
     }
   ]
 }

@@ -23,6 +23,18 @@ Historical record. Mirror of `docs/state/task-state.json` history.
 
 ---
 
+## TASK-030 — Rekordbox read-only playlist listing
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-05-25 |
+| Objective | `list-playlists` using rbox on `exportLibrary.db` |
+| Verification | pytest 20 passed; /mnt/usb returned 70 playlists |
+
+**Notes:** Classic `export.pdb` (DeviceSQL) not supported; use One Library export or future adapter.
+
+---
+
 ## TASK-050 — USB mount scanner and DJ library discovery
 
 | Field | Value |
