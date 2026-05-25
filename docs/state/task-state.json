@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-25T20:20:00Z",
+  "updated_at": "2026-05-25T20:30:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -16,6 +16,7 @@
     "TASK-040",
     "TASK-041",
     "TASK-052",
+    "TASK-053",
     "TASK-060"
   ],
   "blocked_tasks": [],
@@ -49,6 +50,11 @@
       "id": "TASK-012",
       "title": "Rollback from backup manifest (rollback CLI)",
       "completed_at": "2026-05-25T20:20:00Z"
+    },
+    {
+      "id": "TASK-033",
+      "title": "Rekordbox playlist to Serato crate migration (migrate-playlist CLI)",
+      "completed_at": "2026-05-25T20:30:00Z"
     }
   ],
   "history": [
@@ -87,6 +93,12 @@
       "title": "Rollback from backup manifest (rollback CLI)",
       "status": "completed",
       "completed_at": "2026-05-25T20:20:00Z"
+    },
+    {
+      "id": "TASK-033",
+      "title": "Rekordbox playlist to Serato crate migration (migrate-playlist CLI)",
+      "status": "completed",
+      "completed_at": "2026-05-25T20:30:00Z"
     }
   ]
 }

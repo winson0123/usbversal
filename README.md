@@ -57,6 +57,10 @@ python -m app.cli rollback --mount /mnt/usb --backup-id 20260525T075946Z
 # Serato crates (read-only)
 python -m app.cli list-crates --mount /mnt/usb
 
+# Copy Rekordbox playlist to Serato crate (backs up RB + Serato first)
+python -m app.cli migrate-playlist --mount /mnt/usb --playlist-id 1 --dry-run
+python -m app.cli migrate-playlist --mount /mnt/usb --playlist-name "Pocket"
+
 # Safety
 usbversal backup --mount /mnt/usb --target ./backups/
 usbversal rollback --mount /mnt/usb --backup-id <id>

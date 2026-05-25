@@ -11,8 +11,15 @@ from app.adapters.base import (
     SeratoLibraryNotFoundError,
     UnsupportedDatabaseError,
 )
+from app.adapters.serato.writer import CrateExistsError
 from app.services.backup_service import backup_mount_libraries, backup_result_to_dict
 from app.services.crate_service import list_serato_crates
+from app.services.migration_service import (
+    MigrationError,
+    PlaylistNotFoundError,
+    SeratoLibraryRequiredError,
+    migrate_playlist_to_crate,
+)
 from app.services.playlist_service import list_rekordbox_playlists
 from app.services.rollback_service import rollback_mount_libraries, rollback_result_to_dict
 from app.services.scan_service import run_scan
@@ -132,6 +139,46 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Mount path (e.g. /mnt/usb)",
     )
     crates_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output machine-readable JSON",
+    )
+
+    migrate_parser = sub.add_parser(
+        "migrate-playlist",
+        help="Copy a Rekordbox playlist to a new Serato crate (backup-gated)",
+    )
+    migrate_parser.add_argument(
+        "--mount",
+        required=True,
+        help="Mount path (e.g. /mnt/usb)",
+    )
+    migrate_group = migrate_parser.add_mutually_exclusive_group(required=True)
+    migrate_group.add_argument(
+        "--playlist-id",
+        type=int,
+        help="Rekordbox playlist id",
+    )
+    migrate_group.add_argument(
+        "--playlist-name",
+        help="Rekordbox playlist name (exact match)",
+    )
+    migrate_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show mapping only; do not backup or write",
+    )
+    migrate_parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Replace existing Subcrates/<name>.crate",
+    )
+    migrate_parser.add_argument(
+        "--target",
+        default=None,
+        help="Backup parent directory (default: <mount>/backups)",
+    )
+    migrate_parser.add_argument(
         "--json",
         action="store_true",
         help="Output machine-readable JSON",
@@ -283,6 +330,66 @@ def _cmd_rollback(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_migrate_playlist(args: argparse.Namespace) -> int:
+    """
+    Run migrate-playlist: Rekordbox playlist to Serato crate.
+
+    Args:
+        args: Parsed namespace with mount, playlist selector, and flags.
+
+    Returns:
+        Exit code 0 on success, 1 on failure.
+    """
+    log = structlog.get_logger()
+    try:
+        result = migrate_playlist_to_crate(
+            args.mount,
+            playlist_id=args.playlist_id,
+            playlist_name=args.playlist_name,
+            dry_run=args.dry_run,
+            overwrite=args.overwrite,
+            backup_root=args.target,
+        )
+    except (
+        PlaylistNotFoundError,
+        SeratoLibraryRequiredError,
+        CrateExistsError,
+        MigrationError,
+    ) as exc:
+        log.error("migrate_playlist_failed", error=str(exc))
+        return 1
+    except (DatabaseNotFoundError, UnsupportedDatabaseError, ValueError, OSError) as exc:
+        log.error("migrate_playlist_failed", error=str(exc))
+        return 1
+
+    if args.json:
+        print(json.dumps(result.to_dict(), indent=2))
+        return 0
+
+    plan = result.plan
+    print(f"Playlist: {plan.playlist_name} (id={plan.playlist_id})")
+    print(f"Target crate: Subcrates/{plan.crate_name}.crate")
+    print(
+        f"Tracks: {len(plan.rekordbox_paths)} in Rekordbox, "
+        f"{len(plan.serato_paths)} matched in Serato, "
+        f"{len(plan.skipped_paths)} skipped",
+    )
+    if plan.skipped_paths:
+        print("\nSkipped (not in Serato database V2):")
+        for path in plan.skipped_paths[:10]:
+            print(f"  {path}")
+        if len(plan.skipped_paths) > 10:
+            print(f"  ... and {len(plan.skipped_paths) - 10} more")
+    if result.dry_run:
+        print("\n(dry-run: no backup or write performed)")
+        return 0
+
+    print(f"\nBackup ID: {result.backup.backup_id}")
+    print(f"Backup dir: {result.backup.backup_dir}")
+    print(f"Wrote crate: {result.crate_path}")
+    return 0
+
+
 def _cmd_list_crates(args: argparse.Namespace) -> int:
     """
     Run the list-crates command.
@@ -342,6 +449,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_rollback(args)
     if args.command == "list-crates":
         return _cmd_list_crates(args)
+    if args.command == "migrate-playlist":
+        return _cmd_migrate_playlist(args)
 
     parser.print_help()
     return 1

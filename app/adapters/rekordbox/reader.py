@@ -72,6 +72,37 @@ class RboxOneLibraryAdapter(RekordboxReadAdapter):
         )
         return result
 
+    def get_playlist_track_paths(self, playlist_id: int) -> list[str]:
+        """
+        Return ordered Rekordbox content paths for a playlist.
+
+        Args:
+            playlist_id: Rekordbox playlist id (non-folder).
+
+        Returns:
+            List of content.path values in playlist order.
+
+        Raises:
+            ValueError: If playlist_id does not exist or is a folder.
+        """
+        playlist = self._db.get_playlist_by_id(playlist_id)
+        if playlist is None:
+            raise ValueError(f"Playlist not found: {playlist_id}")
+        if playlist.attribute == PlaylistType.Folder:
+            raise ValueError(f"Playlist {playlist_id} is a folder, not a track list")
+        contents = self._db.get_playlist_contents(playlist_id)
+        paths: list[str] = []
+        for row in contents:
+            path = getattr(row, "path", None)
+            if path:
+                paths.append(str(path))
+        logger.info(
+            "rekordbox_playlist_paths_loaded",
+            playlist_id=playlist_id,
+            track_count=len(paths),
+        )
+        return paths
+
 
 def open_rekordbox_library(mount_path: Path) -> RekordboxReadAdapter:
     """

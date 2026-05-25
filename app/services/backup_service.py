@@ -7,6 +7,7 @@ from typing import Any
 
 import structlog
 
+from app.adapters.serato.paths import list_crate_files, resolve_serato_library
 from app.storage.backup import BackupResult, create_backup
 
 logger = structlog.get_logger(__name__)
@@ -36,6 +37,68 @@ def rekordbox_files_on_mount(mount_path: Path) -> list[Path]:
         if candidate.is_file():
             found.append(candidate)
     return found
+
+
+def serato_files_on_mount(mount_path: Path) -> list[Path]:
+    """
+    Resolve Serato database and crate files under a mount for backup.
+
+    Args:
+        mount_path: USB or library root (e.g. /mnt/usb).
+
+    Returns:
+        List of absolute paths that exist on disk.
+    """
+    mount = mount_path.resolve()
+    resolved = resolve_serato_library(mount)
+    if resolved is None:
+        return []
+    serato_root, database_path = resolved
+    found: list[Path] = [database_path]
+    for crate_path in list_crate_files(serato_root):
+        if crate_path.is_file() and crate_path not in found:
+            found.append(crate_path)
+    return found
+
+
+def backup_mount_for_migration(
+    mount: str | Path,
+    *,
+    backup_root: str | Path | None = None,
+) -> BackupResult:
+    """
+    Back up Rekordbox and Serato library files before a cross-vendor write.
+
+    Args:
+        mount: Mount path containing both libraries.
+        backup_root: Optional parent directory for backups (default: mount/backups).
+
+    Returns:
+        BackupResult with manifest covering all copied files.
+
+    Raises:
+        FileNotFoundError: If neither vendor has files to back up.
+        ValueError: If the combined file list is empty.
+    """
+    mount_path = Path(mount).resolve()
+    files = rekordbox_files_on_mount(mount_path) + serato_files_on_mount(mount_path)
+    unique: list[Path] = []
+    seen: set[Path] = set()
+    for path in files:
+        resolved = path.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            unique.append(resolved)
+    if not unique:
+        msg = f"No Rekordbox or Serato library files found under {mount_path}"
+        raise FileNotFoundError(msg)
+    logger.info(
+        "backup_migration_started",
+        mount=str(mount_path),
+        file_count=len(unique),
+    )
+    root = Path(backup_root).resolve() if backup_root else None
+    return create_backup(source_mount=mount_path, files=unique, backup_root=root)
 
 
 def backup_mount_libraries(

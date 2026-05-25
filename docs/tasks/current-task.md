@@ -8,7 +8,7 @@
 
 ## Active Task
 
-> No active task. Next suggested: Rekordbox→Serato playlist copy (see `docs/planning/rekordbox-to-serato-playlist-migration.md`) or `list-backups` convenience CLI.
+> No active task.
 
 ---
 
@@ -16,8 +16,8 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-012` |
-| Objective | Rollback from backup manifest (`rollback` CLI) |
+| Task ID | `TASK-033` |
+| Objective | Rekordbox playlist → Serato crate migration (`migrate-playlist` CLI) |
 | Completed | 2026-05-25 |
 
 ### Verification Log
@@ -25,5 +25,5 @@
 | Command | Result | Notes |
 |---------|--------|-------|
 | `.venv/bin/ruff check .` | pass | |
-| `.venv/bin/pytest` | pass | 39 tests |
-| `.venv/bin/python -m app.cli rollback --help` | pass | |
+| `.venv/bin/pytest` | pass | 49 tests |
+| `migrate-playlist --mount /mnt/usb --playlist-id 1 --dry-run` | pass | 80/80 tracks matched |

@@ -1,7 +1,7 @@
 # Rekordbox → Serato Playlist Migration (Planning)
 
-**Status:** research complete; Serato read path implemented (TASK-031); copy not implemented  
-**Related:** TASK-031 (done), future write tasks
+**Status:** implemented (`migrate-playlist` CLI, TASK-033)  
+**Related:** TASK-031, TASK-012, TASK-033
 
 ## Goal
 
@@ -74,16 +74,20 @@ So playlist→crate migration on the **same USB** can match by path; Rekordbox-o
 
 Evaluate ADR before adding `serato-tools` as a dependency (mirror ADR 0004 for `rbox`).
 
-## Proposed Pipeline (Future)
+## Pipeline (Implemented)
 
 ```text
-1. backup --mount /mnt/usb          # TASK-011 (done): _Serato_ + rekordbox DBs
-2. Read RB playlist (source)        # rbox: playlist_id, ordered paths
-3. Normalize paths                # strip /, case-fold
-4. Filter to Serato DB            # database V2 get_track_paths()
-5. Build new Crate                # serato-tools: Subcrates/<PlaylistName>.crate
-6. save() + verify                # find_missing, counts
-7. (optional) refresh Contents.crate
+1. backup_mount_for_migration()     # Rekordbox DBs + Serato database V2 + all .crate files
+2. Read RB playlist                 # rbox get_playlist_contents → content.path
+3. Normalize paths                  # app/core/track_paths.py
+4. Filter to Serato DB              # database V2 index lookup
+5. write_crate()                    # Subcrates/<PlaylistName>.crate via serato-tools
+6. CLI reports matched/skipped counts
+```
+
+```bash
+python -m app.cli migrate-playlist --mount /mnt/usb --playlist-id 1 --dry-run
+python -m app.cli migrate-playlist --mount /mnt/usb --playlist-name "Pocket" --overwrite
 ```
 
 ## Risks
@@ -101,15 +105,14 @@ Evaluate ADR before adding `serato-tools` as a dependency (mirror ADR 0004 for `
 - `list-crates --mount /mnt/usb` via `serato-tools` (ADR 0005)
 - Crate names + track counts + `database V2` index size
 
-## TASK Breakdown After TASK-031
+## Task Status
 
-| ID | Work |
-|----|------|
-| TASK-031 | Serato read-only: list crates + DB stats |
-| TASK-012 | Rollback (safety) |
-| TASK-054 (new?) | Path normalization + RB playlist export JSON |
-| TASK-055 (new?) | Serato crate writer (one playlist, backup-gated) |
-| TASK-053 | Generic `apply` plan format tying both vendors |
+| ID | Work | Status |
+|----|------|--------|
+| TASK-031 | Serato read-only: list crates + DB stats | done |
+| TASK-012 | Rollback (safety) | done |
+| TASK-033 | `migrate-playlist` CLI (path match + crate write) | done |
+| TASK-053 | Generic `apply` plan format tying both vendors | backlog |
 
 ## Open Questions
 

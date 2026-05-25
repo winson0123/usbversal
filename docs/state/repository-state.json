@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-25T20:20:00Z",
+  "updated_at": "2026-05-25T20:30:00Z",
   "project": "usbversal",
   "language": "python",
   "python_version": "3.11+",
@@ -31,7 +31,9 @@
     "rollback_from_manifest": true,
     "cli_rollback": true,
     "serato_read_crates_serato_tools": true,
-    "cli_list_crates": true
+    "cli_list_crates": true,
+    "rekordbox_to_serato_playlist_migration": true,
+    "cli_migrate_playlist": true
   },
   "packaging": {
     "pyinstaller": false,
@@ -40,8 +42,8 @@
   "test_status": {
     "ruff": "pass",
     "pytest": "pass",
-    "last_run": "2026-05-25T20:20:00Z",
-    "tests_passed": 39,
+    "last_run": "2026-05-25T20:30:00Z",
+    "tests_passed": 49,
     "tests_failed": 0
   },
   "dependencies": {

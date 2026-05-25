@@ -48,6 +48,7 @@ See [../schemas/serato-schema-notes.md](../schemas/serato-schema-notes.md) and [
 | Resolve `_Serato_` | implemented | |
 | List crates + track counts | implemented | `list-crates --mount /mnt/usb` |
 | List database track index size | implemented | included in `list-crates` output |
+| Write crate from Rekordbox playlist | implemented | `migrate-playlist --mount …` |
 
 ## Write Operations (Planned)
 
