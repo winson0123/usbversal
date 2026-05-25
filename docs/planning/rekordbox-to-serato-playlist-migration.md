@@ -112,6 +112,7 @@ python -m app.cli migrate-playlist --mount /mnt/usb --playlist-name "Pocket" --o
 | TASK-031 | Serato read-only: list crates + DB stats | done |
 | TASK-012 | Rollback (safety) | done |
 | TASK-033 | `migrate-playlist` CLI (path match + crate write) | done |
+| TASK-034 | `sync-analysis` CLI (BPM/key/cues/beatgrid → MP3 tags) | done |
 | TASK-053 | Generic `apply` plan format tying both vendors | backlog |
 
 ## Open Questions

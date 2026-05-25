@@ -12,6 +12,7 @@ from app.adapters.base import (
     UnsupportedDatabaseError,
 )
 from app.adapters.serato.writer import CrateExistsError
+from app.services.analysis_sync_service import sync_playlist_analysis
 from app.services.backup_service import backup_mount_libraries, backup_result_to_dict
 from app.services.crate_service import list_serato_crates
 from app.services.migration_service import (
@@ -183,6 +184,22 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Output machine-readable JSON",
     )
+
+    sync_parser = sub.add_parser(
+        "sync-analysis",
+        help="Copy Rekordbox BPM/key/cues/beatgrid into Serato MP3 tags for a playlist",
+    )
+    sync_parser.add_argument("--mount", required=True, help="Mount path (e.g. /mnt/usb)")
+    sync_group = sync_parser.add_mutually_exclusive_group(required=True)
+    sync_group.add_argument("--playlist-id", type=int, help="Rekordbox playlist id")
+    sync_group.add_argument("--playlist-name", help="Rekordbox playlist name (exact)")
+    sync_parser.add_argument("--dry-run", action="store_true", help="Plan only; no writes")
+    sync_parser.add_argument(
+        "--target",
+        default=None,
+        help="Backup parent directory (default: <mount>/backups)",
+    )
+    sync_parser.add_argument("--json", action="store_true", help="Output machine-readable JSON")
     return parser
 
 
@@ -390,6 +407,60 @@ def _cmd_migrate_playlist(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_sync_analysis(args: argparse.Namespace) -> int:
+    """
+    Run sync-analysis for Rekordbox -> Serato MP3 tag metadata.
+
+    Args:
+        args: Parsed CLI namespace.
+
+    Returns:
+        Exit code 0 on success, 1 on failure.
+    """
+    log = structlog.get_logger()
+    try:
+        result = sync_playlist_analysis(
+            args.mount,
+            playlist_id=args.playlist_id,
+            playlist_name=args.playlist_name,
+            dry_run=args.dry_run,
+            backup_root=args.target,
+        )
+    except (PlaylistNotFoundError, SeratoLibraryRequiredError, MigrationError) as exc:
+        log.error("sync_analysis_failed", error=str(exc))
+        return 1
+    except (DatabaseNotFoundError, UnsupportedDatabaseError, ValueError, OSError) as exc:
+        log.error("sync_analysis_failed", error=str(exc))
+        return 1
+
+    if args.json:
+        print(json.dumps(result.to_dict(), indent=2))
+        return 0
+
+    print(f"Playlist: {result.playlist_name} (id={result.playlist_id})")
+    print(f"Tracks: {len(result.plans)}")
+    with_cues = sum(1 for p in result.plans if p.hot_cue_count > 0)
+    with_anlz = sum(1 for p in result.plans if p.has_anlz)
+    print(f"  With ANLZ: {with_anlz}, with hot cues: {with_cues}")
+    if result.dry_run:
+        print("\n(dry-run: no backup or MP3 tag writes)")
+        for plan in result.plans[:5]:
+            print(
+                f"  {plan.rekordbox_path}: bpm={plan.bpm} key={plan.camelot_key} "
+                f"cues={plan.hot_cue_count}",
+            )
+        if len(result.plans) > 5:
+            print(f"  ... and {len(result.plans) - 5} more")
+        return 0
+
+    print(f"\nBackup ID: {result.backup.backup_id}")
+    print(f"Synced: {len(result.synced_tracks)}")
+    print(f"Skipped: {len(result.skipped_tracks)}")
+    for path, reason in result.skipped_tracks[:10]:
+        print(f"  {path}: {reason}")
+    return 0
+
+
 def _cmd_list_crates(args: argparse.Namespace) -> int:
     """
     Run the list-crates command.
@@ -451,6 +522,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_list_crates(args)
     if args.command == "migrate-playlist":
         return _cmd_migrate_playlist(args)
+    if args.command == "sync-analysis":
+        return _cmd_sync_analysis(args)
 
     parser.print_help()
     return 1

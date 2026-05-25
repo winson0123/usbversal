@@ -38,6 +38,11 @@ class RboxOneLibraryAdapter(RekordboxReadAdapter):
         """Return library metadata."""
         return self._library
 
+    @property
+    def database(self) -> OneLibrary:
+        """Return the underlying rbox OneLibrary handle."""
+        return self._db
+
     def list_playlists(self) -> list[Playlist]:
         """
         List playlists and folders from exportLibrary.db.

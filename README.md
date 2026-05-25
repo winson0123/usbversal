@@ -61,6 +61,9 @@ python -m app.cli list-crates --mount /mnt/usb
 python -m app.cli migrate-playlist --mount /mnt/usb --playlist-id 1 --dry-run
 python -m app.cli migrate-playlist --mount /mnt/usb --playlist-name "Pocket"
 
+# Copy BPM/key/beatgrid/hot cues into Serato MP3 tags (not database V2)
+python -m app.cli sync-analysis --mount /mnt/usb --playlist-id 1 --dry-run
+
 # Safety
 usbversal backup --mount /mnt/usb --target ./backups/
 usbversal rollback --mount /mnt/usb --backup-id <id>
