@@ -23,6 +23,18 @@ Historical record. Mirror of `docs/state/task-state.json` history.
 
 ---
 
+## TASK-050 — USB mount scanner and DJ library discovery
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-05-25 |
+| Objective | `python -m app.cli scan` with read-only Rekordbox/Serato detection |
+| Verification | ruff pass, pytest 12 passed, /mnt/usb live scan |
+
+**Deliverables:** `app/` package, `pyproject.toml`, mount scanner, `LibraryDiscovery`, events, thin CLI.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

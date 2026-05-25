@@ -1,6 +1,6 @@
 # USB Detection
 
-**Status:** placeholder — not implemented.
+**Status:** implemented (read-only discovery).
 
 ## Test Environment
 

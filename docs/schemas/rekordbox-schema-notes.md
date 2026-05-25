@@ -60,8 +60,8 @@ djmdPlaylist ──< djmdSongPlaylist >── djmdContent
 
 | Item | Recorded |
 |------|----------|
-| export.pdb path | _pending agent scan_ |
-| table list | _pending_ |
+| export.pdb path | `/mnt/usb/PIONEER/rekordbox/export.pdb` [confirmed scan 2026-05-25] |
+| PIONEER/rekordbox dir | `/mnt/usb/PIONEER/rekordbox` [confirmed] |
+| Contents/rekordbox | `/mnt/usb/Contents/rekordbox` [confirmed, lower confidence] |
+| table list | _pending adapter read_ |
 | rekordbox version | _pending_ |
-
-> Update this section after first safe read-only scan of `/mnt/usb`.

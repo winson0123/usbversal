@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-22T00:00:00Z",
+  "updated_at": "2026-05-25T00:00:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -9,27 +9,19 @@
     "blocked_reason": null
   },
   "pending_tasks": [
-    "TASK-001",
     "TASK-002",
     "TASK-003",
-    "TASK-010",
     "TASK-011",
     "TASK-012",
     "TASK-020",
     "TASK-021",
-    "TASK-022",
     "TASK-030",
     "TASK-031",
-    "TASK-032",
     "TASK-040",
     "TASK-041",
-    "TASK-042",
-    "TASK-050",
     "TASK-051",
     "TASK-052",
-    "TASK-053",
-    "TASK-060",
-    "TASK-061"
+    "TASK-060"
   ],
   "blocked_tasks": [],
   "completed_tasks": [
@@ -37,6 +29,11 @@
       "id": "TASK-INIT-001",
       "title": "INITIALIZE REPOSITORY HARNESS + DOCUMENTATION SCAFFOLDING",
       "completed_at": "2026-05-22T00:00:00Z"
+    },
+    {
+      "id": "TASK-050",
+      "title": "USB mount scanner and DJ library discovery (scan command)",
+      "completed_at": "2026-05-25T00:00:00Z"
     }
   ],
   "history": [
@@ -45,6 +42,12 @@
       "title": "INITIALIZE REPOSITORY HARNESS + DOCUMENTATION SCAFFOLDING",
       "status": "completed",
       "completed_at": "2026-05-22T00:00:00Z"
+    },
+    {
+      "id": "TASK-050",
+      "title": "USB mount scanner and DJ library discovery (scan command)",
+      "status": "completed",
+      "completed_at": "2026-05-25T00:00:00Z"
     }
   ]
 }

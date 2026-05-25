@@ -46,5 +46,6 @@ Accumulated reverse-engineering. **Not implemented — placeholder only.**
 
 | Item | Recorded |
 |------|----------|
-| `_Serato_` present | _pending_ |
-| Format version | _pending_ |
+| `_Serato_` present | `/mnt/usb/_Serato_` [confirmed scan 2026-05-25] |
+| Subcrates | `/mnt/usb/_Serato_/Subcrates` (.crate files) [confirmed] |
+| Format version | _pending adapter read_ |

@@ -1,36 +1,33 @@
 # Current Task
 
-**Status:** `completed`  
-**Task ID:** `TASK-INIT-001`  
-**Last updated:** 2026-05-22
+**Status:** `idle`  
+**Task ID:** none  
+**Last updated:** 2026-05-25
 
 ---
 
 ## Active Task
 
-> INITIALIZE REPOSITORY HARNESS + DOCUMENTATION SCAFFOLDING
+No task is in progress.
 
 ---
 
-## Scope
+## Last Completed: TASK-050
+
+> USB mount scanner + DJ library discovery (`scan` command)
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-INIT-001` |
-| Objective | Create agent operating system: AGENT.md, docs scaffolding, JSON state, governance files |
-| Files touched | `AGENT.md`, `README.md`, `CONTRIBUTING.md`, `ARCHITECTURE.md`, `docs/**` |
-| Verification criteria | All required paths exist; JSON state valid; no runtime/business logic added |
+| Task ID | `TASK-050` |
+| Objective | Read-only mount scan and Rekordbox/Serato detection via CLI |
+| Files touched | `pyproject.toml`, `app/**`, `tests/**`, `docs/state/*`, `docs/schemas/*` |
 
 ### Verification Log
 
 | Command | Result | Notes |
 |---------|--------|-------|
-| `ruff check .` | N/A | No Python package yet |
-| `pytest` | N/A | No tests yet |
-| File tree review | pass | Governance scaffolding complete |
-
----
-
-## Next Step for Agents
-
-Set `active_task` to idle in `task-state.json`, pick first implementation task from `backlog.md`.
+| `ruff check .` | pass | |
+| `ruff format --check .` | pass | |
+| `pytest` | pass | 12 tests |
+| `python -m app.cli scan` | pass | /mnt/usb: 5 detections |
+| `python -m app.cli scan --mount /mnt/usb --json` | pass | |
