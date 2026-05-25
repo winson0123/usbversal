@@ -10,3 +10,6 @@ build/
 .venv/
 venv/
 .env
+
+# Legacy / accidental Rust build artifacts
+/target/

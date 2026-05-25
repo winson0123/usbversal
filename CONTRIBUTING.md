@@ -57,14 +57,14 @@ All tests must pass before marking a task complete. Record commands in `current-
 
 ## CLI Thin-Layer Requirement
 
-The CLI (`src/usbversal/cli/`) must:
+The CLI (`app/cli/`) must:
 
 - Parse arguments and validate paths
 - Construct domain/job contexts
 - Dispatch to services — **no business logic in CLI modules**
 - Format output and exit codes only
 
-Parsing, schema mapping, backup logic, and job orchestration belong in `core/`, `adapters/`, `jobs/`, and `storage/`.
+Parsing, schema mapping, backup logic, and job orchestration belong in `app/core/`, `app/adapters/`, `app/services/`, and `app/storage/`.
 
 ## Safety Requirements for Database Work
 

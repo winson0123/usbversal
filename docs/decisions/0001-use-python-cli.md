@@ -11,7 +11,7 @@ Alternatives considered: Rust (performance, single binary), Go (simple deploymen
 
 ## Decision
 
-Implement Usbversal as a **Python 3.11+ CLI application** with a `src/usbversal` package layout, `pytest` for tests, and `ruff` for lint/format.
+Implement Usbversal as a **Python 3.11+ CLI application** with an `app/` package layout, `pytest` for tests, and `ruff` for lint/format.
 
 ## Consequences
 

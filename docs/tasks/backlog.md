@@ -10,7 +10,7 @@ Priority order (top first). Decompose before starting if scope exceeds one commi
 
 | ID | Title | Notes |
 |----|-------|-------|
-| `TASK-001` | Add `pyproject.toml` and package skeleton | `src/usbversal/`, no business logic |
+| `TASK-001` | Add `pyproject.toml` and package skeleton | `app/`, no business logic |
 | `TASK-002` | Configure ruff, pytest, dev dependencies | CI-ready |
 | `TASK-003` | CLI entrypoint stub (`--help` only) | Thin layer |
 

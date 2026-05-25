@@ -76,16 +76,16 @@ Distribution target is standalone executables via **PyInstaller**:
 
 See [docs/decisions/0003-use-pyinstaller.md](docs/decisions/0003-use-pyinstaller.md).
 
-## Project layout (planned)
+## Project layout
 
 | Path | Role |
 |------|------|
-| `src/usbversal/` | Package root |
-| `src/usbversal/cli/` | Thin CLI entrypoints |
-| `src/usbversal/core/` | Domain models and traits |
-| `src/usbversal/adapters/` | Rekordbox / Serato adapters |
-| `src/usbversal/jobs/` | Async job runner |
-| `src/usbversal/storage/` | Mount detection, backup, rollback |
+| `app/` | Python package root |
+| `app/cli/` | Thin CLI entrypoints (`python -m app.cli`) |
+| `app/core/` | Domain models and events |
+| `app/adapters/` | Rekordbox / Serato adapters |
+| `app/services/` | Scan, backup, playlist/crate orchestration |
+| `app/storage/` | Mount detection, backup, rollback |
 | `tests/` | Unit and integration tests |
 | `docs/` | Architecture, ADRs, tasks, machine state |
 
