@@ -51,8 +51,8 @@ python -m app.cli list-playlists --mount /mnt/usb --json
 # Backup (read-only copy to <mount>/backups/<timestamp>/)
 python -m app.cli backup --mount /mnt/usb
 
-# Planned
-# list-crates --mount /mnt/usb --vendor serato
+# Serato crates (read-only)
+python -m app.cli list-crates --mount /mnt/usb
 
 # Safety
 usbversal backup --mount /mnt/usb --target ./backups/

@@ -1,6 +1,6 @@
 # Serato Adapter
 
-**Status:** placeholder — not implemented.
+**Status:** read-only crate listing implemented (TASK-031). Writes deferred.
 
 ## Overview
 
@@ -32,10 +32,22 @@ Serato uses **proprietary on-disk formats** under `_Serato_` directories. This a
 | Read-only if parse confidence low | Adapter returns error, does not guess |
 | No schema rebuild | Never regenerate entire database from scratch |
 
-## Read Operations (Planned)
+## Recommended library: `serato-tools`
 
-- Detect Serato library on mount
-- List crates and track entries (metadata only)
+| Component | API |
+|-----------|-----|
+| Library index | `DatabaseV2(file=".../database V2")` → `get_track_paths()` |
+| Playlist (= crate) | `Crate(".../Subcrates/Name.crate")` → `get_track_paths()` |
+
+See [../schemas/serato-schema-notes.md](../schemas/serato-schema-notes.md) and [../planning/rekordbox-to-serato-playlist-migration.md](../planning/rekordbox-to-serato-playlist-migration.md).
+
+## Read Operations
+
+| Operation | Status | CLI |
+|-----------|--------|-----|
+| Resolve `_Serato_` | implemented | |
+| List crates + track counts | implemented | `list-crates --mount /mnt/usb` |
+| List database track index size | implemented | included in `list-crates` output |
 
 ## Write Operations (Planned)
 

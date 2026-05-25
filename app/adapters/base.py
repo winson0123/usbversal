@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 
-from app.core.domain import Playlist, RekordboxLibrary
+from app.core.domain import Playlist, RekordboxLibrary, SeratoCrate, SeratoLibrary
 
 
 class AdapterError(Exception):
@@ -16,7 +16,11 @@ class UnsupportedDatabaseError(AdapterError):
 
 
 class DatabaseNotFoundError(AdapterError):
-    """Raised when no Rekordbox database file can be resolved."""
+    """Raised when no vendor database file can be resolved."""
+
+
+class SeratoLibraryNotFoundError(DatabaseNotFoundError):
+    """Raised when no _Serato_ library exists on the mount."""
 
 
 @dataclass(frozen=True)
@@ -56,3 +60,21 @@ class RekordboxReadAdapter(ABC):
     @abstractmethod
     def library(self) -> RekordboxLibrary:
         """Return metadata about the opened library."""
+
+
+class SeratoReadAdapter(ABC):
+    """Read-only Serato adapter interface."""
+
+    @abstractmethod
+    def list_crates(self) -> list[SeratoCrate]:
+        """
+        List crate files and their track counts.
+
+        Returns:
+            SeratoCrate entries for each .crate under Subcrates/.
+        """
+
+    @property
+    @abstractmethod
+    def library(self) -> SeratoLibrary:
+        """Return metadata about the opened Serato library."""

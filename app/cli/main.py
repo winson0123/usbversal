@@ -6,8 +6,13 @@ import sys
 
 import structlog
 
-from app.adapters.base import DatabaseNotFoundError, UnsupportedDatabaseError
+from app.adapters.base import (
+    DatabaseNotFoundError,
+    SeratoLibraryNotFoundError,
+    UnsupportedDatabaseError,
+)
 from app.services.backup_service import backup_mount_libraries, backup_result_to_dict
+from app.services.crate_service import list_serato_crates
 from app.services.playlist_service import list_rekordbox_playlists
 from app.services.scan_service import run_scan
 
@@ -76,6 +81,21 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Backup parent directory (default: <mount>/backups)",
     )
     backup_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output machine-readable JSON",
+    )
+
+    crates_parser = sub.add_parser(
+        "list-crates",
+        help="List Serato crates on a mount (read-only)",
+    )
+    crates_parser.add_argument(
+        "--mount",
+        required=True,
+        help="Mount path (e.g. /mnt/usb)",
+    )
+    crates_parser.add_argument(
         "--json",
         action="store_true",
         help="Output machine-readable JSON",
@@ -188,6 +208,42 @@ def _cmd_backup(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_list_crates(args: argparse.Namespace) -> int:
+    """
+    Run the list-crates command.
+
+    Args:
+        args: Parsed namespace with mount and json flags.
+
+    Returns:
+        Exit code 0 on success, 1 on failure.
+    """
+    log = structlog.get_logger()
+    try:
+        result = list_serato_crates(args.mount)
+    except SeratoLibraryNotFoundError as exc:
+        log.error("list_crates_failed", error=str(exc))
+        return 1
+    except OSError as exc:
+        log.error("list_crates_failed", error=str(exc))
+        return 1
+
+    if args.json:
+        print(json.dumps(result.to_dict(), indent=2))
+        return 0
+
+    lib = result.library
+    print(f"Serato: {lib.serato_root}")
+    print(f"Database: {lib.database_path} ({lib.database_track_count} tracks indexed)")
+    print(f"Crates: {len(result.crates)}\n")
+    for crate in result.crates:
+        print(f"  {crate.name}: {crate.track_count} tracks")
+        print(f"    {crate.path}")
+    if not result.crates:
+        print("  (no .crate files under Subcrates/)")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """
     CLI entrypoint.
@@ -207,6 +263,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_list_playlists(args)
     if args.command == "backup":
         return _cmd_backup(args)
+    if args.command == "list-crates":
+        return _cmd_list_crates(args)
 
     parser.print_help()
     return 1

@@ -90,3 +90,37 @@ class RekordboxLibrary:
     mount_path: Path
     database_path: Path
     db_format: RekordboxDbFormat
+
+
+@dataclass(frozen=True)
+class SeratoCrate:
+    """
+    A Serato crate (playlist) file under Subcrates/.
+
+    Attributes:
+        name: Crate display name (typically the .crate filename stem).
+        path: Absolute path to the .crate file.
+        track_count: Number of track path entries in the crate.
+    """
+
+    name: str
+    path: Path
+    track_count: int
+
+
+@dataclass(frozen=True)
+class SeratoLibrary:
+    """
+    Resolved Serato library on a mount (read-only).
+
+    Attributes:
+        mount_path: USB or directory root.
+        serato_root: Path to _Serato_ directory.
+        database_path: Path to database V2 file.
+        database_track_count: Tracks indexed in database V2.
+    """
+
+    mount_path: Path
+    serato_root: Path
+    database_path: Path
+    database_track_count: int

@@ -7,6 +7,8 @@ from app.core.domain import (
     Playlist,
     RekordboxDbFormat,
     RekordboxLibrary,
+    SeratoCrate,
+    SeratoLibrary,
 )
 
 __all__ = [
@@ -16,4 +18,6 @@ __all__ = [
     "Playlist",
     "RekordboxDbFormat",
     "RekordboxLibrary",
+    "SeratoCrate",
+    "SeratoLibrary",
 ]

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-25T16:00:00Z",
+  "updated_at": "2026-05-25T20:10:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -13,7 +13,6 @@
     "TASK-003",
     "TASK-012",
     "TASK-022",
-    "TASK-031",
     "TASK-032",
     "TASK-040",
     "TASK-041",
@@ -41,6 +40,11 @@
       "id": "TASK-011",
       "title": "Backup copy + manifest.json (backup CLI)",
       "completed_at": "2026-05-25T16:00:00Z"
+    },
+    {
+      "id": "TASK-031",
+      "title": "Serato read-only crate listing (list-crates CLI)",
+      "completed_at": "2026-05-25T20:10:00Z"
     }
   ],
   "history": [
@@ -67,6 +71,12 @@
       "title": "Backup copy + manifest.json (backup CLI)",
       "status": "completed",
       "completed_at": "2026-05-25T16:00:00Z"
+    },
+    {
+      "id": "TASK-031",
+      "title": "Serato read-only crate listing (list-crates CLI)",
+      "status": "completed",
+      "completed_at": "2026-05-25T20:10:00Z"
     }
   ]
 }
