@@ -1,57 +1,46 @@
-# Rekordbox → Serato Analysis Sync
+# Rekordbox → Serato Analysis Sync (Future Work)
 
-**Status:** implemented (`sync-analysis` CLI)  
-**Related:** [rekordbox-to-serato-playlist-migration.md](rekordbox-to-serato-playlist-migration.md)
+**Status:** deferred — not implemented; playlist migration only  
+**Related:** [rekordbox-to-serato-playlist-migration.md](rekordbox-to-serato-playlist-migration.md), [ADR 0006](../decisions/0006-serato-analyzed-and-beatgrid-tags.md)
 
-## Why playlist copy is not enough
+## Current scope
 
-`migrate-playlist` only writes **crate membership** (`Subcrates/*.crate`). Serato DJ reads **BPM, key, beatgrid, and hot cues from ID3 tags on each MP3**, not from `database V2`.
+Usbversal copies **Rekordbox playlists to Serato crates** (`migrate-playlist`). It does **not** copy BPM, key, beatgrid, hot cues, or waveform analysis into Serato tags.
 
-| Data | Rekordbox on USB | Serato on USB |
-|------|------------------|---------------|
-| Playlist membership | `exportLibrary.db` | `.crate` files |
-| BPM / gain | `content.bpmx100`, ANLZ | `GEOB:Serato Autotags`, `TBPM` |
-| Musical key | `content.key_id` → `key` table | `TKEY` (Camelot, e.g. `8B`) |
-| Beatgrid | `PIONEER/USBANLZ/.../ANLZ0000.DAT` | `GEOB:Serato BeatGrid` |
-| Hot cues | ANLZ `CueList` | `GEOB:Serato Markers2` |
-| Waveform overview | ANLZ waveform tags | `GEOB:Serato Overview` |
-
-On test USB (Pocket playlist, n=80): **all 80** tracks have Rekordbox ANLZ; only **~15** had Serato GEOB tags before sync.
-
-## CLI
+After migration, **run Analyze Files in Serato DJ** (offline mode) so Serato writes its own GEOB tags on each audio file.
 
 ```bash
-# Preview what would be written
-python -m app.cli sync-analysis --mount /mnt/usb --playlist-id 1 --dry-run
-
-# Backup library files + write tags for each track in the playlist
-python -m app.cli sync-analysis --mount /mnt/usb --playlist-name "Pocket"
+python -m app.cli migrate-playlist --mount /mnt/usb --playlist-name "Pocket"
+# Then in Serato: Analyze Files on the library / crate
 ```
 
-## What is copied (v1)
+## Why we stopped pursuing tag sync
 
-- BPM → Serato Autotags + `TBPM`
-- Key → `TKEY` (Camelot mapped from Rekordbox `Key.name`)
-- Beatgrid → sparse Serato grid from first ANLZ beat + RB tempo
-- Hot cues / loops → Serato Markers2 cue entries
+An experimental `sync-analysis` path was implemented and tested on a Pocket playlist USB stick (80 tracks). Serato did not reliably treat Rekordbox-ported metadata as native analysis. Findings are recorded in [ADR 0006](../decisions/0006-serato-analyzed-and-beatgrid-tags.md).
 
-## Not copied (v1)
+### Summary of incompatibilities
 
-- Waveform preview/detail (`GEOB:Serato Overview`) — separate binary encode
-- Serato `database V2` rows (path index unchanged)
-- Rekordbox memory cues (only hot cue list in ANLZ)
-- `Contents.crate` or other crates
+| Issue | What we observed |
+|-------|------------------|
+| **“Analyzed” gate** | Serato’s analyzed count matched **Markers2 cue entries**, not presence of Analysis/Overview/BeatGrid tags. Tracks with only COLOR/BPMLOCK in Markers2 stayed unanalyzed. |
+| **Anchor cue workaround** | Native Serato analyze leaves cue index 0 near the first beat; injecting a synthetic cue helped some tracks but is undocumented and fragile. |
+| **Beatgrid encoding** | Serato derives segment BPM from marker spacing. A compact grid with a hard-coded +120 s terminal produced **~2 BPM for the first bar** and a bar jump at 2:00. Full ANLZ downbeat export fixed math but did not resolve the analyzed gate alone. |
+| **Format split** | Serato uses ID3 GEOB on MP3/AIFF/WAV, Vorbis comments on FLAC, atoms on MP4 — one writer does not cover a mixed library. |
+| **`Serato Offsets_`** | ~16 KB MP3-only tag from native analyze; undocumented; not implemented. |
+| **Library cache** | Serato may require **Rescan ID3 Tags** after external tag writes; behavior is inconsistent. |
 
-## Safety
+### Conclusion
 
-- `backup_mount_for_migration` before writes (Rekordbox + Serato DBs)
-- Additional `*-mp3` backup batch for touched audio files
-- Use `rollback` if a restore is needed
+Porting Rekordbox USBANLZ / exportLibrary analysis into Serato GEOB tags is **possible in theory** (see [Holzhaus/serato-tags](https://github.com/Holzhaus/serato-tags)) but **not reliable enough** for production without reverse-engineering more of Serato’s private format and analyzed-state rules. **Re-analyzing in Serato after playlist migration** is the supported workflow.
 
-## Risks
+## If revisited later (TASK-034)
 
-| Risk | Mitigation |
-|------|------------|
-| Wrong beatgrid shape | Sparse 2-marker grid; re-analyze in Serato if needed |
-| Key notation mismatch | Explicit `REKORDBOX_KEY_TO_CAMELOT` table; log unmapped keys |
-| MP3 tag corruption | Backup MP3s; mutagen save only |
+Hard problems to solve before any revival:
+
+1. Reproduce Serato’s **analyzed** state without native analyze (Markers2 cues, Offsets_, Overview quality).
+2. Variable-tempo beatgrid export from Rekordbox ANLZ with Serato-compatible marker spacing.
+3. Hot cue / memory cue mapping (Rekordbox extended cues vs Serato Markers_ / Markers2).
+4. Per-format tag containers (FLAC, WAV, MP4).
+5. Idempotent sync that does not clobber existing Serato analysis on partially analyzed libraries.
+
+Reference implementation was removed from the codebase; ADR 0006 retains test-stick measurements for future attempts.

@@ -10,6 +10,14 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-034` |
-| Objective | Sync Rekordbox analysis into Serato MP3 tags (`sync-analysis` CLI) |
+| Task ID | `TASK-033` |
+| Objective | Rekordbox playlist → Serato crate migration (`migrate-playlist` CLI) |
 | Completed | 2026-05-25 |
+
+## Deferred
+
+| Field | Value |
+|-------|-------|
+| Task ID | `TASK-034` |
+| Objective | Rekordbox analysis → Serato GEOB tags |
+| Status | Removed from codebase; see [analysis sync future work](../planning/rekordbox-to-serato-analysis-sync.md) |

@@ -54,6 +54,7 @@ Priority order (top first). Decompose before starting if scope exceeds one commi
 | `TASK-051` | `list-playlists` / `list-crates` | |
 | `TASK-052` | `backup` / `rollback` | |
 | `TASK-053` | `apply` with plan file | |
+| `TASK-034` | Rekordbox → Serato analysis tag sync (BPM/key/cues/beatgrid) | Deferred — [future work](../planning/rekordbox-to-serato-analysis-sync.md) |
 
 ## M7 — Packaging & Validation
 

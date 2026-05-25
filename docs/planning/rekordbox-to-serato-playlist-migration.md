@@ -5,7 +5,7 @@
 
 ## Goal
 
-Copy playlist **membership** from Rekordbox USB export (`exportLibrary.db`) into Serato USB export (`_Serato_/`), without touching audio files under `Contents/`.
+Copy playlist **membership** from Rekordbox USB export (`exportLibrary.db`) into Serato USB export (`_Serato_/`). **Does not copy** BPM, key, beatgrid, or hot cues — run **Analyze Files** in Serato after migration ([future work notes](rekordbox-to-serato-analysis-sync.md)).
 
 ## What We Learned on `/mnt/usb` (2026-05-25)
 
@@ -112,7 +112,7 @@ python -m app.cli migrate-playlist --mount /mnt/usb --playlist-name "Pocket" --o
 | TASK-031 | Serato read-only: list crates + DB stats | done |
 | TASK-012 | Rollback (safety) | done |
 | TASK-033 | `migrate-playlist` CLI (path match + crate write) | done |
-| TASK-034 | `sync-analysis` CLI (BPM/key/cues/beatgrid → MP3 tags) | done |
+| TASK-034 | Rekordbox → Serato analysis tag sync (BPM/key/cues/beatgrid) | deferred — see [analysis sync future work](rekordbox-to-serato-analysis-sync.md) |
 | TASK-053 | Generic `apply` plan format tying both vendors | backlog |
 
 ## Open Questions
