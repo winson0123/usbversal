@@ -1,6 +1,6 @@
 # Backup Strategy
 
-**Status:** design placeholder — not implemented.
+**Status:** implemented (file copy + manifest; rollback in TASK-012).
 
 ## Principle
 

@@ -24,7 +24,9 @@
     "domain_playlist_models": true,
     "adapter_write_context": true,
     "rekordbox_read_playlists_rbox": true,
-    "cli_list_playlists": true
+    "cli_list_playlists": true,
+    "backup_copy_manifest": true,
+    "cli_backup": true
   },
   "packaging": {
     "pyinstaller": false,
@@ -34,7 +36,7 @@
     "ruff": "pass",
     "pytest": "pass",
     "last_run": "2026-05-25T12:00:00Z",
-    "tests_passed": 20,
+    "tests_passed": 25,
     "tests_failed": 0
   },
   "dependencies": {

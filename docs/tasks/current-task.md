@@ -12,12 +12,10 @@ No task is in progress.
 
 ---
 
-## Last Completed: TASK-030
+## Last Completed: TASK-011
 
-> Rekordbox read-only playlist listing (`list-playlists` CLI)
+> Backup copy + manifest.json (`backup` CLI)
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-030` |
-| Objective | List playlists via rbox on exportLibrary.db; domain models + adapter protocol |
-| Verification | ruff pass, pytest 20 passed, list-playlists on /mnt/usb: 70 playlists |
+| Verification | ruff pass, pytest 25 passed, backup on /mnt/usb OK |

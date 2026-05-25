@@ -23,6 +23,16 @@ Historical record. Mirror of `docs/state/task-state.json` history.
 
 ---
 
+## TASK-011 — Backup copy + manifest.json
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-05-25 |
+| Objective | Timestamped Rekordbox file backup with SHA-256 manifest |
+| CLI | `python -m app.cli backup --mount /mnt/usb` |
+
+---
+
 ## TASK-030 — Rekordbox read-only playlist listing
 
 | Field | Value |

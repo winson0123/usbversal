@@ -7,6 +7,7 @@ import sys
 import structlog
 
 from app.adapters.base import DatabaseNotFoundError, UnsupportedDatabaseError
+from app.services.backup_service import backup_mount_libraries, backup_result_to_dict
 from app.services.playlist_service import list_rekordbox_playlists
 from app.services.scan_service import run_scan
 
@@ -29,7 +30,7 @@ def _build_parser() -> argparse.ArgumentParser:
     """
     parser = argparse.ArgumentParser(
         prog="usbversal",
-        description="Usbversal DJ database CLI (read-only)",
+        description="Usbversal DJ database CLI",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -55,6 +56,26 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Mount path (e.g. /mnt/usb)",
     )
     list_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output machine-readable JSON",
+    )
+
+    backup_parser = sub.add_parser(
+        "backup",
+        help="Copy Rekordbox library files to a timestamped backup (read-only)",
+    )
+    backup_parser.add_argument(
+        "--mount",
+        required=True,
+        help="Mount path (e.g. /mnt/usb)",
+    )
+    backup_parser.add_argument(
+        "--target",
+        default=None,
+        help="Backup parent directory (default: <mount>/backups)",
+    )
+    backup_parser.add_argument(
         "--json",
         action="store_true",
         help="Output machine-readable JSON",
@@ -134,6 +155,39 @@ def _cmd_list_playlists(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_backup(args: argparse.Namespace) -> int:
+    """
+    Run the backup command.
+
+    Args:
+        args: Parsed namespace with mount, target, and json flags.
+
+    Returns:
+        Exit code 0 on success, 1 on failure.
+    """
+    log = structlog.get_logger()
+    try:
+        result = backup_mount_libraries(args.mount, backup_root=args.target)
+    except (FileNotFoundError, ValueError) as exc:
+        log.error("backup_failed", error=str(exc))
+        return 1
+    except OSError as exc:
+        log.error("backup_failed", error=str(exc))
+        return 1
+
+    if args.json:
+        print(json.dumps(backup_result_to_dict(result), indent=2))
+        return 0
+
+    print(f"Backup ID: {result.backup_id}")
+    print(f"Directory: {result.backup_dir}")
+    print(f"Manifest: {result.backup_dir / 'manifest.json'}")
+    print(f"Files: {len(result.manifest.files)}")
+    for entry in result.manifest.files:
+        print(f"  {entry.relative_path} ({entry.size} bytes, sha256={entry.sha256[:12]}...)")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """
     CLI entrypoint.
@@ -151,6 +205,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_scan(args)
     if args.command == "list-playlists":
         return _cmd_list_playlists(args)
+    if args.command == "backup":
+        return _cmd_backup(args)
 
     parser.print_help()
     return 1

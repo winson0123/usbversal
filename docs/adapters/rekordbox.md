@@ -50,6 +50,12 @@ Rekordbox stores library metadata primarily in **SQLite** databases on USB/expor
 
 CLI: `python -m app.cli list-playlists --mount /mnt/usb`
 
+### Smart playlists (out of scope on USB)
+
+Rekordbox PC libraries can have **intelligent playlists** (`PlaylistType.SmartList`, `smart_list` rules in `master.db`). USB **One Library** export is not meant to preserve that distinction: playlists are exported as a **frozen track list** (`playlist` + `playlist_content`). Genre-style lists on `/mnt/usb` use `List` (0), not `SmartList` (4).
+
+**Policy:** Usbversal does not classify smart vs manual on USB. See [../schemas/rekordbox-schema-notes.md](../schemas/rekordbox-schema-notes.md).
+
 ## Write Operations (Planned)
 
 - Apply domain `Plan` objects (playlist moves, metadata edits)

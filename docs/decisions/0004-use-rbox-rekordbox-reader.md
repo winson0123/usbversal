@@ -37,3 +37,4 @@ Use **`rbox`** (`OneLibrary`) as the read adapter for `exportLibrary.db` playlis
 ### Neutral
 
 - `pyrekordbox` was evaluated; installed 0.4.4 lacks `DeviceLibraryPlus` in public API. `rbox` worked immediately on the test device.
+- Smart vs manual playlist type is **not modeled** for USB: export materializes tracks; `smart_list` rules are not on `exportLibrary.db`. Documented in schema notes.

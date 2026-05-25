@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-25T12:00:00Z",
+  "updated_at": "2026-05-25T16:00:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -11,7 +11,6 @@
   "pending_tasks": [
     "TASK-002",
     "TASK-003",
-    "TASK-011",
     "TASK-012",
     "TASK-022",
     "TASK-031",
@@ -37,6 +36,11 @@
       "id": "TASK-030",
       "title": "Rekordbox read-only playlist listing (rbox / exportLibrary.db)",
       "completed_at": "2026-05-25T12:00:00Z"
+    },
+    {
+      "id": "TASK-011",
+      "title": "Backup copy + manifest.json (backup CLI)",
+      "completed_at": "2026-05-25T16:00:00Z"
     }
   ],
   "history": [
@@ -57,6 +61,12 @@
       "title": "Rekordbox read-only playlist listing (rbox / exportLibrary.db)",
       "status": "completed",
       "completed_at": "2026-05-25T12:00:00Z"
+    },
+    {
+      "id": "TASK-011",
+      "title": "Backup copy + manifest.json (backup CLI)",
+      "status": "completed",
+      "completed_at": "2026-05-25T16:00:00Z"
     }
   ]
 }
