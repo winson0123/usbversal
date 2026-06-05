@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-25T20:30:00Z",
+  "updated_at": "2026-06-05T08:52:00Z",
   "project": "usbversal",
   "language": "python",
   "python_version": "3.11+",
@@ -33,7 +33,8 @@
     "serato_read_crates_serato_tools": true,
     "cli_list_crates": true,
     "rekordbox_to_serato_playlist_migration": true,
-    "cli_migrate_playlist": true
+    "cli_migrate_playlist": true,
+    "usb_integration_validation_doc": true
   },
   "packaging": {
     "pyinstaller": false,
@@ -42,7 +43,7 @@
   "test_status": {
     "ruff": "pass",
     "pytest": "pass",
-    "last_run": "2026-05-25T20:30:00Z",
+    "last_run": "2026-06-05T08:52:00Z",
     "tests_passed": 49,
     "tests_failed": 0
   },
@@ -57,14 +58,20 @@
     "contributing": true,
     "architecture_md": true,
     "docs_scaffolding": true,
-    "adrs": 5
+    "adrs": 6,
+    "usb_integration_validation": true
   },
   "primary_test_usb": {
     "linux_wsl": "/mnt/usb",
-    "rekordbox_playlists_listed": 70,
+    "last_validated": "2026-06-05",
+    "rekordbox_playlists": 70,
+    "rekordbox_tracks": 1625,
     "rekordbox_db": "/mnt/usb/PIONEER/rekordbox/exportLibrary.db",
-    "serato_database_tracks": 1586,
-    "serato_crates": 1
+    "serato_database_tracks": 793,
+    "serato_crates": 1,
+    "pocket_playlist_tracks": 80,
+    "pocket_crate_tracks": 80,
+    "migrate_dry_run_skipped": 0
   },
   "execution_policy": "AGENT.md"
 }

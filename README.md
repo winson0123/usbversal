@@ -62,6 +62,8 @@ python -m app.cli migrate-playlist --mount /mnt/usb --playlist-id 1 --dry-run
 python -m app.cli migrate-playlist --mount /mnt/usb --playlist-name "Pocket"
 # Then in Serato DJ (offline): Analyze Files to build BPM/beatgrid/cues on the stick
 
+See [docs/workflows/usb-integration-validation.md](docs/workflows/usb-integration-validation.md) for the full `/mnt/usb` checklist.
+
 # Safety
 usbversal backup --mount /mnt/usb --target ./backups/
 usbversal rollback --mount /mnt/usb --backup-id <id>

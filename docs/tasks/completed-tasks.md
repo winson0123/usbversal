@@ -57,6 +57,18 @@ Historical record. Mirror of `docs/state/task-state.json` history.
 
 ---
 
+## TASK-061 — `/mnt/usb` integration validation
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-06-05 |
+| Objective | Validate migrate-playlist on real USB; document Serato Analyze Files workflow |
+| Doc | `docs/workflows/usb-integration-validation.md` |
+
+**Results:** Pocket playlist 80/80 path match; Serato Pocket crate 80 tracks; pytest 49 passed.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

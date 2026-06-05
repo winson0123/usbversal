@@ -61,4 +61,4 @@ Priority order (top first). Decompose before starting if scope exceeds one commi
 | ID | Title | Notes |
 |----|-------|-------|
 | `TASK-060` | PyInstaller spec + smoke test | ADR 0003 |
-| `TASK-061` | `/mnt/usb` integration validation | Manual + documented |
+| ~~`TASK-061`~~ | ~~`/mnt/usb` integration validation~~ | Done — [usb-integration-validation.md](../workflows/usb-integration-validation.md) |

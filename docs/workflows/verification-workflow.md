@@ -28,6 +28,8 @@ Or after `source .venv/bin/activate`, use `ruff`, `pytest`, and `python` directl
 .venv/bin/python -m app.cli scan --mount /mnt/usb --json
 ```
 
+Full checklist and recorded results: [usb-integration-validation.md](usb-integration-validation.md).
+
 ## Recording Results
 
 Copy command outputs into `docs/tasks/current-task.md` verification log table.

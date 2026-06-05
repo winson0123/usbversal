@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-25T20:30:00Z",
+  "updated_at": "2026-06-05T08:52:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -55,6 +55,11 @@
       "id": "TASK-033",
       "title": "Rekordbox playlist to Serato crate migration (migrate-playlist CLI)",
       "completed_at": "2026-05-25T20:30:00Z"
+    },
+    {
+      "id": "TASK-061",
+      "title": "/mnt/usb integration validation and operator workflow doc",
+      "completed_at": "2026-06-05T08:52:00Z"
     }
   ],
   "history": [
@@ -99,6 +104,12 @@
       "title": "Rekordbox playlist to Serato crate migration (migrate-playlist CLI)",
       "status": "completed",
       "completed_at": "2026-05-25T20:30:00Z"
+    },
+    {
+      "id": "TASK-061",
+      "title": "/mnt/usb integration validation and operator workflow doc",
+      "status": "completed",
+      "completed_at": "2026-06-05T08:52:00Z"
     }
   ]
 }

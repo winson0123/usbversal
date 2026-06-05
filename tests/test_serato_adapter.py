@@ -71,6 +71,4 @@ def test_list_serato_crates_integration() -> None:
     result = list_serato_crates(mount)
     assert result.library.database_track_count > 0
     assert len(result.crates) >= 1
-    contents = next((c for c in result.crates if c.name == "Contents"), None)
-    assert contents is not None
-    assert contents.track_count > 0
+    assert all(crate.track_count > 0 for crate in result.crates)

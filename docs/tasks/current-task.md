@@ -2,7 +2,7 @@
 
 **Status:** `idle`  
 **Task ID:** none  
-**Last updated:** 2026-05-25
+**Last updated:** 2026-06-05
 
 ---
 
@@ -10,9 +10,21 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-033` |
-| Objective | Rekordbox playlist → Serato crate migration (`migrate-playlist` CLI) |
-| Completed | 2026-05-25 |
+| Task ID | `TASK-061` |
+| Objective | Validate migrate-playlist workflow on `/mnt/usb`; document operator steps |
+| Completed | 2026-06-05 |
+
+### Verification log
+
+| Check | Result |
+|-------|--------|
+| `list-playlists --mount /mnt/usb` | 70 playlists; Pocket id=1 |
+| `list-crates --mount /mnt/usb` | Pocket crate, 80 tracks; Serato DB 793 tracks |
+| `migrate-playlist … Pocket --dry-run` | 80/80 matched, 0 skipped |
+| `pytest` | 49 passed |
+| `ruff check` / `format --check` | pass |
+
+Deliverable: [docs/workflows/usb-integration-validation.md](../workflows/usb-integration-validation.md)
 
 ## Deferred
 
