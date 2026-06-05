@@ -1,6 +1,6 @@
 # CLI Flow
 
-**Status:** scaffolding — commands are placeholders.
+**Status:** implemented (scan, backup, rollback, migrate-playlist, apply).
 
 ## Thin CLI Principle
 
@@ -20,7 +20,7 @@ No SQL, no Serato parsing, no backup file copying in CLI modules.
 | `list-playlists` | optional | `rekordbox` adapter |
 | `list-crates` | optional | `serato` adapter |
 | `backup` | yes | `storage.backup` |
-| `apply` | yes | `storage` + adapter `apply_plan` |
+| `apply` | no | `apply_service.apply_plan_file` |
 | `rollback` | yes | `storage.rollback` |
 | `jobs list/resume/cancel` | no | `jobs` registry |
 

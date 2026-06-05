@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-06-05T08:52:00Z",
+  "updated_at": "2026-06-05T09:00:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -16,7 +16,6 @@
     "TASK-040",
     "TASK-041",
     "TASK-052",
-    "TASK-053",
     "TASK-060"
   ],
   "blocked_tasks": [],
@@ -60,6 +59,11 @@
       "id": "TASK-061",
       "title": "/mnt/usb integration validation and operator workflow doc",
       "completed_at": "2026-06-05T08:52:00Z"
+    },
+    {
+      "id": "TASK-053",
+      "title": "apply CLI with JSON plan file",
+      "completed_at": "2026-06-05T09:00:00Z"
     }
   ],
   "history": [
@@ -110,6 +114,12 @@
       "title": "/mnt/usb integration validation and operator workflow doc",
       "status": "completed",
       "completed_at": "2026-06-05T08:52:00Z"
+    },
+    {
+      "id": "TASK-053",
+      "title": "apply CLI with JSON plan file",
+      "status": "completed",
+      "completed_at": "2026-06-05T09:00:00Z"
     }
   ]
 }

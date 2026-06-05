@@ -12,6 +12,8 @@ from app.adapters.base import (
     UnsupportedDatabaseError,
 )
 from app.adapters.serato.writer import CrateExistsError
+from app.core.apply_plan import ApplyPlanError
+from app.services.apply_service import apply_plan_file
 from app.services.backup_service import backup_mount_libraries, backup_result_to_dict
 from app.services.crate_service import list_serato_crates
 from app.services.migration_service import (
@@ -179,6 +181,36 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Backup parent directory (default: <mount>/backups)",
     )
     migrate_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output machine-readable JSON",
+    )
+
+    apply_parser = sub.add_parser(
+        "apply",
+        help="Run operations from a JSON plan file (backup-gated writes)",
+    )
+    apply_parser.add_argument(
+        "--mount",
+        required=True,
+        help="Mount path (e.g. /mnt/usb)",
+    )
+    apply_parser.add_argument(
+        "--plan",
+        required=True,
+        help="Path to apply plan JSON file",
+    )
+    apply_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate plan and show outcomes without backup or writes",
+    )
+    apply_parser.add_argument(
+        "--target",
+        default=None,
+        help="Backup parent directory (default: <mount>/backups)",
+    )
+    apply_parser.add_argument(
         "--json",
         action="store_true",
         help="Output machine-readable JSON",
@@ -390,6 +422,62 @@ def _cmd_migrate_playlist(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_apply(args: argparse.Namespace) -> int:
+    """
+    Run apply: execute operations from a JSON plan file.
+
+    Args:
+        args: Parsed namespace with mount, plan path, and flags.
+
+    Returns:
+        Exit code 0 on success, 1 on failure.
+    """
+    log = structlog.get_logger()
+    try:
+        result = apply_plan_file(
+            args.mount,
+            args.plan,
+            dry_run=args.dry_run,
+            backup_root=args.target,
+        )
+    except ApplyPlanError as exc:
+        log.error("apply_failed", error=str(exc))
+        return 1
+    except (
+        PlaylistNotFoundError,
+        SeratoLibraryRequiredError,
+        CrateExistsError,
+        MigrationError,
+    ) as exc:
+        log.error("apply_failed", error=str(exc))
+        return 1
+    except (ValueError, OSError) as exc:
+        log.error("apply_failed", error=str(exc))
+        return 1
+
+    if args.json:
+        print(json.dumps(result.to_dict(), indent=2))
+        return 0
+
+    print(f"Plan: {result.plan_path}")
+    print(f"Mount: {result.mount}")
+    print(f"Operations: {len(result.operations)} ({result.success_count} ok)")
+    if result.dry_run:
+        print("\n(dry-run: no backup or writes)")
+    for op in result.operations:
+        if op.result is None:
+            print(f"  [{op.index}] {op.op}: failed — {op.error}")
+            continue
+        migration = op.result
+        print(
+            f"  [{op.index}] {op.op}: {migration.get('playlist_name')} "
+            f"→ Subcrates/{migration.get('crate_name')}.crate "
+            f"({migration.get('serato_track_count')} tracks, "
+            f"{migration.get('skipped_count')} skipped)",
+        )
+    return 0
+
+
 def _cmd_list_crates(args: argparse.Namespace) -> int:
     """
     Run the list-crates command.
@@ -451,6 +539,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_list_crates(args)
     if args.command == "migrate-playlist":
         return _cmd_migrate_playlist(args)
+    if args.command == "apply":
+        return _cmd_apply(args)
 
     parser.print_help()
     return 1

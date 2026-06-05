@@ -34,6 +34,7 @@
     "cli_list_crates": true,
     "rekordbox_to_serato_playlist_migration": true,
     "cli_migrate_playlist": true,
+    "cli_apply_plan": true,
     "usb_integration_validation_doc": true
   },
   "packaging": {
@@ -43,8 +44,8 @@
   "test_status": {
     "ruff": "pass",
     "pytest": "pass",
-    "last_run": "2026-06-05T08:52:00Z",
-    "tests_passed": 49,
+    "last_run": "2026-06-05T09:00:00Z",
+    "tests_passed": 55,
     "tests_failed": 0
   },
   "dependencies": {

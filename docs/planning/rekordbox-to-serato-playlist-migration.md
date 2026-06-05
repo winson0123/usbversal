@@ -113,7 +113,7 @@ python -m app.cli migrate-playlist --mount /mnt/usb --playlist-name "Pocket" --o
 | TASK-012 | Rollback (safety) | done |
 | TASK-033 | `migrate-playlist` CLI (path match + crate write) | done |
 | TASK-034 | Rekordbox → Serato analysis tag sync (BPM/key/cues/beatgrid) | deferred — see [analysis sync future work](rekordbox-to-serato-analysis-sync.md) |
-| TASK-053 | Generic `apply` plan format tying both vendors | backlog |
+| TASK-053 | Generic `apply` plan format | done — [apply-plan-format.md](apply-plan-format.md) |
 
 ## Open Questions
 

@@ -60,6 +60,9 @@ python -m app.cli list-crates --mount /mnt/usb
 # Copy Rekordbox playlist to Serato crate (backs up RB + Serato first)
 python -m app.cli migrate-playlist --mount /mnt/usb --playlist-id 1 --dry-run
 python -m app.cli migrate-playlist --mount /mnt/usb --playlist-name "Pocket"
+
+# Or run from a plan file (see docs/planning/apply-plan-format.md)
+python -m app.cli apply --mount /mnt/usb --plan plans/pocket.json --dry-run
 # Then in Serato DJ (offline): Analyze Files to build BPM/beatgrid/cues on the stick
 
 See [docs/workflows/usb-integration-validation.md](docs/workflows/usb-integration-validation.md) for the full `/mnt/usb` checklist.

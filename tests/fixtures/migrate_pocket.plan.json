@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "mount": "/mnt/usb",
+  "operations": [
+    {
+      "op": "migrate_playlist",
+      "playlist_name": "Pocket",
+      "overwrite": false
+    }
+  ]
+}

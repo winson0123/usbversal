@@ -69,6 +69,16 @@ Historical record. Mirror of `docs/state/task-state.json` history.
 
 ---
 
+## TASK-053 — `apply` with JSON plan file
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-06-05 |
+| Objective | Batch operations via `apply --plan`; v1 supports `migrate_playlist` |
+| Doc | `docs/planning/apply-plan-format.md` |
+
+---
+
 ## Template (for future entries)
 
 ```markdown
