@@ -40,11 +40,15 @@ The `scan` CLI command uses `JobRunner.start("scan", …)` via `run_scan_job_syn
 
 ## Persistence
 
-Job records stored under user config dir:
+Job records stored beside the running executable or application tree:
 
 ```text
-~/.config/usbversal/jobs/<job_id>.json
+<runtime_base>/jobs/<job_id>.json
 ```
+
+For PyInstaller builds, ``runtime_base`` is the directory containing the binary.
+For ``python -m app.cli``, it is the repository root (parent of ``app/``).
+Override with ``USBversal_JOBS_DIR`` when needed.
 
 Contains state, checkpoints, cancel flags, backup references, and error messages. Stale `running` jobs are recovered as `failed` on load.
 

@@ -15,7 +15,7 @@ Allow long-running jobs (large library scan, bulk apply) to resume after CLI exi
 | `backup_ids` | Backups already created for this job |
 | `partial_results` | Paths/libraries already processed |
 
-Stored on each `JobRecord` and persisted under `~/.config/usbversal/jobs/<job_id>.json`.
+Stored on each `JobRecord` and persisted under `<runtime_base>/jobs/<job_id>.json` (see `app/jobs/paths.py`).
 
 ## Resume Rules
 

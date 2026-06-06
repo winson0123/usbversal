@@ -9,6 +9,7 @@ dist/
 build/
 .venv/
 venv/
+/jobs/
 .env
 
 # Legacy / accidental Rust build artifacts

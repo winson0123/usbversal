@@ -117,7 +117,7 @@ def test_run_scan_job_sync(tmp_path: Path, monkeypatch) -> None:
     from app.jobs.scan_cli import run_scan_job_sync
     from app.jobs.store import JobStore
 
-    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+    monkeypatch.setenv("USBversal_JOBS_DIR", str(tmp_path / "jobs"))
     jobs_dir = get_jobs_dir()
     store = JobStore(jobs_dir)
 
