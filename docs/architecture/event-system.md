@@ -1,38 +1,44 @@
 # Event System
 
-**Status:** design placeholder — not implemented.
+**Status:** partially implemented (TASK-022)
 
 ## Purpose
 
 Decouple operation progress from CLI rendering and enable future GUI subscribers without changing job or adapter internals.
 
-## Event Shape (Planned)
+## Event Shape
 
 ```python
-# Illustrative — not implemented
 @dataclass(frozen=True)
 class Event:
     type: str           # e.g. "job.progress"
     job_id: str | None
     payload: dict[str, Any]
-    timestamp: datetime
+    timestamp: str      # ISO-8601 UTC
 ```
+
+Implemented in `app/core/event_envelope.py`. Dataclass events from `app/core/events.py` are wrapped via `wrap_event()` before delivery.
 
 ## Event Categories
 
 | Category | Examples | Consumers |
 |----------|----------|-----------|
 | `job.*` | started, progress, completed, failed, cancelled | CLI, logs |
-| `scan.*` | library_found, mount_scanned | CLI |
-| `adapter.*` | unknown_field, schema_version | logs, docs |
-| `storage.*` | backup_created, rollback_done | CLI, audit |
-| `warning.*` | db_locked, process_running | CLI stderr |
+| `scan.*` | started, library_found, completed | CLI |
+| `adapter.*` | unknown_field, schema_version | logs, docs (planned) |
+| `storage.*` | backup_created, rollback_done | CLI, audit (planned) |
+| `warning.*` | db_locked, process_running | CLI stderr (planned) |
 
 ## Delivery Model
 
-- Synchronous dispatch to subscribers in-process (initially).
+- `EventBus` (`app/core/event_bus.py`) dispatches synchronously to subscribers in-process.
+- `JobRunner` publishes job and forwarded scan events through an optional bus.
 - Subscribers must not raise; failures logged and ignored.
 - No guaranteed ordering across job types unless documented per job.
+
+## CLI Integration
+
+`usbversal scan` attaches `CliProgressRenderer` to stderr when not using `--json` (see `app/cli/progress.py`).
 
 ## Forbidden
 

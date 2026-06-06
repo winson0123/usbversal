@@ -8,6 +8,7 @@ from typing import Any
 
 import structlog
 
+from app.core.event_bus import EventBus
 from app.core.events import JobCancelled, JobCompleted, JobFailed, JobStarted
 from app.jobs.exceptions import JobCancelledError, JobNotFoundError, UnknownJobTypeError
 from app.jobs.models import JobCheckpoint, JobContext, JobRecord, JobState
@@ -42,6 +43,7 @@ class JobRunner:
         handlers: dict[str, JobHandler] | None = None,
         emit: Callable[[Any], None] | None = None,
         store: JobStore | None = None,
+        bus: EventBus | None = None,
     ) -> None:
         """
         Initialize a runner with optional registry and handlers.
@@ -49,13 +51,15 @@ class JobRunner:
         Args:
             registry: Job record store; defaults to a new in-memory registry.
             handlers: Job type to coroutine handler map; defaults to built-ins.
-            emit: Optional callback for job lifecycle and progress events.
+            emit: Optional legacy callback for raw structured events.
             store: Optional JobStore for persistence and cross-process cancel.
+            bus: Optional EventBus for normalized event delivery.
         """
         self._registry = registry or JobRegistry()
         self._handlers = handlers if handlers is not None else DEFAULT_HANDLERS.copy()
         self._emit = emit
         self._store = store
+        self._bus = bus
         self._tasks: dict[str, asyncio.Task[Any]] = {}
         self._cancel_flags: dict[str, bool] = {}
         if self._store is not None:
@@ -251,7 +255,9 @@ class JobRunner:
         self._persist(record)
 
     def _publish(self, event: Any) -> None:
-        """Dispatch an event to the optional emitter."""
+        """Dispatch an event to the bus and optional legacy emitter."""
+        if self._bus is not None:
+            self._bus.publish(event)
         if self._emit is None:
             return
         try:

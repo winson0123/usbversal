@@ -13,7 +13,7 @@ USB scans and database reads can take seconds to minutes. Blocking the CLI threa
 | `JobRunner` | Owns asyncio task lifecycle | Implemented (`app/jobs/runner.py`) |
 | `JobRegistry` | Maps `job_id` → state, result, error | In-memory only |
 | Job handlers | Async coroutines with `JobContext` | `scan` registered |
-| `EventBus` | Publishes progress from worker coroutines | Skeleton (`app/core/event_bus.py`) |
+| `EventBus` | Publishes progress from worker coroutines | Implemented (`app/core/event_bus.py`) |
 
 ## Job States
 

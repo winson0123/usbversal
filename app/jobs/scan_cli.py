@@ -3,6 +3,7 @@
 import asyncio
 from typing import Any
 
+from app.core.event_bus import EventBus
 from app.jobs.exceptions import JobCancelledError
 from app.jobs.models import JobState
 from app.jobs.runner import JobRunner
@@ -10,20 +11,26 @@ from app.jobs.store import JobStore
 from app.services.scan_service import ScanResult
 
 
-def _default_runner(*, store: JobStore | None = None) -> JobRunner:
+def _default_runner(*, store: JobStore | None = None, bus: EventBus | None = None) -> JobRunner:
     """
     Build a JobRunner with persisted job metadata.
 
     Args:
         store: Optional JobStore override for tests.
+        bus: Optional EventBus for normalized event delivery.
 
     Returns:
         JobRunner backed by a JobStore.
     """
-    return JobRunner(store=store or JobStore())
+    return JobRunner(store=store or JobStore(), bus=bus)
 
 
-async def run_scan_async(*, mount: str | None = None, store: JobStore | None = None) -> ScanResult:
+async def run_scan_async(
+    *,
+    mount: str | None = None,
+    store: JobStore | None = None,
+    bus: EventBus | None = None,
+) -> ScanResult:
     """
     Run a scan job to completion via JobRunner.
 
@@ -37,13 +44,18 @@ async def run_scan_async(*, mount: str | None = None, store: JobStore | None = N
         JobCancelledError: When the scan job is cancelled.
         RuntimeError: When the scan job fails with an error.
     """
-    runner = _default_runner(store=store)
+    runner = _default_runner(store=store, bus=bus)
     job_id = await runner.start("scan", {"mount": mount})
     record = await runner.wait(job_id)
     return _result_from_record(record)
 
 
-async def resume_scan_async(job_id: str, *, store: JobStore | None = None) -> ScanResult:
+async def resume_scan_async(
+    job_id: str,
+    *,
+    store: JobStore | None = None,
+    bus: EventBus | None = None,
+) -> ScanResult:
     """
     Resume a failed or cancelled scan job from persisted metadata.
 
@@ -57,13 +69,18 @@ async def resume_scan_async(job_id: str, *, store: JobStore | None = None) -> Sc
         JobCancelledError: When the scan job is cancelled.
         RuntimeError: When the scan job fails with an error.
     """
-    runner = _default_runner(store=store)
+    runner = _default_runner(store=store, bus=bus)
     await runner.resume(job_id)
     record = await runner.wait(job_id)
     return _result_from_record(record)
 
 
-def run_scan_job_sync(*, mount: str | None = None, store: JobStore | None = None) -> ScanResult:
+def run_scan_job_sync(
+    *,
+    mount: str | None = None,
+    store: JobStore | None = None,
+    bus: EventBus | None = None,
+) -> ScanResult:
     """
     Blocking wrapper for run_scan_async suitable for CLI use.
 
@@ -78,10 +95,15 @@ def run_scan_job_sync(*, mount: str | None = None, store: JobStore | None = None
         RuntimeError: When the scan job fails with an error.
         OSError: Propagated from underlying mount or filesystem I/O.
     """
-    return asyncio.run(run_scan_async(mount=mount, store=store))
+    return asyncio.run(run_scan_async(mount=mount, store=store, bus=bus))
 
 
-def resume_scan_job_sync(job_id: str, *, store: JobStore | None = None) -> ScanResult:
+def resume_scan_job_sync(
+    job_id: str,
+    *,
+    store: JobStore | None = None,
+    bus: EventBus | None = None,
+) -> ScanResult:
     """
     Blocking wrapper for resume_scan_async suitable for CLI use.
 
@@ -95,7 +117,7 @@ def resume_scan_job_sync(job_id: str, *, store: JobStore | None = None) -> ScanR
         JobCancelledError: When the scan job is cancelled.
         RuntimeError: When the scan job fails with an error.
     """
-    return asyncio.run(resume_scan_async(job_id, store=store))
+    return asyncio.run(resume_scan_async(job_id, store=store, bus=bus))
 
 
 def _result_from_record(record: Any) -> ScanResult:

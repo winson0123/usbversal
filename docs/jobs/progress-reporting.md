@@ -1,16 +1,16 @@
 # Progress Reporting
 
-**Status:** design placeholder — not implemented.
+**Status:** partially implemented (TASK-022)
 
 ## Mechanisms
 
-| Channel | Use case |
-|---------|----------|
-| Event bus | Structured `job.progress` events |
-| CLI stderr | Human progress bar / spinner |
-| `--json` stdout | NDJSON progress lines for scripting |
+| Channel | Use case | Status |
+|---------|----------|--------|
+| Event bus | Structured `job.progress` events | Implemented |
+| CLI stderr | Human progress lines | `scan` command |
+| `--json` stdout | NDJSON progress lines for scripting | Planned |
 
-## Progress Payload (Planned)
+## Progress Payload
 
 ```json
 {
@@ -32,7 +32,7 @@
 
 ## Throttling
 
-Emit at most one progress event per 100ms unless `--verbose` requests every step.
+CLI progress renders at most one line per 100ms unless `--verbose` is set on `scan`.
 
 ## Related
 

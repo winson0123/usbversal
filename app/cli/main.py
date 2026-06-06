@@ -12,7 +12,9 @@ from app.adapters.base import (
     UnsupportedDatabaseError,
 )
 from app.adapters.serato.writer import CrateExistsError
+from app.cli.progress import CliProgressRenderer
 from app.core.apply_plan import ApplyPlanError
+from app.core.event_bus import EventBus
 from app.jobs.exceptions import JobCancelledError, JobNotFoundError, JobNotResumableError
 from app.jobs.jobs_cli import cancel_persisted_job, list_persisted_jobs, resume_persisted_job
 from app.jobs.scan_cli import run_scan_job_sync
@@ -66,6 +68,12 @@ def _build_parser() -> argparse.ArgumentParser:
         "--json",
         action="store_true",
         help="Output machine-readable JSON",
+    )
+
+    scan_parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show all progress events (no throttling)",
     )
 
     list_parser = sub.add_parser(
@@ -258,7 +266,10 @@ def _cmd_scan(args: argparse.Namespace) -> int:
         Exit code 0 on success, 1 on failure.
     """
     try:
-        result = run_scan_job_sync(mount=args.mount)
+        bus = EventBus()
+        if not args.json:
+            bus.subscribe(CliProgressRenderer(verbose=args.verbose))
+        result = run_scan_job_sync(mount=args.mount, bus=bus)
     except JobCancelledError as exc:
         structlog.get_logger().error("scan_cancelled", job_id=exc.job_id)
         return 1

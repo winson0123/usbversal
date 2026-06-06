@@ -5,16 +5,19 @@ from typing import Any
 
 import structlog
 
+from app.core.event_envelope import Event, wrap_event
+
 logger = structlog.get_logger(__name__)
 
-EventHandler = Callable[[Any], None]
+EventHandler = Callable[[Event], None]
 
 
 class EventBus:
     """
     Synchronous publish/subscribe bus for structured events.
 
-    Subscribers must not raise; failures are logged and ignored.
+    Subscribers receive normalized ``Event`` envelopes. Subscriber failures
+    are logged and ignored.
     """
 
     def __init__(self) -> None:
@@ -26,22 +29,27 @@ class EventBus:
         Register an event handler.
 
         Args:
-            handler: Callable invoked for each published event.
+            handler: Callable invoked for each published Event envelope.
         """
         self._subscribers.append(handler)
 
     def publish(self, event: Any) -> None:
         """
-        Dispatch an event to all subscribers.
+        Dispatch an event to all subscribers as a normalized envelope.
 
         Args:
-            event: Event dataclass or other payload.
+            event: Event dataclass or pre-built Event envelope.
         """
+        envelope = wrap_event(event)
         for handler in self._subscribers:
             try:
-                handler(event)
+                handler(envelope)
             except Exception:
                 logger.exception(
                     "event_subscriber_failed",
-                    event_type=type(event).__name__,
+                    event_type=envelope.type,
                 )
+
+    def clear_subscribers(self) -> None:
+        """Remove all registered subscribers."""
+        self._subscribers.clear()
