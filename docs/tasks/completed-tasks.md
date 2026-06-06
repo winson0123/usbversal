@@ -79,6 +79,16 @@ Historical record. Mirror of `docs/state/task-state.json` history.
 
 ---
 
+## TASK-060 — PyInstaller packaging
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-06-06 |
+| Objective | One-file Linux binary + smoke tests |
+| Artifact | `dist/usbversal` (~16 MB) |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

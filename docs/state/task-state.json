@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-06-05T09:00:00Z",
+  "updated_at": "2026-06-06T11:30:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -15,8 +15,7 @@
     "TASK-032",
     "TASK-040",
     "TASK-041",
-    "TASK-052",
-    "TASK-060"
+    "TASK-052"
   ],
   "blocked_tasks": [],
   "completed_tasks": [
@@ -64,6 +63,11 @@
       "id": "TASK-053",
       "title": "apply CLI with JSON plan file",
       "completed_at": "2026-06-05T09:00:00Z"
+    },
+    {
+      "id": "TASK-060",
+      "title": "PyInstaller spec and release smoke tests",
+      "completed_at": "2026-06-06T11:30:00Z"
     }
   ],
   "history": [
@@ -120,6 +124,12 @@
       "title": "apply CLI with JSON plan file",
       "status": "completed",
       "completed_at": "2026-06-05T09:00:00Z"
+    },
+    {
+      "id": "TASK-060",
+      "title": "PyInstaller spec and release smoke tests",
+      "status": "completed",
+      "completed_at": "2026-06-06T11:30:00Z"
     }
   ]
 }

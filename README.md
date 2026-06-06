@@ -87,7 +87,12 @@ Distribution target is standalone executables via **PyInstaller**:
 - `usbversal` CLI binary per platform
 - Bundled Python runtime; no separate interpreter install required for end users
 
-See [docs/decisions/0003-use-pyinstaller.md](docs/decisions/0003-use-pyinstaller.md).
+```bash
+./scripts/build-release.sh   # Linux → dist/usbversal
+./dist/usbversal --help
+```
+
+See [docs/workflows/release-workflow.md](docs/workflows/release-workflow.md) and [docs/decisions/0003-use-pyinstaller.md](docs/decisions/0003-use-pyinstaller.md).
 
 ## Project layout
 

@@ -2,7 +2,7 @@
 
 **Status:** `idle`  
 **Task ID:** none  
-**Last updated:** 2026-06-05
+**Last updated:** 2026-06-06
 
 ---
 
@@ -10,25 +10,17 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-053` |
-| Objective | `apply` CLI with JSON plan file (migrate_playlist operations) |
-| Completed | 2026-06-05 |
+| Task ID | `TASK-060` |
+| Objective | PyInstaller spec, build script, release smoke tests |
+| Completed | 2026-06-06 |
 
 ### Verification log
 
 | Check | Result |
 |-------|--------|
-| `test_apply_plan.py` | pass |
-| `test_cli_apply.py` | pass |
-| `pytest` | all pass |
-| `ruff check` | pass |
+| `./scripts/build-release.sh` | `dist/usbversal` ~16 MB |
+| `./dist/usbversal --help` | all commands listed |
+| `test_packaging_smoke.py` | 2 passed, 1 skipped |
+| `pytest` | 57 passed, 1 skipped |
 
-Deliverable: [docs/planning/apply-plan-format.md](../planning/apply-plan-format.md)
-
-## Deferred
-
-| Field | Value |
-|-------|-------|
-| Task ID | `TASK-034` |
-| Objective | Rekordbox analysis → Serato GEOB tags |
-| Status | See [analysis sync future work](../planning/rekordbox-to-serato-analysis-sync.md) |
+Deliverables: `packaging/usbversal.spec`, `scripts/build-release.sh`, [release-workflow.md](../workflows/release-workflow.md)

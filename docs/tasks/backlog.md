@@ -60,5 +60,5 @@ Priority order (top first). Decompose before starting if scope exceeds one commi
 
 | ID | Title | Notes |
 |----|-------|-------|
-| `TASK-060` | PyInstaller spec + smoke test | ADR 0003 |
+| ~~`TASK-060`~~ | ~~PyInstaller spec + smoke test~~ | Done — [release-workflow.md](../workflows/release-workflow.md) |
 | ~~`TASK-061`~~ | ~~`/mnt/usb` integration validation~~ | Done — [usb-integration-validation.md](../workflows/usb-integration-validation.md) |
