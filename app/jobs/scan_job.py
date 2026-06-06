@@ -1,0 +1,42 @@
+"""Async scan job handler."""
+
+import asyncio
+from collections.abc import Awaitable, Callable
+from typing import Any
+
+from app.jobs.models import JobContext
+from app.services.scan_service import ScanResult, run_scan
+
+JobHandler = Callable[[JobContext], Awaitable[Any]]
+
+
+async def run_scan_job(ctx: JobContext) -> ScanResult:
+    """
+    Run a library scan in a worker thread with cooperative cancel checks.
+
+    Args:
+        ctx: Job context with mount parameter and event emitters.
+
+    Returns:
+        ScanResult from the underlying scan orchestration.
+
+    Raises:
+        JobCancelledError: When cancellation is requested before or after scan.
+    """
+    ctx.check_cancelled()
+    mount = ctx.parameters.get("mount")
+    user_emit = ctx.parameters.get("emit")
+
+    ctx.progress("Scan starting", current=0, total=1)
+
+    def bridge_emit(event: Any) -> None:
+        if user_emit is not None:
+            user_emit(event)
+        if ctx.emit is not None:
+            ctx.emit(event)
+
+    result = await asyncio.to_thread(run_scan, mount=mount, emit=bridge_emit)
+
+    ctx.check_cancelled()
+    ctx.progress("Scan complete", current=1, total=1)
+    return result

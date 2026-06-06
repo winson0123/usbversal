@@ -12,7 +12,7 @@ from app.services.scan_service import ScanResult
 
 def test_scan_command_json_output() -> None:
     """scan --json prints valid JSON."""
-    with patch("app.cli.main.run_scan") as mock_scan:
+    with patch("app.cli.main.run_scan_job_sync") as mock_scan:
         mock_scan.return_value = ScanResult(
             mounts=(MountPoint(path=Path("/mnt/usb"), source="user_specified"),),
             libraries=(

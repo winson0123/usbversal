@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-06-06T11:30:00Z",
+  "updated_at": "2026-06-06T14:00:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -13,8 +13,7 @@
     "TASK-003",
     "TASK-022",
     "TASK-032",
-    "TASK-040",
-    "TASK-041",
+    "TASK-042",
     "TASK-052"
   ],
   "blocked_tasks": [],
@@ -68,6 +67,16 @@
       "id": "TASK-060",
       "title": "PyInstaller spec and release smoke tests",
       "completed_at": "2026-06-06T11:30:00Z"
+    },
+    {
+      "id": "TASK-040",
+      "title": "JobRunner + registry (asyncio)",
+      "completed_at": "2026-06-06T14:00:00Z"
+    },
+    {
+      "id": "TASK-041",
+      "title": "Scan job (async, progress events)",
+      "completed_at": "2026-06-06T14:00:00Z"
     }
   ],
   "history": [
@@ -130,6 +139,18 @@
       "title": "PyInstaller spec and release smoke tests",
       "status": "completed",
       "completed_at": "2026-06-06T11:30:00Z"
+    },
+    {
+      "id": "TASK-040",
+      "title": "JobRunner + registry (asyncio)",
+      "status": "completed",
+      "completed_at": "2026-06-06T14:00:00Z"
+    },
+    {
+      "id": "TASK-041",
+      "title": "Scan job (async, progress events)",
+      "status": "completed",
+      "completed_at": "2026-06-06T14:00:00Z"
     }
   ]
 }

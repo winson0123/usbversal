@@ -13,6 +13,8 @@ from app.adapters.base import (
 )
 from app.adapters.serato.writer import CrateExistsError
 from app.core.apply_plan import ApplyPlanError
+from app.jobs.exceptions import JobCancelledError
+from app.jobs.scan_cli import run_scan_job_sync
 from app.services.apply_service import apply_plan_file
 from app.services.backup_service import backup_mount_libraries, backup_result_to_dict
 from app.services.crate_service import list_serato_crates
@@ -24,7 +26,6 @@ from app.services.migration_service import (
 )
 from app.services.playlist_service import list_rekordbox_playlists
 from app.services.rollback_service import rollback_mount_libraries, rollback_result_to_dict
-from app.services.scan_service import run_scan
 from app.storage.rollback import (
     BackupNotFoundError,
     BackupVerificationError,
@@ -229,8 +230,11 @@ def _cmd_scan(args: argparse.Namespace) -> int:
         Exit code 0 on success, 1 on failure.
     """
     try:
-        result = run_scan(mount=args.mount)
-    except OSError as exc:
+        result = run_scan_job_sync(mount=args.mount)
+    except JobCancelledError as exc:
+        structlog.get_logger().error("scan_cancelled", job_id=exc.job_id)
+        return 1
+    except (OSError, RuntimeError) as exc:
         structlog.get_logger().error("scan_failed", error=str(exc))
         return 1
 

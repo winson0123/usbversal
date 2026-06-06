@@ -1,6 +1,6 @@
 # Job Lifecycle
 
-**Status:** design placeholder — not implemented.
+**Status:** partially implemented (TASK-040, TASK-041)
 
 ## States
 
@@ -28,7 +28,15 @@ Jobs are created by CLI or API with:
 
 - `job_type` (e.g. `scan`, `apply`, `backup`)
 - `parameters` (mount path, plan path, etc.)
-- Optional `parent_job_id` for chained operations
+- Optional `parent_job_id` for chained operations (planned)
+
+### Implemented handlers
+
+| `job_type` | Handler | Notes |
+|------------|---------|-------|
+| `scan` | `app/jobs/scan_job.py` | Runs `run_scan` in `asyncio.to_thread`; emits `JobProgress` and library scan events |
+
+The `scan` CLI command uses `JobRunner.start("scan", …)` via `run_scan_job_sync()`.
 
 ## Persistence (Planned)
 
