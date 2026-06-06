@@ -39,4 +39,12 @@ async def run_scan_job(ctx: JobContext) -> ScanResult:
 
     ctx.check_cancelled()
     ctx.progress("Scan complete", current=1, total=1)
+    ctx.update_checkpoint(
+        step_index=1,
+        step_name="scan_complete",
+        partial_results={
+            "mount_count": len(result.mounts),
+            "library_count": len(result.libraries),
+        },
+    )
     return result

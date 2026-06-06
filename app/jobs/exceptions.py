@@ -45,3 +45,19 @@ class JobCancelledError(JobError):
         """
         super().__init__(f"Job cancelled: {job_id}")
         self.job_id = job_id
+
+
+class JobNotResumableError(JobError):
+    """Raised when a job cannot be resumed from its current state."""
+
+    def __init__(self, job_id: str, state: str) -> None:
+        """
+        Initialize with the job id and current state.
+
+        Args:
+            job_id: Identifier of the job.
+            state: Current state string that blocks resume.
+        """
+        super().__init__(f"Job {job_id} is not resumable (state={state})")
+        self.job_id = job_id
+        self.state = state

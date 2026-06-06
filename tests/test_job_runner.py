@@ -111,12 +111,19 @@ def test_registry_list_jobs() -> None:
     assert [r.job_id for r in registry.list_all()] == ["a", "b"]
 
 
-def test_run_scan_job_sync(tmp_path: Path) -> None:
+def test_run_scan_job_sync(tmp_path: Path, monkeypatch) -> None:
     """Synchronous CLI helper returns ScanResult."""
+    from app.jobs.paths import get_jobs_dir
     from app.jobs.scan_cli import run_scan_job_sync
+    from app.jobs.store import JobStore
+
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+    jobs_dir = get_jobs_dir()
+    store = JobStore(jobs_dir)
 
     (tmp_path / "PIONEER" / "rekordbox").mkdir(parents=True)
     (tmp_path / "PIONEER" / "rekordbox" / "master.db").write_bytes(b"")
 
-    result = run_scan_job_sync(mount=str(tmp_path))
+    result = run_scan_job_sync(mount=str(tmp_path), store=store)
     assert len(result.mounts) == 1
+    assert len(list(jobs_dir.glob("*.json"))) == 1

@@ -13,7 +13,8 @@ from app.adapters.base import (
 )
 from app.adapters.serato.writer import CrateExistsError
 from app.core.apply_plan import ApplyPlanError
-from app.jobs.exceptions import JobCancelledError
+from app.jobs.exceptions import JobCancelledError, JobNotFoundError, JobNotResumableError
+from app.jobs.jobs_cli import cancel_persisted_job, list_persisted_jobs, resume_persisted_job
 from app.jobs.scan_cli import run_scan_job_sync
 from app.services.apply_service import apply_plan_file
 from app.services.backup_service import backup_mount_libraries, backup_result_to_dict
@@ -216,6 +217,33 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Output machine-readable JSON",
     )
+
+    jobs_parser = sub.add_parser("jobs", help="List, cancel, or resume persisted jobs")
+    jobs_sub = jobs_parser.add_subparsers(dest="jobs_command", required=True)
+
+    jobs_list_parser = jobs_sub.add_parser("list", help="List persisted jobs")
+    jobs_list_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output machine-readable JSON",
+    )
+
+    jobs_cancel_parser = jobs_sub.add_parser("cancel", help="Request job cancellation")
+    jobs_cancel_parser.add_argument("job_id", help="Job identifier")
+    jobs_cancel_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output machine-readable JSON",
+    )
+
+    jobs_resume_parser = jobs_sub.add_parser("resume", help="Resume a failed or cancelled job")
+    jobs_resume_parser.add_argument("job_id", help="Job identifier")
+    jobs_resume_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output machine-readable JSON",
+    )
+
     return parser
 
 
@@ -253,6 +281,89 @@ def _cmd_scan(args: argparse.Namespace) -> int:
         )
     if not result.libraries:
         print("  (no libraries detected)")
+    return 0
+
+
+def _cmd_jobs_list(args: argparse.Namespace) -> int:
+    """
+    List persisted jobs from the config jobs directory.
+
+    Args:
+        args: Parsed namespace with json flag.
+
+    Returns:
+        Exit code 0 on success.
+    """
+    jobs = list_persisted_jobs()
+    if args.json:
+        print(json.dumps(jobs, indent=2))
+        return 0
+
+    if not jobs:
+        print("No persisted jobs.")
+        return 0
+
+    print(f"Jobs: {len(jobs)}\n")
+    for job in jobs:
+        checkpoint = job["checkpoint"]
+        error = f" error={job['error']}" if job.get("error") else ""
+        print(
+            f"  {job['job_id']} [{job['job_type']}] {job['state']} "
+            f"step={checkpoint['step_index']}:{checkpoint['step_name'] or '-'}{error}",
+        )
+    return 0
+
+
+def _cmd_jobs_cancel(args: argparse.Namespace) -> int:
+    """
+    Request cancellation for a persisted job.
+
+    Args:
+        args: Parsed namespace with job_id and json flags.
+
+    Returns:
+        Exit code 0 on success, 1 on failure.
+    """
+    log = structlog.get_logger()
+    try:
+        summary = cancel_persisted_job(args.job_id)
+    except JobNotFoundError as exc:
+        log.error("jobs_cancel_failed", error=str(exc))
+        return 1
+
+    if args.json:
+        print(json.dumps(summary, indent=2))
+        return 0
+
+    print(f"Cancel requested: {summary['job_id']} (state={summary['state']})")
+    return 0
+
+
+def _cmd_jobs_resume(args: argparse.Namespace) -> int:
+    """
+    Resume a failed or cancelled scan job.
+
+    Args:
+        args: Parsed namespace with job_id and json flags.
+
+    Returns:
+        Exit code 0 on success, 1 on failure.
+    """
+    log = structlog.get_logger()
+    try:
+        summary = resume_persisted_job(args.job_id)
+    except (JobNotFoundError, JobNotResumableError) as exc:
+        log.error("jobs_resume_failed", error=str(exc))
+        return 1
+    except (JobCancelledError, RuntimeError, OSError) as exc:
+        log.error("jobs_resume_failed", error=str(exc))
+        return 1
+
+    if args.json:
+        print(json.dumps(summary, indent=2))
+        return 0
+
+    print(f"Resumed job: {summary['job_id']} (state={summary['state']})")
     return 0
 
 
@@ -545,6 +656,13 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_migrate_playlist(args)
     if args.command == "apply":
         return _cmd_apply(args)
+    if args.command == "jobs":
+        if args.jobs_command == "list":
+            return _cmd_jobs_list(args)
+        if args.jobs_command == "cancel":
+            return _cmd_jobs_cancel(args)
+        if args.jobs_command == "resume":
+            return _cmd_jobs_resume(args)
 
     parser.print_help()
     return 1

@@ -1,10 +1,10 @@
 # Job Cancellation
 
-**Status:** design placeholder — not implemented.
+**Status:** partially implemented (TASK-042)
 
 ## Cooperative Cancellation
 
-Jobs poll `ctx.is_cancelled()` between steps. No forced thread kill.
+Jobs poll `ctx.check_cancelled()` between steps. No forced thread kill.
 
 ## Cancel Points
 
@@ -16,10 +16,10 @@ Jobs poll `ctx.is_cancelled()` between steps. No forced thread kill.
 
 ## Behavior on Cancel
 
-1. Set job state to `cancelled`
-2. Emit `job.cancelled` event
-3. If write started: attempt rollback if backup exists
-4. Persist final state to job record
+1. Set `cancel_requested` on the persisted job record
+2. Running jobs observe the flag via `JobRunner._is_cancelled`
+3. Emit `JobCancelled` event and set state to `cancelled`
+4. Pending jobs are cancelled immediately when `jobs cancel` is invoked
 
 ## CLI
 

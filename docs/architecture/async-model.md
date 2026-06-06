@@ -35,7 +35,7 @@ pending → running → completed
 
 ## Resumability
 
-Checkpoint metadata stored with job record (see `docs/jobs/resumability.md`) — not yet implemented (TASK-042).
+Checkpoint metadata stored with job record (see `docs/jobs/resumability.md`) — implemented for scan jobs; apply/backup resume planned.
 
 ## Related
 

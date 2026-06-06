@@ -38,7 +38,7 @@ Jobs are created by CLI or API with:
 
 The `scan` CLI command uses `JobRunner.start("scan", …)` via `run_scan_job_sync()`.
 
-## Persistence (Planned)
+## Persistence
 
 Job records stored under user config dir:
 
@@ -46,7 +46,7 @@ Job records stored under user config dir:
 ~/.config/usbversal/jobs/<job_id>.json
 ```
 
-Contains state, checkpoints, backup references, error messages.
+Contains state, checkpoints, cancel flags, backup references, and error messages. Stale `running` jobs are recovered as `failed` on load.
 
 ## Related
 
