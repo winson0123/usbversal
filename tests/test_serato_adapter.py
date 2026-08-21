@@ -10,6 +10,7 @@ from app.adapters.serato.paths import list_crate_files, resolve_serato_library
 from app.adapters.serato.reader import SeratoToolsAdapter, open_serato_library
 from app.core.domain import SeratoLibrary
 from app.services.crate_service import list_serato_crates
+from tests.conftest import integration_mount
 
 
 def test_resolve_serato_library(tmp_path: Path) -> None:
@@ -63,10 +64,10 @@ def test_serato_adapter_lists_crates() -> None:
 
 
 def test_list_serato_crates_integration() -> None:
-    """Integration test on /mnt/usb when Serato library is present."""
-    mount = Path("/mnt/usb")
+    """Integration test on a real mount when a Serato library is present."""
+    mount = integration_mount()
     if not (mount / "_Serato_/database V2").is_file():
-        pytest.skip("/mnt/usb Serato library not available")
+        pytest.skip(f"{mount}/_Serato_ not available")
 
     result = list_serato_crates(mount)
     assert result.library.database_track_count > 0

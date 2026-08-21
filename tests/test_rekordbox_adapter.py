@@ -10,6 +10,7 @@ from app.adapters.rekordbox.paths import resolve_rekordbox_database
 from app.adapters.rekordbox.reader import RboxOneLibraryAdapter, open_rekordbox_library
 from app.core.domain import RekordboxDbFormat, RekordboxLibrary
 from app.services.playlist_service import list_rekordbox_playlists
+from tests.conftest import integration_mount
 
 
 def test_write_context_requires_existing_backup(tmp_path: Path) -> None:
@@ -84,11 +85,11 @@ def test_rbox_adapter_maps_playlists() -> None:
 
 
 def test_list_rekordbox_playlists_integration() -> None:
-    """Integration test against /mnt/usb when exportLibrary.db is present."""
-    mount = Path("/mnt/usb")
+    """Integration test against a real mount when exportLibrary.db is present."""
+    mount = integration_mount()
     db_file = mount / "PIONEER/rekordbox/exportLibrary.db"
     if not db_file.is_file():
-        pytest.skip("/mnt/usb exportLibrary.db not available")
+        pytest.skip(f"{db_file} not available")
 
     result = list_rekordbox_playlists(mount)
     assert result.library.db_format == RekordboxDbFormat.ONE_LIBRARY

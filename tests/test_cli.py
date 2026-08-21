@@ -32,3 +32,16 @@ def test_scan_command_json_output() -> None:
         data = json.loads(stdout.getvalue())
         assert len(data["libraries"]) == 1
         assert data["libraries"][0]["type"] == "rekordbox"
+
+
+def test_json_output_is_parseable_with_logs_on_stderr(tmp_path: Path, capsys) -> None:
+    """`--json` writes only JSON to stdout; structlog output goes to stderr."""
+    (tmp_path / "PIONEER" / "rekordbox").mkdir(parents=True)
+    (tmp_path / "PIONEER" / "rekordbox" / "master.db").write_bytes(b"")
+
+    code = main(["scan", "--mount", str(tmp_path), "--json"])
+    captured = capsys.readouterr()
+
+    assert code == 0
+    payload = json.loads(captured.out)
+    assert payload["mounts"][0]["path"] == str(tmp_path)

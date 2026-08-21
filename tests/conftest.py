@@ -1,11 +1,26 @@
 """Shared test fixtures."""
 
+import os
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
 from app.storage.backup import BackupResult, create_backup
+
+INTEGRATION_MOUNT_ENV = "USBVERSAL_TEST_MOUNT"
+
+
+def integration_mount() -> Path:
+    """
+    Return the mount integration tests run against.
+
+    Override with ``USBVERSAL_TEST_MOUNT`` when the stick is not at /mnt/usb.
+
+    Returns:
+        Path to the mount root.
+    """
+    return Path(os.environ.get(INTEGRATION_MOUNT_ENV, "/mnt/usb"))
 
 
 @pytest.fixture

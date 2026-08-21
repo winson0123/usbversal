@@ -119,3 +119,27 @@ def test_higher_confidence_marker_wins_for_same_path(tmp_path: Path) -> None:
 
     assert len(hits) == 1
     assert hits[0].confidence == 0.95
+
+
+def test_backup_trees_are_not_reported_as_libraries(tmp_path: Path) -> None:
+    """usbversal's own backups/ mirrors the library layout and must be skipped."""
+    live = tmp_path / "PIONEER" / "rekordbox"
+    live.mkdir(parents=True)
+    (live / "export.pdb").write_bytes(b"x")
+
+    copy = tmp_path / "backups" / "20260101T000000Z" / "PIONEER" / "rekordbox"
+    copy.mkdir(parents=True)
+    (copy / "export.pdb").write_bytes(b"x")
+
+    results = LibraryDiscovery(max_depth=8).detect_on_mount(tmp_path)
+
+    assert all("backups" not in r.path.parts for r in results)
+    assert any(r.path == live.resolve() for r in results)
+
+
+def test_vendor_backup_dirs_are_skipped(tmp_path: Path) -> None:
+    """_Serato_Backup is a backup tree, not a live Serato library."""
+    (tmp_path / "_Serato_Backup").mkdir()
+    (tmp_path / "_Serato_Backup" / "database V2").write_bytes(b"x")
+
+    assert LibraryDiscovery(max_depth=6).detect_on_mount(tmp_path) == []

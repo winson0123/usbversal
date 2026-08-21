@@ -9,6 +9,17 @@ from app.core.domain import LibraryLocation, LibraryType
 
 logger = structlog.get_logger(__name__)
 
+# Backup trees mirror a real library's layout, so they must not be reported as
+# libraries: usbversal's own `backups/`, plus the vendors' backup directories.
+_EXCLUDED_DIR_NAMES = frozenset(
+    {
+        "backups",
+        "_Serato_Backup",
+        "Export Backups",
+        "Lexicon",
+    }
+)
+
 
 def _path_ends_with(parts: tuple[str, ...], suffix: tuple[str, ...]) -> bool:
     """
@@ -154,8 +165,9 @@ class LibraryDiscovery:
                     markers, library_type, current, rel_parts, filenames, mount_resolved, found
                 )
 
-            # Prune hidden dirs to reduce noise
-            dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+            dirnames[:] = [
+                d for d in dirnames if not d.startswith(".") and d not in _EXCLUDED_DIR_NAMES
+            ]
 
         results = sorted(found.values(), key=lambda loc: (-loc.confidence, str(loc.path)))
         logger.info(
