@@ -66,8 +66,7 @@ See [../schemas/serato-schema-notes.md](../schemas/serato-schema-notes.md) and [
 |-----------|--------|------|
 | Write `.crate` from a Rekordbox playlist | implemented | TASK-033 |
 | Back up `neworder.pref` with the rest of `_Serato_` | **gap** | TASK-071 |
-| TLV codec preserving unknown tags | planned | TASK-072 |
-| `database V2` merge / append `otrk` | planned | TASK-073 |
+| `database V2` append `otrk` | implemented | TASK-112 |
 | `neworder.pref` merge / write | planned | TASK-074 |
 | `Parent%%Child` nested crate naming | planned | TASK-075 |
 | Bootstrap `_Serato_` on a rekordbox-only stick | planned | TASK-076 |

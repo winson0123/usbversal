@@ -64,10 +64,12 @@ Lexicon does.
 
 ## Open questions
 
-1. Does `serato-tools` `DatabaseV2` support **appending a new track record**, or
-   only modifying existing ones? Its `modify_and_save` path is built around
-   existing entries. If it cannot append while preserving unknown tags, usbversal
-   needs its own TLV codec (TASK-072) — the format is small and fully specified.
+1. ~~Does `serato-tools` `DatabaseV2` support **appending a new track record**?~~
+   **Answered 2026-08-21.** Yes, but only through a private hook. `save()` writes
+   `raw_data`, and only `_dump()` refreshes that from `entries`, so appending to
+   `entries` and calling `save()` writes nothing and reports no error. Appending
+   works via `entries.append(...)` then `_dump()` then `save()`. A test asserts
+   `_dump` still exists so an upgrade fails loudly rather than silently.
 2. What does Serato do with a crate referencing a `pfil` that is in
    `database V2` but whose audio it has never analyzed? Expected: shows the
    track, no waveform until analyzed. Unverified.

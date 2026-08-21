@@ -9,19 +9,13 @@
     "blocked_reason": null
   },
   "pending_tasks": [
-    "TASK-110",
-    "TASK-111",
-    "TASK-112",
     "TASK-113",
-    "TASK-114",
-    "TASK-115",
-    "TASK-116",
-    "TASK-071",
-    "TASK-072",
-    "TASK-073",
     "TASK-074",
     "TASK-075",
     "TASK-076",
+    "TASK-114",
+    "TASK-115",
+    "TASK-116",
     "TASK-080",
     "TASK-081",
     "TASK-082",
@@ -145,6 +139,26 @@
     {
       "id": "TASK-107",
       "title": "Keep JSON output clean and skip backup trees when scanning",
+      "completed_at": "2026-08-21T00:00:00Z"
+    },
+    {
+      "id": "TASK-109",
+      "title": "Remove the CLI-shaped subsystems the TUI does not need",
+      "completed_at": "2026-08-21T00:00:00Z"
+    },
+    {
+      "id": "TASK-110",
+      "title": "Open the library once per session",
+      "completed_at": "2026-08-21T00:00:00Z"
+    },
+    {
+      "id": "TASK-111",
+      "title": "Per-playlist sync state",
+      "completed_at": "2026-08-21T00:00:00Z"
+    },
+    {
+      "id": "TASK-112",
+      "title": "Append records to Serato database V2",
       "completed_at": "2026-08-21T00:00:00Z"
     }
   ],
@@ -284,6 +298,30 @@
     {
       "id": "TASK-107",
       "title": "Keep JSON output clean and skip backup trees when scanning",
+      "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-109",
+      "title": "Remove the CLI-shaped subsystems the TUI does not need",
+      "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-110",
+      "title": "Open the library once per session",
+      "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-111",
+      "title": "Per-playlist sync state",
+      "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-112",
+      "title": "Append records to Serato database V2",
       "completed_at": "2026-08-21T00:00:00Z",
       "status": "completed"
     }

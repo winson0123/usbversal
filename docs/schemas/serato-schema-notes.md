@@ -398,7 +398,7 @@ The retained fixtures only exercise WAV.
 | `DatabaseV2` read | [confirmed] serato-tools |
 | `Crate` read | [confirmed] serato-tools |
 | `Crate` write | [confirmed] serato-tools `add_track` + `save`, structurally valid TLV |
-| `database V2` write / merge | [unknown] serato-tools exposes `modify_and_save`; append-new-track path unexercised |
+| `database V2` append | [confirmed] via `DatabaseV2.entries` + the private `_dump()`; `save()` writes `raw_data`, which only `_dump()` refreshes, so appending to `entries` alone is silently discarded |
 | `neworder.pref` read/write | not implemented |
 | GEOB tag read/write | not implemented — `serato_tools` ships `track_cues_v2`, `track_beatgrid`, `track_autotags` (unevaluated) |
 

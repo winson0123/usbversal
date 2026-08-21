@@ -75,8 +75,8 @@ Formats: [serato-schema-notes.md](../schemas/serato-schema-notes.md).
 | ID | Title | Notes |
 |----|-------|-------|
 | `TASK-071` | Add `neworder.pref` to the Serato backup set | **Safety gap.** `serato_files_on_mount` covers `database V2` + `.crate` only, so rollback cannot restore crate ordering. Do this before any Stage 1 write. |
-| `TASK-072` | Serato TLV codec in the adapter | Encode/decode tag + u32 BE length + payload; type from tag prefix; **preserve unrecognized tags verbatim**. Round-trip tests against fixtures. Precondition: check whether `serato-tools` can append an `otrk` without dropping unknown fields (open question 1). |
-| `TASK-073` | `database V2` merge/append writer | Read existing `otrk`, key by `pfil`, add or update. Author records from Rekordbox metadata using the verified minimal field set. **Never regenerate.** |
+| ~~`TASK-073`~~ | ~~`database V2` append writer~~ | Done — TASK-112. A Rekordbox-to-`otrk` field mapper is still outstanding and moves to TASK-113. |
+| `TASK-113` | Rekordbox metadata → `otrk` fields | Artist/album/genre/key arrive as ids needing `get_*_by_id` lookups. String formats are fussy (`tbpm` `"127.61"`, `tlen` `"03:34.99"`, `tsiz` `"8.2MB"`); wrong formats display oddly rather than failing. Diff against how Lexicon formatted the same tracks. |
 | `TASK-074` | `neworder.pref` merge/write | UTF-16BE `[begin record]` / `[crate]<name>` / `[end record]`. Preserve existing crate order, append new. |
 | `TASK-075` | Nested playlist folders → `Parent%%Child.crate` | Current code flattens to the leaf name, so same-named playlists in different folders collide. Convention is [assumed], not verified — validate in Serato. |
 | `TASK-076` | Bootstrap `_Serato_` on a rekordbox-only stick | Create `_Serato_/`, `Subcrates/`, `database V2`, `neworder.pref` where absent. Removes `SeratoLibraryRequiredError` as a dead end. Backup-gated; verify `PIONEER/` hash is unchanged. |

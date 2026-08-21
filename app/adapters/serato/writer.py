@@ -6,11 +6,11 @@ from pathlib import Path
 
 import structlog
 from serato_tools.crate import Crate
+from serato_tools.database_v2 import DatabaseV2
 
 from app.adapters.base import WriteContext
 from app.adapters.serato.naming import sanitize_crate_name
 from app.adapters.serato.paths import subcrates_dir
-from app.adapters.serato.tlv import encode_field
 
 logger = structlog.get_logger(__name__)
 
@@ -78,10 +78,6 @@ def append_database_tracks(
     """
     Append track records to a Serato database V2 file.
 
-    Existing bytes are never re-encoded: new ``otrk`` records are concatenated
-    onto the file as-is, so records this tool does not understand cannot be
-    altered or dropped.
-
     Args:
         database_path: Path to the database V2 file.
         records: Field lists, one per new track, in Serato field order.
@@ -94,15 +90,18 @@ def append_database_tracks(
     if not records:
         return 0
 
-    existing = database_path.read_bytes()
-    appended = b"".join(encode_field("otrk", fields) for fields in records)
+    database = DatabaseV2(file=str(database_path))
+    for fields in records:
+        database.entries.append(("otrk", fields))
+    # entries is a decoded view; _dump flushes it back into the bytes save() writes.
+    database._dump()
+
     temporary = database_path.with_suffix(database_path.suffix + ".tmp")
-    temporary.write_bytes(existing + appended)
+    database.save(str(temporary))
     temporary.replace(database_path)
     logger.info(
         "serato_database_tracks_appended",
         path=str(database_path),
         added=len(records),
-        bytes_added=len(appended),
     )
     return len(records)
