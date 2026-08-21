@@ -10,6 +10,9 @@ from app.storage.backup import BackupResult, create_backup
 
 INTEGRATION_MOUNT_ENV = "USBVERSAL_TEST_MOUNT"
 
+_DB_V2_VERSION = "2.0/Serato Scratch LIVE Database".encode("utf-16-be")
+EMPTY_DATABASE_V2 = b"vrsn" + len(_DB_V2_VERSION).to_bytes(4, "big") + _DB_V2_VERSION
+
 
 def integration_mount() -> Path:
     """

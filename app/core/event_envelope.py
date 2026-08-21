@@ -10,9 +10,6 @@ from app.core.events import (
     JobFailed,
     JobProgress,
     JobStarted,
-    LibraryDetected,
-    LibraryScanCompleted,
-    LibraryScanStarted,
 )
 
 EVENT_TYPE_BY_CLASS: dict[type, str] = {
@@ -21,9 +18,6 @@ EVENT_TYPE_BY_CLASS: dict[type, str] = {
     JobCompleted: "job.completed",
     JobFailed: "job.failed",
     JobCancelled: "job.cancelled",
-    LibraryScanStarted: "scan.started",
-    LibraryDetected: "scan.library_found",
-    LibraryScanCompleted: "scan.completed",
 }
 
 

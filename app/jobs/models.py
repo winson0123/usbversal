@@ -25,29 +25,13 @@ class JobState(StrEnum):
 
 
 @dataclass
-class JobCheckpoint:
-    """
-    Resume metadata for multi-step jobs.
-
-    Attributes:
-        step_index: Last successfully completed step index.
-        step_name: Human-readable step identifier.
-        partial_results: Paths or other data already processed.
-    """
-
-    step_index: int = 0
-    step_name: str = ""
-    partial_results: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
 class JobRecord:
     """
     Record for a single job execution.
 
     Attributes:
         job_id: Unique job identifier.
-        job_type: Registered handler key (e.g. ``scan``).
+        job_type: Registered handler key.
         state: Current lifecycle state.
         parameters: Input parameters passed at job creation.
         result: Successful return value when completed.
@@ -55,7 +39,6 @@ class JobRecord:
         created_at: ISO-8601 UTC creation timestamp.
         updated_at: ISO-8601 UTC last update timestamp.
         cancel_requested: Whether cancellation was requested.
-        checkpoint: Resume metadata for multi-step jobs.
     """
 
     job_id: str
@@ -67,7 +50,6 @@ class JobRecord:
     created_at: str = field(default_factory=_utc_now)
     updated_at: str = field(default_factory=_utc_now)
     cancel_requested: bool = False
-    checkpoint: JobCheckpoint = field(default_factory=JobCheckpoint)
 
 
 @dataclass
@@ -81,7 +63,6 @@ class JobContext:
         parameters: Input parameters for the job.
         cancel_event: Returns True when cancellation is requested.
         emit: Optional callback for structured events.
-        save_checkpoint: Optional callback to persist checkpoint metadata.
     """
 
     job_id: str
@@ -89,26 +70,6 @@ class JobContext:
     parameters: dict[str, Any]
     cancel_event: Callable[[], bool]
     emit: Callable[[Any], None] | None = None
-    save_checkpoint: Callable[..., None] | None = None
-
-    @property
-    def checkpoint(self) -> JobCheckpoint:
-        """
-        Return checkpoint metadata from parameters when resuming.
-
-        Returns:
-            JobCheckpoint from parameters or an empty checkpoint.
-        """
-        raw = self.parameters.get("_checkpoint")
-        if isinstance(raw, JobCheckpoint):
-            return raw
-        if isinstance(raw, dict):
-            return JobCheckpoint(
-                step_index=int(raw.get("step_index", 0)),
-                step_name=str(raw.get("step_name", "")),
-                partial_results=dict(raw.get("partial_results") or {}),
-            )
-        return JobCheckpoint()
 
     def check_cancelled(self) -> None:
         """
@@ -147,27 +108,4 @@ class JobContext:
                 current=current,
                 total=total,
             )
-        )
-
-    def update_checkpoint(
-        self,
-        *,
-        step_index: int,
-        step_name: str,
-        partial_results: dict[str, Any] | None = None,
-    ) -> None:
-        """
-        Persist checkpoint metadata for resume.
-
-        Args:
-            step_index: Last completed step index.
-            step_name: Human-readable step name.
-            partial_results: Optional partial results to store.
-        """
-        if self.save_checkpoint is None:
-            return
-        self.save_checkpoint(
-            step_index=step_index,
-            step_name=step_name,
-            partial_results=partial_results,
         )

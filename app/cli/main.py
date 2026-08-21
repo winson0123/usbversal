@@ -6,16 +6,9 @@ import sys
 
 import structlog
 
-from app.cli.progress import CliProgressRenderer
-from app.core.event_bus import EventBus
-from app.jobs.exceptions import JobCancelledError, JobNotFoundError, JobNotResumableError
-from app.jobs.jobs_cli import cancel_persisted_job, list_persisted_jobs, resume_persisted_job
-from app.jobs.scan_cli import run_scan_job_sync
-from app.services.apply_service import apply_plan_file
 from app.services.backup_service import backup_mount_libraries, backup_result_to_dict
 from app.services.crate_service import list_serato_crates
 from app.services.errors import (
-    ApplyPlanError,
     BackupNotFoundError,
     BackupVerificationError,
     CrateExistsError,
@@ -54,24 +47,6 @@ def _build_parser() -> argparse.ArgumentParser:
         description="Usbversal DJ database CLI",
     )
     sub = parser.add_subparsers(dest="command", required=True)
-
-    scan_parser = sub.add_parser("scan", help="Scan mounts and detect DJ libraries")
-    scan_parser.add_argument(
-        "--mount",
-        help="Scan only this mount path (e.g. /mnt/usb)",
-        default=None,
-    )
-    scan_parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Output machine-readable JSON",
-    )
-
-    scan_parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Show all progress events (no throttling)",
-    )
 
     list_parser = sub.add_parser(
         "list-playlists",
@@ -193,191 +168,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Output machine-readable JSON",
     )
 
-    apply_parser = sub.add_parser(
-        "apply",
-        help="Run operations from a JSON plan file (backup-gated writes)",
-    )
-    apply_parser.add_argument(
-        "--mount",
-        required=True,
-        help="Mount path (e.g. /mnt/usb)",
-    )
-    apply_parser.add_argument(
-        "--plan",
-        required=True,
-        help="Path to apply plan JSON file",
-    )
-    apply_parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Validate plan and show outcomes without backup or writes",
-    )
-    apply_parser.add_argument(
-        "--stop-on-error",
-        action="store_true",
-        help="Halt after the first failing operation (default: continue and report)",
-    )
-    apply_parser.add_argument(
-        "--target",
-        default=None,
-        help="Backup parent directory (default: <mount>/backups)",
-    )
-    apply_parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Output machine-readable JSON",
-    )
-
-    jobs_parser = sub.add_parser("jobs", help="List, cancel, or resume persisted jobs")
-    jobs_sub = jobs_parser.add_subparsers(dest="jobs_command", required=True)
-
-    jobs_list_parser = jobs_sub.add_parser("list", help="List persisted jobs")
-    jobs_list_parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Output machine-readable JSON",
-    )
-
-    jobs_cancel_parser = jobs_sub.add_parser("cancel", help="Request job cancellation")
-    jobs_cancel_parser.add_argument("job_id", help="Job identifier")
-    jobs_cancel_parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Output machine-readable JSON",
-    )
-
-    jobs_resume_parser = jobs_sub.add_parser("resume", help="Resume a failed or cancelled job")
-    jobs_resume_parser.add_argument("job_id", help="Job identifier")
-    jobs_resume_parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Output machine-readable JSON",
-    )
-
     return parser
-
-
-def _cmd_scan(args: argparse.Namespace) -> int:
-    """
-    Run the scan command and print results.
-
-    Args:
-        args: Parsed namespace with mount and json flags.
-
-    Returns:
-        Exit code 0 on success, 1 on failure.
-    """
-    try:
-        bus = EventBus()
-        if not args.json:
-            bus.subscribe(CliProgressRenderer(verbose=args.verbose))
-        result = run_scan_job_sync(mount=args.mount, bus=bus)
-    except JobCancelledError as exc:
-        structlog.get_logger().error("scan_cancelled", job_id=exc.job_id)
-        return 1
-    except (OSError, RuntimeError) as exc:
-        structlog.get_logger().error("scan_failed", error=str(exc))
-        return 1
-
-    if args.json:
-        print(json.dumps(result.to_dict(), indent=2))
-        return 0
-
-    print(f"Scanned {len(result.mounts)} mount(s), found {len(result.libraries)} library(ies)\n")
-    for mp in result.mounts:
-        print(f"  Mount: {mp.path} ({mp.source})")
-    for lib in result.libraries:
-        indicators = ", ".join(lib.indicators)
-        print(
-            f"  [{lib.library_type.value}] {lib.path} "
-            f"(confidence={lib.confidence:.2f}) — {indicators}"
-        )
-    if not result.libraries:
-        print("  (no libraries detected)")
-    return 0
-
-
-def _cmd_jobs_list(args: argparse.Namespace) -> int:
-    """
-    List persisted jobs from the config jobs directory.
-
-    Args:
-        args: Parsed namespace with json flag.
-
-    Returns:
-        Exit code 0 on success.
-    """
-    jobs = list_persisted_jobs()
-    if args.json:
-        print(json.dumps(jobs, indent=2))
-        return 0
-
-    if not jobs:
-        print("No persisted jobs.")
-        return 0
-
-    print(f"Jobs: {len(jobs)}\n")
-    for job in jobs:
-        checkpoint = job["checkpoint"]
-        error = f" error={job['error']}" if job.get("error") else ""
-        print(
-            f"  {job['job_id']} [{job['job_type']}] {job['state']} "
-            f"step={checkpoint['step_index']}:{checkpoint['step_name'] or '-'}{error}",
-        )
-    return 0
-
-
-def _cmd_jobs_cancel(args: argparse.Namespace) -> int:
-    """
-    Request cancellation for a persisted job.
-
-    Args:
-        args: Parsed namespace with job_id and json flags.
-
-    Returns:
-        Exit code 0 on success, 1 on failure.
-    """
-    log = structlog.get_logger()
-    try:
-        summary = cancel_persisted_job(args.job_id)
-    except JobNotFoundError as exc:
-        log.error("jobs_cancel_failed", error=str(exc))
-        return 1
-
-    if args.json:
-        print(json.dumps(summary, indent=2))
-        return 0
-
-    print(f"Cancel requested: {summary['job_id']} (state={summary['state']})")
-    return 0
-
-
-def _cmd_jobs_resume(args: argparse.Namespace) -> int:
-    """
-    Resume a failed or cancelled scan job.
-
-    Args:
-        args: Parsed namespace with job_id and json flags.
-
-    Returns:
-        Exit code 0 on success, 1 on failure.
-    """
-    log = structlog.get_logger()
-    try:
-        summary = resume_persisted_job(args.job_id)
-    except (JobNotFoundError, JobNotResumableError) as exc:
-        log.error("jobs_resume_failed", error=str(exc))
-        return 1
-    except (JobCancelledError, RuntimeError, OSError) as exc:
-        log.error("jobs_resume_failed", error=str(exc))
-        return 1
-
-    if args.json:
-        print(json.dumps(summary, indent=2))
-        return 0
-
-    print(f"Resumed job: {summary['job_id']} (state={summary['state']})")
-    return 0
 
 
 def _cmd_list_playlists(args: argparse.Namespace) -> int:
@@ -551,67 +342,6 @@ def _cmd_migrate_playlist(args: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_apply(args: argparse.Namespace) -> int:
-    """
-    Run apply: execute operations from a JSON plan file.
-
-    Args:
-        args: Parsed namespace with mount, plan path, and flags.
-
-    Returns:
-        Exit code 0 on success, 1 on failure.
-    """
-    log = structlog.get_logger()
-    try:
-        result = apply_plan_file(
-            args.mount,
-            args.plan,
-            dry_run=args.dry_run,
-            backup_root=args.target,
-            stop_on_error=args.stop_on_error,
-        )
-    except ApplyPlanError as exc:
-        log.error("apply_failed", error=str(exc))
-        return 1
-    except (
-        PlaylistNotFoundError,
-        SeratoLibraryRequiredError,
-        CrateExistsError,
-        MigrationError,
-        BackupVerificationError,
-    ) as exc:
-        log.error("apply_failed", error=str(exc))
-        return 1
-    except (ValueError, OSError) as exc:
-        log.error("apply_failed", error=str(exc))
-        return 1
-
-    if args.json:
-        print(json.dumps(result.to_dict(), indent=2))
-        return 1 if result.failed_count else 0
-
-    print(f"Plan: {result.plan_path}")
-    print(f"Mount: {result.mount}")
-    print(
-        f"Operations: {len(result.operations)} "
-        f"({result.success_count} ok, {result.failed_count} failed)"
-    )
-    if result.dry_run:
-        print("\n(dry-run: no backup or writes)")
-    for op in result.operations:
-        if op.result is None:
-            print(f"  [{op.index}] {op.op}: failed — {op.error}")
-            continue
-        migration = op.result
-        print(
-            f"  [{op.index}] {op.op}: {migration.get('playlist_name')} "
-            f"→ Subcrates/{migration.get('crate_name')}.crate "
-            f"({migration.get('serato_track_count')} tracks, "
-            f"{migration.get('skipped_count')} skipped)",
-        )
-    return 1 if result.failed_count else 0
-
-
 def _cmd_list_crates(args: argparse.Namespace) -> int:
     """
     Run the list-crates command.
@@ -661,8 +391,6 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
-    if args.command == "scan":
-        return _cmd_scan(args)
     if args.command == "list-playlists":
         return _cmd_list_playlists(args)
     if args.command == "backup":
@@ -673,15 +401,6 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_list_crates(args)
     if args.command == "migrate-playlist":
         return _cmd_migrate_playlist(args)
-    if args.command == "apply":
-        return _cmd_apply(args)
-    if args.command == "jobs":
-        if args.jobs_command == "list":
-            return _cmd_jobs_list(args)
-        if args.jobs_command == "cancel":
-            return _cmd_jobs_cancel(args)
-        if args.jobs_command == "resume":
-            return _cmd_jobs_resume(args)
 
     parser.print_help()
     return 1

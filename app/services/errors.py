@@ -10,7 +10,6 @@ from app.adapters.base import (
     UnsupportedDatabaseError,
 )
 from app.adapters.serato.writer import CrateExistsError
-from app.core.apply_plan import ApplyPlanError
 from app.services.migration_service import (
     MigrationError,
     PlaylistNotFoundError,
@@ -25,7 +24,6 @@ from app.storage.rollback import (
 
 __all__ = [
     "AdapterError",
-    "ApplyPlanError",
     "BackupNotFoundError",
     "BackupVerificationError",
     "CrateExistsError",

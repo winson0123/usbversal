@@ -1,130 +1,110 @@
-"""Tests for JobRunner, registry, and scan job."""
+"""Tests for the async job runner."""
 
-from pathlib import Path
+import asyncio
 
 import pytest
 
 from app.core.event_bus import EventBus
-from app.jobs.exceptions import JobNotFoundError, UnknownJobTypeError
+from app.jobs.exceptions import JobCancelledError, JobNotFoundError, UnknownJobTypeError
 from app.jobs.models import JobContext, JobRecord, JobState
 from app.jobs.registry import JobRegistry
 from app.jobs.runner import JobRunner
 
 
-@pytest.mark.asyncio
-async def test_scan_job_completes(tmp_path: Path) -> None:
-    """JobRunner runs scan job and stores ScanResult."""
-    (tmp_path / "PIONEER" / "rekordbox").mkdir(parents=True)
-    (tmp_path / "PIONEER" / "rekordbox" / "master.db").write_bytes(b"")
+async def _echo(ctx: JobContext) -> str:
+    """Emit one progress event and return a value."""
+    ctx.check_cancelled()
+    ctx.progress("working", current=1, total=1)
+    return ctx.parameters.get("value", "done")
 
+
+@pytest.mark.asyncio
+async def test_job_completes_and_emits_lifecycle_events() -> None:
+    """A handler runs to completion and publishes start/progress/complete."""
     events: list[str] = []
     bus = EventBus()
     bus.subscribe(lambda event: events.append(event.type))
-    runner = JobRunner(bus=bus)
+    runner = JobRunner({"echo": _echo}, bus=bus)
 
-    job_id = await runner.start("scan", {"mount": str(tmp_path)})
+    job_id = await runner.start("echo", {"value": "ok"})
     record = await runner.wait(job_id)
 
     assert record.state == JobState.COMPLETED
-    assert record.result is not None
-    assert len(record.result.libraries) >= 1
-    assert "job.started" in events
-    assert "job.progress" in events
-    assert "job.completed" in events
-
-
-@pytest.mark.asyncio
-async def test_scan_job_emits_library_events(tmp_path: Path) -> None:
-    """Scan job forwards library scan events through the job emitter."""
-    (tmp_path / "PIONEER" / "rekordbox").mkdir(parents=True)
-    (tmp_path / "PIONEER" / "rekordbox" / "master.db").write_bytes(b"")
-
-    captured: list[str] = []
-    bus = EventBus()
-    bus.subscribe(lambda event: captured.append(event.type))
-    runner = JobRunner(bus=bus)
-    job_id = await runner.start("scan", {"mount": str(tmp_path)})
-    await runner.wait(job_id)
-
-    assert "job.started" in captured
-    assert "scan.started" in captured
-    assert "scan.completed" in captured
+    assert record.result == "ok"
+    assert events == ["job.started", "job.progress", "job.completed"]
 
 
 @pytest.mark.asyncio
 async def test_unknown_job_type_raises() -> None:
-    """Starting an unregistered job type raises UnknownJobTypeError."""
-    runner = JobRunner()
+    """Starting an unregistered job type fails fast."""
+    runner = JobRunner({})
     with pytest.raises(UnknownJobTypeError):
         await runner.start("missing")
 
 
 @pytest.mark.asyncio
 async def test_wait_unknown_job_raises() -> None:
-    """Waiting on an unknown job id raises JobNotFoundError."""
-    runner = JobRunner()
+    """Waiting on an unknown job id raises."""
+    runner = JobRunner({})
     with pytest.raises(JobNotFoundError):
-        await runner.wait("does-not-exist")
+        await runner.wait("nope")
 
 
 @pytest.mark.asyncio
-async def test_cancelled_job_marks_cancelled(tmp_path: Path) -> None:
-    """Cooperative cancel marks the job as cancelled."""
-    (tmp_path / "PIONEER" / "rekordbox").mkdir(parents=True)
-    (tmp_path / "PIONEER" / "rekordbox" / "master.db").write_bytes(b"")
+async def test_cancel_marks_job_cancelled() -> None:
+    """A cooperative handler observes the cancel flag and stops."""
 
-    started = False
+    async def slow(ctx: JobContext) -> None:
+        for _ in range(100):
+            ctx.check_cancelled()
+            await asyncio.sleep(0.01)
 
-    async def slow_scan(ctx: JobContext) -> None:
-        nonlocal started
-        started = True
-        ctx.check_cancelled()
-
-    runner = JobRunner(handlers={"scan": slow_scan})
-    job_id = await runner.start("scan", {"mount": str(tmp_path)})
+    runner = JobRunner({"slow": slow})
+    job_id = await runner.start("slow")
+    await asyncio.sleep(0.02)
     runner.cancel(job_id)
     record = await runner.wait(job_id)
 
-    assert started
     assert record.state == JobState.CANCELLED
+    assert record.cancel_requested is True
 
 
 @pytest.mark.asyncio
 async def test_failed_job_stores_error() -> None:
-    """Handler exceptions mark the job failed with an error message."""
+    """A raising handler leaves the job failed with its message."""
 
-    async def failing(_ctx: JobContext) -> None:
-        raise ValueError("boom")
+    async def failing(ctx: JobContext) -> None:
+        raise RuntimeError("boom")
 
-    runner = JobRunner(handlers={"scan": failing})
-    job_id = await runner.start("scan", {})
-    record = await runner.wait(job_id)
+    events: list[str] = []
+    bus = EventBus()
+    bus.subscribe(lambda event: events.append(event.type))
+    runner = JobRunner({"bad": failing}, bus=bus)
+
+    record = await runner.wait(await runner.start("bad"))
 
     assert record.state == JobState.FAILED
     assert record.error == "boom"
+    assert "job.failed" in events
 
 
-def test_registry_list_jobs() -> None:
-    """Registry returns all records in insertion order."""
+@pytest.mark.asyncio
+async def test_cancel_before_run_short_circuits() -> None:
+    """A handler raising JobCancelledError lands in the cancelled state."""
+
+    async def cancels(ctx: JobContext) -> None:
+        raise JobCancelledError(ctx.job_id)
+
+    runner = JobRunner({"c": cancels})
+    record = await runner.wait(await runner.start("c"))
+    assert record.state == JobState.CANCELLED
+
+
+def test_registry_lists_records_in_insertion_order() -> None:
+    """The registry preserves insertion order."""
     registry = JobRegistry()
-    registry.add(JobRecord("a", "scan", JobState.PENDING, {}))
-    registry.add(JobRecord("b", "scan", JobState.PENDING, {}))
+    for job_id in ("a", "b"):
+        registry.add(
+            JobRecord(job_id=job_id, job_type="echo", state=JobState.PENDING, parameters={})
+        )
     assert [r.job_id for r in registry.list_all()] == ["a", "b"]
-
-
-def test_run_scan_job_sync(tmp_path: Path, monkeypatch) -> None:
-    """Synchronous CLI helper returns ScanResult."""
-    from app.jobs.paths import get_jobs_dir
-    from app.jobs.scan_cli import run_scan_job_sync
-    from app.jobs.store import JobStore
-
-    monkeypatch.setenv("USBVERSAL_JOBS_DIR", str(tmp_path / "jobs"))
-    jobs_dir = get_jobs_dir()
-    store = JobStore(jobs_dir)
-
-    (tmp_path / "PIONEER" / "rekordbox").mkdir(parents=True)
-    (tmp_path / "PIONEER" / "rekordbox" / "master.db").write_bytes(b"")
-
-    result = run_scan_job_sync(mount=str(tmp_path), store=store)
-    assert len(result.mounts) == 1
-    assert len(list(jobs_dir.glob("*.json"))) == 1
