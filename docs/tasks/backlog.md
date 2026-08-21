@@ -53,7 +53,7 @@ Priority order (top first). Decompose before starting if scope exceeds one commi
 | ~~`TASK-050`~~ | ~~`scan` command~~ | Done |
 | ~~`TASK-051`~~ | ~~`list-playlists` / `list-crates`~~ | Done |
 | ~~`TASK-052`~~ | ~~`backup` / `rollback`~~ | Done |
-| ~~`TASK-053`~~ | ~~`apply` with plan file~~ | Done — [apply-plan-format.md](../planning/apply-plan-format.md) |
+| ~~`TASK-053`~~ | ~~`apply` with plan file~~ | Removed in TASK-109; superseded by `sync_playlists` |
 
 ## M7 — Packaging & Validation
 
