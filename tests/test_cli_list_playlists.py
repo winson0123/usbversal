@@ -18,9 +18,7 @@ def test_list_playlists_json_output() -> None:
     )
     result = PlaylistListResult(
         library=library,
-        playlists=(
-            Playlist(id=18, name="House", parent_id=17, is_folder=False, track_count=3),
-        ),
+        playlists=(Playlist(id=18, name="House", parent_id=17, is_folder=False, track_count=3),),
     )
     with patch("app.cli.main.list_rekordbox_playlists", return_value=result):
         with patch("sys.stdout", new_callable=StringIO) as stdout:
