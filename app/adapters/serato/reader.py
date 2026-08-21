@@ -66,9 +66,6 @@ def read_database_track_paths(database_path: Path) -> list[str]:
     """
     Read raw track paths from a Serato database V2 file.
 
-    Keeps the serato-tools dependency inside the adapter layer so callers can
-    build path indexes without importing vendor code.
-
     Args:
         database_path: Path to the `database V2` file.
 

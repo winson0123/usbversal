@@ -16,9 +16,6 @@ def record_to_dict(record: JobRecord) -> dict[str, Any]:
     Returns:
         Plain dict suitable for ``json.dump``.
     """
-    # Job results are opaque to this layer: anything that can describe itself
-    # as a dict does so. Importing concrete result types here would make jobs
-    # depend on services, inverting the declared layer order.
     result = record.result
     if hasattr(result, "to_dict"):
         result = result.to_dict()
@@ -51,7 +48,6 @@ def record_from_dict(data: dict[str, Any]) -> JobRecord:
     checkpoint = JobCheckpoint(
         step_index=int(checkpoint_data.get("step_index", 0)),
         step_name=str(checkpoint_data.get("step_name", "")),
-        backup_ids=list(checkpoint_data.get("backup_ids") or []),
         partial_results=dict(checkpoint_data.get("partial_results") or {}),
     )
     return JobRecord(

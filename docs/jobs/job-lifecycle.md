@@ -1,6 +1,6 @@
 # Job Lifecycle
 
-**Status:** partially implemented (TASK-040, TASK-041)
+**Status:** implemented (TASK-040, TASK-041)
 
 ## States
 

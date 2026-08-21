@@ -141,11 +141,8 @@ def open_rekordbox_library(mount_path: Path) -> RekordboxReadAdapter:
         logger.info("opening_rekordbox_one_library", path=str(db_path))
         return RboxOneLibraryAdapter(library, OneLibrary(str(db_path)))
 
-    if db_format == RekordboxDbFormat.DEVICE_SQL:
-        raise UnsupportedDatabaseError(
-            "Classic export.pdb (DeviceSQL) is not supported yet. "
-            "Rekordbox One Library (exportLibrary.db) is required; re-export USB "
-            "for OPUS-QUAD / XDJ-AZ / OMNIS-DUO class devices or use rbox directly."
-        )
-
-    raise UnsupportedDatabaseError(f"Unsupported Rekordbox format: {db_format}")
+    raise UnsupportedDatabaseError(
+        "Classic export.pdb (DeviceSQL) is not supported. "
+        "Rekordbox One Library (exportLibrary.db) is required; re-export the USB "
+        "for OPUS-QUAD / XDJ-AZ / OMNIS-DUO class devices."
+    )

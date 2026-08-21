@@ -65,7 +65,7 @@ def test_rejects_empty_manifest(tmp_path: Path) -> None:
 
 
 def test_rejects_tampered_backup(make_backup) -> None:
-    """A backup whose contents no longer match the manifest is rejected."""
+    """A backup whose contents do not match the manifest is rejected."""
     backup = make_backup()
     copied = backup.backup_dir / backup.manifest.files[0].relative_path
     copied.write_bytes(b"corrupted after the fact")
@@ -81,12 +81,3 @@ def test_rejects_backup_with_missing_file(make_backup) -> None:
 
     with pytest.raises(BackupVerificationError):
         WriteContext(backup_path=backup.backup_dir)
-
-
-def test_verify_contents_can_be_skipped(make_backup) -> None:
-    """verify_contents=False still requires a manifest, but skips re-hashing."""
-    backup = make_backup()
-    (backup.backup_dir / backup.manifest.files[0].relative_path).write_bytes(b"changed")
-
-    ctx = WriteContext(backup_path=backup.backup_dir, verify_contents=False)
-    assert ctx.backup_path == backup.backup_dir

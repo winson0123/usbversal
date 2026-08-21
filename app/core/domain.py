@@ -10,7 +10,6 @@ class LibraryType(StrEnum):
 
     REKORDBOX = "rekordbox"
     SERATO = "serato"
-    UNKNOWN = "unknown"
 
 
 class RekordboxDbFormat(StrEnum):
@@ -18,8 +17,6 @@ class RekordboxDbFormat(StrEnum):
 
     ONE_LIBRARY = "exportLibrary.db"
     DEVICE_SQL = "export.pdb"
-    SQLITE_DJMD = "sqlite_djmd"
-    UNKNOWN = "unknown"
 
 
 @dataclass(frozen=True)

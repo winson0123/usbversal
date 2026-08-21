@@ -122,12 +122,7 @@ def test_apply_cli_json_dry_run(tmp_path: Path) -> None:
 
 
 def test_apply_records_failures_and_continues(tmp_path: Path) -> None:
-    """
-    A failing operation is recorded and later operations still run.
-
-    Aborting on the first failure used to discard the record of operations that
-    had already written crates and taken backups.
-    """
+    """A failing operation is recorded and later operations still run."""
     mount = tmp_path / "usb"
     mount.mkdir()
     plan_path = tmp_path / "plan.json"

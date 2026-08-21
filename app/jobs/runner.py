@@ -2,7 +2,6 @@
 
 import asyncio
 import uuid
-from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -41,7 +40,6 @@ class JobRunner:
         *,
         registry: JobRegistry | None = None,
         handlers: dict[str, JobHandler] | None = None,
-        emit: Callable[[Any], None] | None = None,
         store: JobStore | None = None,
         bus: EventBus | None = None,
     ) -> None:
@@ -51,29 +49,17 @@ class JobRunner:
         Args:
             registry: Job record store; defaults to a new in-memory registry.
             handlers: Job type to coroutine handler map; defaults to built-ins.
-            emit: Optional legacy callback for raw structured events.
             store: Optional JobStore for persistence and cross-process cancel.
             bus: Optional EventBus for normalized event delivery.
         """
         self._registry = registry or JobRegistry()
         self._handlers = handlers if handlers is not None else DEFAULT_HANDLERS.copy()
-        self._emit = emit
         self._store = store
         self._bus = bus
         self._tasks: dict[str, asyncio.Task[Any]] = {}
         self._cancel_flags: dict[str, bool] = {}
         if self._store is not None:
             self._store.recover_interrupted()
-
-    def register_handler(self, job_type: str, handler: JobHandler) -> None:
-        """
-        Register or replace a job handler.
-
-        Args:
-            job_type: Handler lookup key.
-            handler: Async callable accepting JobContext.
-        """
-        self._handlers[job_type] = handler
 
     async def start(
         self,
@@ -143,7 +129,6 @@ class JobRunner:
         record = self._store.prepare_resume(job_id)
         self._registry.add(record)
         params = dict(record.parameters)
-        params["_resume"] = True
         params["_checkpoint"] = record.checkpoint
         self._cancel_flags[job_id] = False
 
@@ -196,27 +181,6 @@ class JobRunner:
         self._persist(record)
         return record
 
-    def get(self, job_id: str) -> JobRecord:
-        """
-        Return the current job record.
-
-        Args:
-            job_id: Job identifier.
-
-        Returns:
-            Current JobRecord snapshot.
-        """
-        return self._registry.get(job_id)
-
-    def list_jobs(self) -> list[JobRecord]:
-        """
-        Return all job records known to this runner.
-
-        Returns:
-            List of JobRecord instances.
-        """
-        return self._registry.list_all()
-
     def _persist(self, record: JobRecord) -> None:
         """Write a record to the optional JobStore."""
         if self._store is None:
@@ -239,7 +203,6 @@ class JobRunner:
         step_index: int,
         step_name: str,
         partial_results: dict[str, Any] | None = None,
-        backup_ids: list[str] | None = None,
     ) -> None:
         """Update checkpoint fields on the in-memory and persisted record."""
         record = self._registry.get(job_id)
@@ -247,21 +210,13 @@ class JobRunner:
         record.checkpoint.step_name = step_name
         if partial_results is not None:
             record.checkpoint.partial_results = partial_results
-        if backup_ids is not None:
-            record.checkpoint.backup_ids = backup_ids
         record.updated_at = _utc_now()
         self._persist(record)
 
     def _publish(self, event: Any) -> None:
-        """Dispatch an event to the bus and optional legacy emitter."""
+        """Dispatch an event to the bus."""
         if self._bus is not None:
             self._bus.publish(event)
-        if self._emit is None:
-            return
-        try:
-            self._emit(event)
-        except Exception:
-            logger.exception("job_event_emit_failed", event_type=type(event).__name__)
 
     async def _execute(self, job_id: str, job_type: str, parameters: dict[str, Any]) -> None:
         """

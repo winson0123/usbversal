@@ -14,7 +14,7 @@ def make_backup(tmp_path: Path) -> Callable[..., BackupResult]:
     Build a real, verifiable backup for WriteContext construction.
 
     WriteContext verifies the manifest and re-hashes every entry, so tests that
-    exercise write paths need a genuine backup rather than a bare directory.
+    exercise write paths need a genuine backup directory.
 
     Returns:
         Callable taking an optional mount root and returning a BackupResult.

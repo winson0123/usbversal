@@ -49,7 +49,3 @@ class EventBus:
                     "event_subscriber_failed",
                     event_type=envelope.type,
                 )
-
-    def clear_subscribers(self) -> None:
-        """Remove all registered subscribers."""
-        self._subscribers.clear()

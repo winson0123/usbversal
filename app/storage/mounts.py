@@ -15,10 +15,6 @@ def resolve_mount_path(mount: str | Path) -> Path:
     """
     Resolve and validate a user-supplied mount path.
 
-    Every mount-taking entry point routes through here so that a bad path fails
-    at the boundary with a clear message, rather than surfacing later as an
-    empty result or a confusing vendor-specific "database not found".
-
     Args:
         mount: Mount path as given by the caller (e.g. /mnt/usb).
 
@@ -87,8 +83,8 @@ class LinuxMntScanner(MountScanner):
         return mounts
 
 
-class WindowsMountScannerStub(MountScanner):
-    """Stub scanner for Windows drive letters."""
+class WindowsMountScanner(MountScanner):
+    """Enumerate Windows drive letters."""
 
     def list_mounts(self) -> list[MountPoint]:
         """
@@ -105,41 +101,13 @@ class WindowsMountScannerStub(MountScanner):
         return mounts
 
 
-class MacOSMountScannerStub(MountScanner):
-    """Stub scanner for macOS /Volumes."""
-
-    def list_mounts(self) -> list[MountPoint]:
-        """
-        List directories under /Volumes.
-
-        Returns:
-            MountPoint per volume directory.
-        """
-        volumes = Path("/Volumes")
-        if not volumes.is_dir():
-            return []
-
-        mounts: list[MountPoint] = []
-        for entry in sorted(volumes.iterdir()):
-            if entry.is_dir() and not entry.name.startswith("."):
-                mounts.append(
-                    MountPoint(path=entry.resolve(), source="macos_volumes"),
-                )
-        return mounts
-
-
 def get_mount_scanner() -> MountScanner:
     """
     Return the platform-appropriate mount scanner.
 
     Returns:
-        MountScanner implementation for Linux, Windows, or macOS.
+        MountScanner implementation for the current platform.
     """
-    system = platform.system()
-    if system == "Linux":
-        return LinuxMntScanner()
-    if system == "Windows":
-        return WindowsMountScannerStub()
-    if system == "Darwin":
-        return MacOSMountScannerStub()
+    if platform.system() == "Windows":
+        return WindowsMountScanner()
     return LinuxMntScanner()

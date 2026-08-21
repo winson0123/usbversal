@@ -7,7 +7,7 @@ Python CLI for **safe, metadata-only** manipulation of DJ library databases on U
 | **Platforms** | Windows, Linux (WSL supported) |
 | **DJ systems** | Rekordbox (SQLite), Serato (proprietary; adapter-isolated) |
 | **Primary test USB** | `/mnt/usb` (WSL) — see [docs/storage/usb-detection.md](docs/storage/usb-detection.md) |
-| **Status** | Scaffolding — see [docs/state/repository-state.json](docs/state/repository-state.json) |
+| **Status** | Read paths + backup/rollback working; Serato index authoring in progress — see [docs/state/repository-state.json](docs/state/repository-state.json) |
 
 ## Purpose
 
@@ -40,45 +40,49 @@ Use this mount only for integration validation tasks explicitly scoped in `docs/
 
 ## CLI usage
 
+The `usbversal` binary and `python -m app.cli` accept the same commands. The
+current argparse interface is a **harness for testing the underlying services**;
+the shipped tool will be an interactive terminal UI (see
+[docs/planning/interactive-tui.md](docs/planning/interactive-tui.md)).
+
+### Read-only
+
 ```bash
-# Discovery
 python -m app.cli scan --mount /mnt/usb
-
-# Rekordbox playlists (exportLibrary.db via rbox)
-python -m app.cli list-playlists --mount /mnt/usb
-python -m app.cli list-playlists --mount /mnt/usb --json
-
-# Backup (read-only copy to <mount>/backups/<timestamp>/)
-python -m app.cli backup --mount /mnt/usb
-
-# Rollback (restore from a prior backup; creates pre-rollback copy by default)
-python -m app.cli rollback --mount /mnt/usb --backup-id 20260525T075946Z
-
-# Serato crates (read-only)
-python -m app.cli list-crates --mount /mnt/usb
-
-# Copy Rekordbox playlist to Serato crate (backs up RB + Serato first)
-python -m app.cli migrate-playlist --mount /mnt/usb --playlist-id 1 --dry-run
-python -m app.cli migrate-playlist --mount /mnt/usb --playlist-name "Pocket"
-
-# Or run from a plan file (see docs/planning/apply-plan-format.md)
-python -m app.cli apply --mount /mnt/usb --plan plans/pocket.json --dry-run
-# Then in Serato DJ (offline): Analyze Files to build BPM/beatgrid/cues on the stick
-
-See [docs/workflows/usb-integration-validation.md](docs/workflows/usb-integration-validation.md) for the full `/mnt/usb` checklist.
-
-# Safety
-usbversal backup --mount /mnt/usb --target ./backups/
-usbversal rollback --mount /mnt/usb --backup-id <id>
-
-# Writes (backup required)
-usbversal apply --mount /mnt/usb --plan <file.json>
-
-# Jobs
-usbversal jobs list
-usbversal jobs resume <job-id>
-usbversal jobs cancel <job-id>
+python -m app.cli list-playlists --mount /mnt/usb [--json]
+python -m app.cli list-crates --mount /mnt/usb [--json]
 ```
+
+### Safety
+
+```bash
+python -m app.cli backup --mount /mnt/usb [--target ./backups/]
+python -m app.cli rollback --mount /mnt/usb --backup-id 20260525T075946Z
+```
+
+### Writes (backup required)
+
+```bash
+python -m app.cli migrate-playlist --mount /mnt/usb --playlist-name "Pocket" --dry-run
+python -m app.cli apply --mount /mnt/usb --plan plans/pocket.json --dry-run
+```
+
+Every write path builds a `WriteContext`, which refuses to construct unless the
+backup directory exists, carries a readable manifest, and passes checksum
+verification. After migrating a crate, run **Analyze Files** in Serato (offline)
+so it builds BPM, beatgrid, and cues — usbversal does not yet write those tags
+([Stage 2](docs/planning/rekordbox-to-serato-analysis-sync.md)).
+
+### Jobs
+
+```bash
+python -m app.cli jobs list
+python -m app.cli jobs resume <job-id>
+python -m app.cli jobs cancel <job-id>
+```
+
+See [docs/workflows/usb-integration-validation.md](docs/workflows/usb-integration-validation.md)
+for the full `/mnt/usb` checklist.
 
 ## Packaging intent
 

@@ -38,8 +38,6 @@ class WriteContext:
 
     Attributes:
         backup_path: Backup directory containing manifest.json and file copies.
-        verify_contents: Re-hash every manifest entry (default). Set False only
-            where the caller has already verified the same directory.
 
     Raises:
         ValueError: If backup_path is not a directory or has no readable manifest.
@@ -48,7 +46,6 @@ class WriteContext:
     """
 
     backup_path: Path
-    verify_contents: bool = True
 
     def __post_init__(self) -> None:
         """Verify that backup_path is a usable, intact backup."""
@@ -71,8 +68,7 @@ class WriteContext:
             msg = f"WriteContext requires a non-empty backup manifest: {manifest_path}"
             raise ValueError(msg)
 
-        if self.verify_contents:
-            verify_backup_integrity(self.backup_path, manifest)
+        verify_backup_integrity(self.backup_path, manifest)
 
 
 class RekordboxReadAdapter(ABC):

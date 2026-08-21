@@ -164,9 +164,6 @@ def atomic_copy_file(source: Path, destination: Path) -> None:
         os.replace(temporary, destination)
         replaced = True
     finally:
-        # os.replace consumes the temporary on success. On any failure the
-        # partial copy must go, whether or not the destination already existed
-        # -- the overwrite case is exactly what rollback does.
         if not replaced:
             temporary.unlink(missing_ok=True)
 

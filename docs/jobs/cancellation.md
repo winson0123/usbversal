@@ -1,6 +1,6 @@
 # Job Cancellation
 
-**Status:** partially implemented (TASK-042)
+**Status:** implemented (TASK-042)
 
 ## Cooperative Cancellation
 

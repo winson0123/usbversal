@@ -18,7 +18,7 @@ Priority order (top first). Decompose before starting if scope exceeds one commi
 
 | ID | Title | Notes |
 |----|-------|-------|
-| `TASK-010` | Mount path validation utilities | No auto-detect yet |
+| ~~`TASK-010`~~ | ~~Mount path validation utilities~~ | Done — `storage.mounts.resolve_mount_path`. The old note ("no auto-detect yet") was wrong; auto-detect shipped with TASK-050. |
 | ~~`TASK-011`~~ | ~~Backup copy + manifest.json~~ | Done |
 | ~~`TASK-012`~~ | ~~Rollback from manifest~~ | Done — `rollback` CLI |
 
@@ -36,7 +36,7 @@ Priority order (top first). Decompose before starting if scope exceeds one commi
 |----|-------|-------|
 | ~~`TASK-030`~~ | ~~Rekordbox detect + read-only list~~ | Done |
 | ~~`TASK-031`~~ | ~~Serato detect + read-only crates~~ | Done |
-| `TASK-032` | Rekordbox write path | Requires backup integration. **Not started** |
+| ~~`TASK-032`~~ | ~~Rekordbox write path~~ | **Dropped 2026-08-21.** Contradicts the mission: rekordbox owns `PIONEER/` and stays untouched, which is what makes the two-index approach lossless. No consumer, and building it would undermine the safety story. |
 
 ## M5 — Jobs
 
@@ -102,7 +102,23 @@ plus per-file backup required.** Sequenced strictly after M8.
 | ID | Title | Notes |
 |----|-------|-------|
 | `TASK-090` | `export.pdb` DeviceSQL reader | Spec captured in [rekordbox-schema-notes.md](../schemas/rekordbox-schema-notes.md) but **never parsed**. Not needed while `exportLibrary.db` is present — only for older sticks that ship `export.pdb` alone. Validate by dumping the playlist tree and checking names are readable. |
-| `TASK-091` | Reconcile `ruff format` drift | 4 files fail `ruff format --check` (2 app, 2 tests), predating this work. Isolated commit — do not batch. |
+| ~~`TASK-091`~~ | ~~Reconcile `ruff format` drift~~ | Done |
+
+## M11 — Interactive TUI (the shipped product)
+
+The argparse CLI is a **test harness**, not the deliverable. Plan:
+[interactive-tui.md](../planning/interactive-tui.md). These gate the real tool
+and none of them exist yet.
+
+| ID | Title | Notes |
+|----|-------|-------|
+| `TASK-110` | Per-playlist sync state (red / yellow / green) | Diff each Rekordbox playlist's tracks against its Serato crate: none → red, some → yellow, all → green. Largest missing piece; gates the library screen. |
+| `TASK-111` | Playlist tree model | `Playlist.parent_id` exists but every consumer flattens it. Needs real nesting plus aggregate sync state per folder. |
+| `TASK-112` | Single "valid DJ USB?" readiness verdict | One call for the waiting/detect screens. Must treat an **empty mount point as no USB** — `/mnt/usb` survives unplugging as an empty dir and passes `resolve_mount_path`. |
+| `TASK-113` | Removable-media polling | Detection is one-shot today. `LibraryDiscovery` walks up to 25,000 nodes — far too heavy for a UI loop. Needs a cheap mount-appeared/disappeared watch. |
+| `TASK-114` | Progress rate + ETA | `JobProgress` has `current`/`total` but no rate or estimate. |
+| `TASK-115` | Batch sync over selected playlists | `apply` takes **one backup per operation**; 40 playlists must take one backup up front. Build on the collect-and-report shape from TASK-102. |
+| `TASK-116` | TUI framework ADR + shell | textual / prompt_toolkit / rich / curses. Must survive PyInstaller one-file packaging (ADR 0003). |
 
 ---
 
@@ -115,3 +131,5 @@ plus per-file backup required.** Sequenced strictly after M8.
   the reference stick) written by Serato or Lexicon. **Merge, never regenerate.**
 - Stage 1 is independently shippable and touches no audio. Stage 2 is the risky
   half; do not let them share a commit.
+- **Code carries no historical reasoning.** Why a thing is shaped the way it is
+  belongs in `docs/`; the source states only what it does now.

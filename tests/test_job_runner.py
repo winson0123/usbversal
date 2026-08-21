@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from app.core.event_bus import EventBus
 from app.jobs.exceptions import JobNotFoundError, UnknownJobTypeError
 from app.jobs.models import JobContext, JobRecord, JobState
 from app.jobs.registry import JobRegistry
@@ -17,7 +18,9 @@ async def test_scan_job_completes(tmp_path: Path) -> None:
     (tmp_path / "PIONEER" / "rekordbox" / "master.db").write_bytes(b"")
 
     events: list[str] = []
-    runner = JobRunner(emit=lambda event: events.append(type(event).__name__))
+    bus = EventBus()
+    bus.subscribe(lambda event: events.append(event.type))
+    runner = JobRunner(bus=bus)
 
     job_id = await runner.start("scan", {"mount": str(tmp_path)})
     record = await runner.wait(job_id)
@@ -25,9 +28,9 @@ async def test_scan_job_completes(tmp_path: Path) -> None:
     assert record.state == JobState.COMPLETED
     assert record.result is not None
     assert len(record.result.libraries) >= 1
-    assert "JobStarted" in events
-    assert "JobProgress" in events
-    assert "JobCompleted" in events
+    assert "job.started" in events
+    assert "job.progress" in events
+    assert "job.completed" in events
 
 
 @pytest.mark.asyncio
@@ -37,17 +40,15 @@ async def test_scan_job_emits_library_events(tmp_path: Path) -> None:
     (tmp_path / "PIONEER" / "rekordbox" / "master.db").write_bytes(b"")
 
     captured: list[str] = []
-
-    def capture(event) -> None:
-        captured.append(type(event).__name__)
-
-    runner = JobRunner(emit=capture)
+    bus = EventBus()
+    bus.subscribe(lambda event: captured.append(event.type))
+    runner = JobRunner(bus=bus)
     job_id = await runner.start("scan", {"mount": str(tmp_path)})
     await runner.wait(job_id)
 
-    assert "JobStarted" in captured
-    assert "LibraryScanStarted" in captured
-    assert "LibraryScanCompleted" in captured
+    assert "job.started" in captured
+    assert "scan.started" in captured
+    assert "scan.completed" in captured
 
 
 @pytest.mark.asyncio

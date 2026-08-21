@@ -132,8 +132,6 @@ def backup_mount_libraries(
                 path = mount_path / path
             if not path.is_file():
                 continue
-            # Compare resolved forms; ``files`` already holds resolved paths, so
-            # testing the raw path would let a symlinked duplicate slip through.
             resolved = path.resolve()
             if resolved not in files:
                 files.append(resolved)

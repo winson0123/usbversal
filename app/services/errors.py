@@ -1,13 +1,6 @@
-"""Public error taxonomy for user-facing frontends.
+"""Error taxonomy for frontends.
 
-The CLI -- and any future interactive frontend -- needs to map failures onto
-messages and exit codes. Importing those exception types from the modules that
-happen to raise them would make the frontend depend on adapter and storage
-internals, so the taxonomy is re-exported here instead. Frontends import from
-this module only.
-
-Job lifecycle errors are deliberately absent: ``jobs`` sits above ``services``,
-and frontends may import ``app.jobs.exceptions`` directly.
+Job lifecycle errors live in ``app.jobs.exceptions``.
 """
 
 from app.adapters.base import (

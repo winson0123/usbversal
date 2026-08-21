@@ -201,11 +201,6 @@ def apply_plan_file(
                 backup_root=backup,
             )
         except (MigrationError, CrateExistsError) as exc:
-            # Per-operation failures are recorded and the run continues, so the
-            # caller learns which operations landed. Aborting here used to throw
-            # away the record of already-applied operations along with their
-            # backups. Infrastructure failures (OSError, backup verification)
-            # still propagate -- those are not per-playlist problems.
             logger.warning(
                 "apply_operation_failed",
                 index=index,

@@ -1,6 +1,6 @@
 # Job Resumability
 
-**Status:** partially implemented (TASK-042)
+**Status:** implemented (TASK-042)
 
 ## Goal
 

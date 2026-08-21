@@ -32,13 +32,11 @@ class JobCheckpoint:
     Attributes:
         step_index: Last successfully completed step index.
         step_name: Human-readable step identifier.
-        backup_ids: Backup ids already created for this job.
         partial_results: Paths or other data already processed.
     """
 
     step_index: int = 0
     step_name: str = ""
-    backup_ids: list[str] = field(default_factory=list)
     partial_results: dict[str, Any] = field(default_factory=dict)
 
 
@@ -108,20 +106,9 @@ class JobContext:
             return JobCheckpoint(
                 step_index=int(raw.get("step_index", 0)),
                 step_name=str(raw.get("step_name", "")),
-                backup_ids=list(raw.get("backup_ids") or []),
                 partial_results=dict(raw.get("partial_results") or {}),
             )
         return JobCheckpoint()
-
-    @property
-    def is_resume(self) -> bool:
-        """
-        Return whether this execution is resuming a prior job attempt.
-
-        Returns:
-            True when the ``_resume`` parameter flag is set.
-        """
-        return bool(self.parameters.get("_resume"))
 
     def check_cancelled(self) -> None:
         """
@@ -168,7 +155,6 @@ class JobContext:
         step_index: int,
         step_name: str,
         partial_results: dict[str, Any] | None = None,
-        backup_ids: list[str] | None = None,
     ) -> None:
         """
         Persist checkpoint metadata for resume.
@@ -177,7 +163,6 @@ class JobContext:
             step_index: Last completed step index.
             step_name: Human-readable step name.
             partial_results: Optional partial results to store.
-            backup_ids: Optional backup ids to store.
         """
         if self.save_checkpoint is None:
             return
@@ -185,5 +170,4 @@ class JobContext:
             step_index=step_index,
             step_name=step_name,
             partial_results=partial_results,
-            backup_ids=backup_ids,
         )

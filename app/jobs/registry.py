@@ -9,9 +9,6 @@ _UNSET = object()
 class JobRegistry:
     """
     Maps job ids to job records for a single process.
-
-    In-memory only. Cross-process persistence lives in JobStore, which the
-    runner writes through on every state change.
     """
 
     def __init__(self) -> None:

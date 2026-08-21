@@ -64,11 +64,7 @@ def test_missing_mount_returns_empty() -> None:
 
 
 def test_detect_serato_database_v2_file(tmp_path: Path) -> None:
-    """A loose `database V2` file is detected on its own.
-
-    Regression guard: this marker was previously unreachable because the Serato
-    branch only matched directory names, never filenames.
-    """
+    """A loose `database V2` file is detected on its own."""
     loose = tmp_path / "Music"
     loose.mkdir()
     (loose / "database V2").write_bytes(b"x")

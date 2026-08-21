@@ -31,7 +31,7 @@ def test_resolve_mount_path_rejects_file(tmp_path: Path) -> None:
 
 
 def test_scan_rejects_missing_mount(tmp_path: Path) -> None:
-    """run_scan no longer reports a nonexistent mount as successfully scanned."""
+    """run_scan rejects a nonexistent mount."""
     with pytest.raises(FileNotFoundError):
         run_scan(mount=str(tmp_path / "nope"))
 
