@@ -8,6 +8,7 @@ import structlog
 
 from app.adapters.serato import open_serato_library
 from app.core.domain import SeratoCrate, SeratoLibrary
+from app.storage.mounts import resolve_mount_path
 
 logger = structlog.get_logger(__name__)
 
@@ -61,7 +62,7 @@ def list_serato_crates(mount: str | Path) -> CrateListResult:
     Returns:
         CrateListResult with library metadata and crates.
     """
-    mount_path = Path(mount).resolve()
+    mount_path = resolve_mount_path(mount)
     logger.info("list_crates_started", mount=str(mount_path))
     adapter = open_serato_library(mount_path)
     crates = tuple(adapter.list_crates())

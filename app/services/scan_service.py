@@ -2,7 +2,6 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 import structlog
@@ -10,7 +9,7 @@ import structlog
 from app.core.domain import LibraryLocation, MountPoint
 from app.core.events import LibraryDetected, LibraryScanCompleted, LibraryScanStarted
 from app.storage.discovery import LibraryDiscovery
-from app.storage.mounts import get_mount_scanner
+from app.storage.mounts import get_mount_scanner, resolve_mount_path
 
 logger = structlog.get_logger(__name__)
 
@@ -92,7 +91,7 @@ def run_scan(
         emitter(event)
 
     if mount:
-        mount_path = Path(mount).resolve()
+        mount_path = resolve_mount_path(mount)
         mounts = [MountPoint(path=mount_path, source="user_specified")]
     else:
         mounts = get_mount_scanner().list_mounts()

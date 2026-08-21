@@ -13,8 +13,8 @@ from app.services.playlist_service import list_rekordbox_playlists
 
 
 def test_write_context_requires_existing_backup(tmp_path: Path) -> None:
-    """WriteContext rejects missing backup paths."""
-    with pytest.raises(ValueError, match="backup_path"):
+    """WriteContext rejects a backup directory that does not exist."""
+    with pytest.raises(ValueError, match="backup directory"):
         WriteContext(backup_path=tmp_path / "missing")
 
 

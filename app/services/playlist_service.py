@@ -8,6 +8,7 @@ import structlog
 
 from app.adapters.rekordbox import open_rekordbox_library
 from app.core.domain import Playlist, RekordboxLibrary
+from app.storage.mounts import resolve_mount_path
 
 logger = structlog.get_logger(__name__)
 
@@ -67,7 +68,7 @@ def list_rekordbox_playlists(mount: str | Path) -> PlaylistListResult:
         UnsupportedDatabaseError: Database format not supported.
         AdapterError: Other adapter failures.
     """
-    mount_path = Path(mount).resolve()
+    mount_path = resolve_mount_path(mount)
     logger.info("list_playlists_started", mount=str(mount_path))
     adapter = open_rekordbox_library(mount_path)
     playlists = tuple(adapter.list_playlists())

@@ -156,13 +156,18 @@ def atomic_copy_file(source: Path, destination: Path) -> None:
     """
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = destination.with_suffix(destination.suffix + ".tmp")
+    replaced = False
     try:
         shutil.copy2(source, temporary)
         with temporary.open("rb") as handle:
             os.fsync(handle.fileno())
         os.replace(temporary, destination)
+        replaced = True
     finally:
-        if temporary.exists() and not destination.exists():
+        # os.replace consumes the temporary on success. On any failure the
+        # partial copy must go, whether or not the destination already existed
+        # -- the overwrite case is exactly what rollback does.
+        if not replaced:
             temporary.unlink(missing_ok=True)
 
 

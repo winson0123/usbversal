@@ -17,6 +17,7 @@ from app.core.domain import Playlist
 from app.core.track_paths import build_serato_path_index, normalize_track_path
 from app.services.backup_service import backup_mount_for_migration
 from app.storage.backup import BackupResult
+from app.storage.mounts import resolve_mount_path
 
 logger = structlog.get_logger(__name__)
 
@@ -126,9 +127,7 @@ def _find_playlist(
     if playlist_name is None:
         raise ValueError("Either playlist_id or playlist_name is required")
 
-    matches = [
-        p for p in playlists if not p.is_folder and p.name == playlist_name
-    ]
+    matches = [p for p in playlists if not p.is_folder and p.name == playlist_name]
     if not matches:
         raise PlaylistNotFoundError(f"Playlist not found: {playlist_name!r}")
     if len(matches) > 1:
@@ -158,7 +157,7 @@ def build_migration_plan(
         SeratoLibraryRequiredError: No Serato library on mount.
         UnsupportedDatabaseError: Rekordbox format unsupported.
     """
-    mount_path = Path(mount).resolve()
+    mount_path = resolve_mount_path(mount)
     serato = resolve_serato_library(mount_path)
     if serato is None:
         raise SeratoLibraryRequiredError(f"No Serato library under {mount_path}")
@@ -234,7 +233,7 @@ def migrate_playlist_to_crate(
         CrateExistsError: Target crate exists and overwrite is False.
         MigrationError: Subclasses for specific failures.
     """
-    mount_path = Path(mount).resolve()
+    mount_path = resolve_mount_path(mount)
     plan = build_migration_plan(
         mount_path,
         playlist_id=playlist_id,

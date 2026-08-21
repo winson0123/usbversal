@@ -18,44 +18,40 @@ from app.storage.backup import BackupManifest
 
 def test_sanitize_crate_name() -> None:
     """sanitize_crate_name removes invalid filename characters."""
-    assert sanitize_crate_name('My: Playlist?') == "My_ Playlist_"
+    assert sanitize_crate_name("My: Playlist?") == "My_ Playlist_"
     assert sanitize_crate_name("   ") == "Untitled"
 
 
-def test_write_crate_creates_file(tmp_path: Path) -> None:
+def test_write_crate_creates_file(tmp_path: Path, make_backup) -> None:
     """write_crate creates a .crate with track entries."""
     serato = tmp_path / "_Serato_"
     serato.mkdir()
-    backup_dir = tmp_path / "backups" / "test"
-    backup_dir.mkdir(parents=True)
-    (backup_dir / "manifest.json").write_text("{}", encoding="utf-8")
+    backup = make_backup()
 
     crate_path = write_crate(
         serato_root=serato,
         crate_name="Pocket",
         track_paths=["Contents/a.mp3", "Contents/b.mp3"],
-        write_context=WriteContext(backup_path=backup_dir),
+        write_context=WriteContext(backup_path=backup.backup_dir),
     )
     assert crate_path.is_file()
     assert crate_path.name == "Pocket.crate"
 
 
-def test_write_crate_exists_without_overwrite(tmp_path: Path) -> None:
+def test_write_crate_exists_without_overwrite(tmp_path: Path, make_backup) -> None:
     """write_crate raises when crate exists and overwrite is False."""
     serato = tmp_path / "_Serato_"
     sub = serato / "Subcrates"
     sub.mkdir(parents=True)
     (sub / "Pocket.crate").write_bytes(b"existing")
-    backup_dir = tmp_path / "backups" / "test"
-    backup_dir.mkdir(parents=True)
-    (backup_dir / "manifest.json").write_text("{}", encoding="utf-8")
+    backup = make_backup()
 
     with pytest.raises(CrateExistsError):
         write_crate(
             serato_root=serato,
             crate_name="Pocket",
             track_paths=["Contents/a.mp3"],
-            write_context=WriteContext(backup_path=backup_dir),
+            write_context=WriteContext(backup_path=backup.backup_dir),
             overwrite=False,
         )
 

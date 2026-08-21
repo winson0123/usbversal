@@ -7,6 +7,7 @@ from typing import Any
 
 import structlog
 
+from app.storage.mounts import resolve_mount_path
 from app.storage.rollback import (
     RollbackResult,
     resolve_backup_dir,
@@ -40,7 +41,7 @@ def rollback_mount_libraries(
         BackupVerificationError: If backup integrity check fails.
         MountMismatchError: If manifest was created for a different mount.
     """
-    mount_path = Path(mount).resolve()
+    mount_path = resolve_mount_path(mount)
     root = Path(backup_root).resolve() if backup_root else (mount_path / "backups")
     logger.info(
         "rollback_mount_started",

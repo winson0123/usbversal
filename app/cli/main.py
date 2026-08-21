@@ -513,6 +513,7 @@ def _cmd_migrate_playlist(args: argparse.Namespace) -> int:
         SeratoLibraryRequiredError,
         CrateExistsError,
         MigrationError,
+        BackupVerificationError,
     ) as exc:
         log.error("migrate_playlist_failed", error=str(exc))
         return 1
@@ -574,6 +575,7 @@ def _cmd_apply(args: argparse.Namespace) -> int:
         SeratoLibraryRequiredError,
         CrateExistsError,
         MigrationError,
+        BackupVerificationError,
     ) as exc:
         log.error("apply_failed", error=str(exc))
         return 1

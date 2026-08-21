@@ -11,6 +11,32 @@ from app.core.domain import MountPoint
 _DEFAULT_EXCLUDED_MNT_NAMES = frozenset({"wsl", "wslg", "c"})
 
 
+def resolve_mount_path(mount: str | Path) -> Path:
+    """
+    Resolve and validate a user-supplied mount path.
+
+    Every mount-taking entry point routes through here so that a bad path fails
+    at the boundary with a clear message, rather than surfacing later as an
+    empty result or a confusing vendor-specific "database not found".
+
+    Args:
+        mount: Mount path as given by the caller (e.g. /mnt/usb).
+
+    Returns:
+        Resolved absolute path to an existing directory.
+
+    Raises:
+        FileNotFoundError: The path does not exist.
+        NotADirectoryError: The path exists but is not a directory.
+    """
+    path = Path(mount).resolve()
+    if not path.exists():
+        raise FileNotFoundError(f"Mount path does not exist: {path}")
+    if not path.is_dir():
+        raise NotADirectoryError(f"Mount path is not a directory: {path}")
+    return path
+
+
 class MountScanner(ABC):
     """Abstract mount enumeration strategy."""
 

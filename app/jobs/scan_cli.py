@@ -9,6 +9,7 @@ from app.jobs.models import JobState
 from app.jobs.runner import JobRunner
 from app.jobs.store import JobStore
 from app.services.scan_service import ScanResult
+from app.storage.mounts import resolve_mount_path
 
 
 def _default_runner(*, store: JobStore | None = None, bus: EventBus | None = None) -> JobRunner:
@@ -44,6 +45,12 @@ async def run_scan_async(
         JobCancelledError: When the scan job is cancelled.
         RuntimeError: When the scan job fails with an error.
     """
+    # Validate before scheduling: a bad path is user error, not a job failure.
+    # Letting it through would persist a failed job record and log a traceback
+    # for what is really "you typed the wrong mount".
+    if mount is not None:
+        resolve_mount_path(mount)
+
     runner = _default_runner(store=store, bus=bus)
     job_id = await runner.start("scan", {"mount": mount})
     record = await runner.wait(job_id)

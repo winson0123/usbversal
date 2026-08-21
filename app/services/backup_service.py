@@ -9,6 +9,7 @@ import structlog
 
 from app.adapters.serato.paths import list_crate_files, resolve_serato_library
 from app.storage.backup import BackupResult, create_backup
+from app.storage.mounts import resolve_mount_path
 
 logger = structlog.get_logger(__name__)
 
@@ -80,7 +81,7 @@ def backup_mount_for_migration(
         FileNotFoundError: If neither vendor has files to back up.
         ValueError: If the combined file list is empty.
     """
-    mount_path = Path(mount).resolve()
+    mount_path = resolve_mount_path(mount)
     files = rekordbox_files_on_mount(mount_path) + serato_files_on_mount(mount_path)
     unique: list[Path] = []
     seen: set[Path] = set()
@@ -122,15 +123,20 @@ def backup_mount_libraries(
         FileNotFoundError: If no Rekordbox files exist on the mount.
         ValueError: If the file list ends up empty.
     """
-    mount_path = Path(mount).resolve()
+    mount_path = resolve_mount_path(mount)
     files = rekordbox_files_on_mount(mount_path)
     if extra_files:
         for item in extra_files:
             path = Path(item)
             if not path.is_absolute():
                 path = mount_path / path
-            if path.is_file() and path not in files:
-                files.append(path.resolve())
+            if not path.is_file():
+                continue
+            # Compare resolved forms; ``files`` already holds resolved paths, so
+            # testing the raw path would let a symlinked duplicate slip through.
+            resolved = path.resolve()
+            if resolved not in files:
+                files.append(resolved)
 
     if not files:
         msg = f"No Rekordbox database files found under {mount_path}"

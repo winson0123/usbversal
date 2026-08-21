@@ -14,6 +14,7 @@ from app.services.migration_service import (
     PlaylistMigrationResult,
     migrate_playlist_to_crate,
 )
+from app.storage.mounts import resolve_mount_path
 
 logger = structlog.get_logger(__name__)
 
@@ -109,13 +110,11 @@ def _resolve_mount(cli_mount: str | Path, plan: ApplyPlan) -> Path:
     Raises:
         ApplyPlanError: Plan mount disagrees with CLI mount.
     """
-    mount_path = Path(cli_mount).resolve()
+    mount_path = resolve_mount_path(cli_mount)
     if plan.mount is not None:
         plan_mount = Path(plan.mount).resolve()
         if plan_mount != mount_path:
-            msg = (
-                f"Plan mount {plan.mount!r} does not match --mount {cli_mount!r}"
-            )
+            msg = f"Plan mount {plan.mount!r} does not match --mount {cli_mount!r}"
             raise ApplyPlanError(msg)
     return mount_path
 
