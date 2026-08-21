@@ -7,10 +7,10 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-from serato_tools.database_v2 import DatabaseV2
 
 from app.adapters.base import WriteContext
 from app.adapters.rekordbox import open_rekordbox_library
+from app.adapters.serato import read_database_track_paths
 from app.adapters.serato.paths import resolve_serato_library
 from app.adapters.serato.writer import sanitize_crate_name, write_crate
 from app.core.domain import Playlist
@@ -175,8 +175,7 @@ def build_migration_plan(
     )
 
     rekordbox_paths = tuple(rb_adapter.get_playlist_track_paths(playlist.id))
-    serato_db = DatabaseV2(file=str(database_path))
-    index = build_serato_path_index(serato_db.get_track_paths())
+    index = build_serato_path_index(read_database_track_paths(database_path))
 
     serato_paths: list[str] = []
     skipped: list[str] = []

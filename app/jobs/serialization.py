@@ -4,7 +4,6 @@ from dataclasses import asdict
 from typing import Any
 
 from app.jobs.models import JobCheckpoint, JobRecord, JobState
-from app.services.scan_service import ScanResult
 
 
 def record_to_dict(record: JobRecord) -> dict[str, Any]:
@@ -17,8 +16,11 @@ def record_to_dict(record: JobRecord) -> dict[str, Any]:
     Returns:
         Plain dict suitable for ``json.dump``.
     """
+    # Job results are opaque to this layer: anything that can describe itself
+    # as a dict does so. Importing concrete result types here would make jobs
+    # depend on services, inverting the declared layer order.
     result = record.result
-    if isinstance(result, ScanResult):
+    if hasattr(result, "to_dict"):
         result = result.to_dict()
 
     return {

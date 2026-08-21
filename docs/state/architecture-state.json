@@ -13,7 +13,8 @@
     "unknown_field_preservation",
     "single_active_task_per_agent",
     "merge_never_regenerate_vendor_index",
-    "audio_file_writes_require_explicit_optin"
+    "audio_file_writes_require_explicit_optin",
+    "vendor_imports_confined_to_adapters"
   ],
   "forbidden_patterns": [
     "cli_business_logic",
@@ -25,7 +26,8 @@
     "silent_drop_unknown_fields",
     "assume_schema_stable",
     "rmtree_vendor_library_dir",
-    "write_audio_tags_without_backup"
+    "write_audio_tags_without_backup",
+    "vendor_import_outside_adapter"
   ],
   "constraints": {
     "language": "python",
@@ -46,24 +48,28 @@
   "layer_dependencies": {
     "cli": [
       "jobs",
+      "services",
       "core"
     ],
     "jobs": [
+      "services",
       "core",
       "storage",
       "adapters"
     ],
-    "core": [],
+    "services": [
+      "core",
+      "adapters",
+      "storage"
+    ],
     "adapters": [
       "core",
       "storage"
     ],
     "storage": [
       "core"
-    ]
+    ],
+    "core": []
   },
-  "known_layer_violations": [
-    "app/jobs/* imports app.services.scan_service (declared deps: core, storage, adapters)",
-    "app/services/migration_service.py imports serato_tools.database_v2 directly (vendor lib outside adapter layer)"
-  ]
+  "known_layer_violations": []
 }

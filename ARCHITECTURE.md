@@ -49,7 +49,14 @@ High-level architecture for the Python DJ database CLI. Implementation details l
 | Jobs | Long-running work, cancellation | Embed vendor SQL in CLI |
 | Storage | Paths, backup, rollback, USB | Interpret playlist semantics |
 
-Dependencies flow **inward**: CLI → Jobs → Core → Adapters → Storage. No adapter imports CLI.
+Dependencies flow **inward**: CLI → Jobs → Services → Adapters → Storage → Core.
+`core` holds domain types and imports nothing from the other layers.
+
+**Vendor libraries (`rbox`, `serato-tools`) may only be imported inside `app/adapters/`.**
+Services that need vendor data call an adapter function instead, which keeps schema
+handling in one place and gives tests a seam that is not a vendor class.
+
+No adapter imports CLI.
 
 ## Adapter Pattern (Rekordbox / Serato)
 

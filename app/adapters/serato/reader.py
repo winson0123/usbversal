@@ -62,6 +62,22 @@ class SeratoToolsAdapter(SeratoReadAdapter):
         return crates
 
 
+def read_database_track_paths(database_path: Path) -> list[str]:
+    """
+    Read raw track paths from a Serato database V2 file.
+
+    Keeps the serato-tools dependency inside the adapter layer so callers can
+    build path indexes without importing vendor code.
+
+    Args:
+        database_path: Path to the `database V2` file.
+
+    Returns:
+        Track paths exactly as stored by Serato (drive-relative, no leading slash).
+    """
+    return list(DatabaseV2(file=str(database_path)).get_track_paths())
+
+
 def open_serato_library(mount_path: Path) -> SeratoToolsAdapter:
     """
     Open a Serato library on a mount for read-only access.

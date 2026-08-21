@@ -6,14 +6,7 @@ import sys
 
 import structlog
 
-from app.adapters.base import (
-    DatabaseNotFoundError,
-    SeratoLibraryNotFoundError,
-    UnsupportedDatabaseError,
-)
-from app.adapters.serato.writer import CrateExistsError
 from app.cli.progress import CliProgressRenderer
-from app.core.apply_plan import ApplyPlanError
 from app.core.event_bus import EventBus
 from app.jobs.exceptions import JobCancelledError, JobNotFoundError, JobNotResumableError
 from app.jobs.jobs_cli import cancel_persisted_job, list_persisted_jobs, resume_persisted_job
@@ -21,19 +14,22 @@ from app.jobs.scan_cli import run_scan_job_sync
 from app.services.apply_service import apply_plan_file
 from app.services.backup_service import backup_mount_libraries, backup_result_to_dict
 from app.services.crate_service import list_serato_crates
-from app.services.migration_service import (
-    MigrationError,
-    PlaylistNotFoundError,
-    SeratoLibraryRequiredError,
-    migrate_playlist_to_crate,
-)
-from app.services.playlist_service import list_rekordbox_playlists
-from app.services.rollback_service import rollback_mount_libraries, rollback_result_to_dict
-from app.storage.rollback import (
+from app.services.errors import (
+    ApplyPlanError,
     BackupNotFoundError,
     BackupVerificationError,
+    CrateExistsError,
+    DatabaseNotFoundError,
+    MigrationError,
     MountMismatchError,
+    PlaylistNotFoundError,
+    SeratoLibraryNotFoundError,
+    SeratoLibraryRequiredError,
+    UnsupportedDatabaseError,
 )
+from app.services.migration_service import migrate_playlist_to_crate
+from app.services.playlist_service import list_rekordbox_playlists
+from app.services.rollback_service import rollback_mount_libraries, rollback_result_to_dict
 
 structlog.configure(
     processors=[

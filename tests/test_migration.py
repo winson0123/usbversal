@@ -80,11 +80,11 @@ def test_build_migration_plan_with_mocks(tmp_path: Path) -> None:
         "/Contents/Missing/track.mp3",
     ]
 
-    mock_db = MagicMock()
-    mock_db.get_track_paths.return_value = ["Contents/Artist/track.mp3"]
-
     with patch("app.services.migration_service.open_rekordbox_library", return_value=mock_adapter):
-        with patch("app.services.migration_service.DatabaseV2", return_value=mock_db):
+        with patch(
+            "app.services.migration_service.read_database_track_paths",
+            return_value=["Contents/Artist/track.mp3"],
+        ):
             plan = build_migration_plan(mount, playlist_id=1)
 
     assert plan.playlist_name == "Pocket"
@@ -159,11 +159,11 @@ def test_migrate_playlist_end_to_end(tmp_path: Path) -> None:
     mock_adapter.list_playlists.return_value = [playlist]
     mock_adapter.get_playlist_track_paths.return_value = ["/Contents/Artist/track.mp3"]
 
-    mock_serato_db = MagicMock()
-    mock_serato_db.get_track_paths.return_value = ["Contents/Artist/track.mp3"]
-
     with patch("app.services.migration_service.open_rekordbox_library", return_value=mock_adapter):
-        with patch("app.services.migration_service.DatabaseV2", return_value=mock_serato_db):
+        with patch(
+            "app.services.migration_service.read_database_track_paths",
+            return_value=["Contents/Artist/track.mp3"],
+        ):
             result = migrate_playlist_to_crate(mount, playlist_id=1)
 
     assert result.crate_path is not None
