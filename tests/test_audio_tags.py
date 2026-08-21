@@ -91,72 +91,6 @@ def test_non_riff_input_is_rejected(tmp_path: Path) -> None:
         read_geob(junk)
 
 
-def test_constant_tempo_becomes_one_terminal_marker() -> None:
-    """A steady grid collapses to a single marker carrying the tempo."""
-    beats = [Beat(number=(i % 4) + 1, bpm=136.0, time_ms=int(i * 441)) for i in range(5)]
-
-    payload = encode_beatgrid(beats)
-
-    assert payload == bytes.fromhex("010000000001000000004308000000")
-
-
-def test_tempo_changes_produce_non_terminal_markers() -> None:
-    """Each tempo run becomes its own marker, the last one terminal."""
-    beats = [
-        Beat(number=1, bpm=120.0, time_ms=0),
-        Beat(number=2, bpm=120.0, time_ms=500),
-        Beat(number=3, bpm=140.0, time_ms=1000),
-    ]
-
-    payload = encode_beatgrid(beats)
-    count = struct.unpack(">I", payload[2:6])[0]
-    position, beats_to_next = struct.unpack(">fI", payload[6:14])
-    terminal_pos, terminal_bpm = struct.unpack(">ff", payload[14:22])
-
-    assert count == 2
-    # Two beats elapse before the next marker, which implies 120 BPM over 1.0s.
-    assert (position, beats_to_next) == (0.0, 2)
-    assert beats_to_next / (terminal_pos - position) * 60 == 120.0
-    assert (terminal_pos, terminal_bpm) == (1.0, 140.0)
-
-
-def test_no_beats_yields_no_grid() -> None:
-    """A track with no analysis produces no payload."""
-    assert encode_beatgrid([]) is None
-
-
-def test_beats_to_next_is_the_index_delta() -> None:
-    """A marker counts every beat before the next marker, not its run length.
-
-    Getting this wrong understates the count and makes Serato derive a slower
-    tempo for the segment.
-    """
-    beats = [
-        Beat(number=1, bpm=120.0, time_ms=0),
-        Beat(number=2, bpm=120.0, time_ms=500),
-        Beat(number=3, bpm=120.0, time_ms=1000),
-        Beat(number=4, bpm=120.0, time_ms=1500),
-        Beat(number=1, bpm=140.0, time_ms=2000),
-    ]
-
-    payload = encode_beatgrid(beats)
-    position, beats_to_next = struct.unpack(">fI", payload[6:14])
-    terminal_pos, _ = struct.unpack(">ff", payload[14:22])
-
-    assert beats_to_next == 4
-    # Serato derives the segment tempo from marker spacing.
-    assert beats_to_next / (terminal_pos - position) * 60 == 120.0
-
-
-def test_steady_track_stays_a_single_marker() -> None:
-    """Millisecond jitter must not fragment a constant-tempo grid."""
-    beats = [Beat(number=(i % 4) + 1, bpm=128.0, time_ms=int(i * 468.75)) for i in range(64)]
-
-    payload = encode_beatgrid(beats)
-
-    assert struct.unpack(">I", payload[2:6])[0] == 1
-
-
 def test_tempo_change_opens_a_new_marker() -> None:
     """A genuine tempo change starts a new section."""
     beats = [Beat(number=1, bpm=120.0, time_ms=0), Beat(number=2, bpm=120.0, time_ms=500)]
@@ -165,3 +99,75 @@ def test_tempo_change_opens_a_new_marker() -> None:
     payload = encode_beatgrid(beats)
 
     assert struct.unpack(">I", payload[2:6])[0] >= 2
+
+
+def _beat_times(payload: bytes) -> list[float]:
+    """Beat positions Serato derives from a BeatGrid payload."""
+    count = struct.unpack(">I", payload[2:6])[0]
+    markers = []
+    offset = 6
+    for _ in range(count - 1):
+        position, span = struct.unpack(">fI", payload[offset : offset + 8])
+        offset += 8
+        markers.append((position, span))
+    terminal, _bpm = struct.unpack(">ff", payload[offset : offset + 8])
+    markers.append((terminal, 0))
+
+    times: list[float] = []
+    for index in range(count - 1):
+        position, span = markers[index]
+        step = (markers[index + 1][0] - position) / span
+        times.extend(position + step * k for k in range(span))
+    times.append(markers[-1][0])
+    return times
+
+
+def test_every_beat_becomes_a_marker() -> None:
+    """Rekordbox records each beat, so each one is carried across."""
+    beats = [Beat(number=(i % 4) + 1, bpm=128.0, time_ms=i * 469) for i in range(8)]
+
+    payload = encode_beatgrid(beats)
+
+    assert struct.unpack(">I", payload[2:6])[0] == len(beats)
+
+
+def test_beat_positions_survive_the_encoding() -> None:
+    """Uneven, live-recorded beats land where Rekordbox put them."""
+    gaps = [0, 460, 930, 1380, 1850, 2310, 2780]
+    beats = [Beat(number=(i % 4) + 1, bpm=129.91, time_ms=t) for i, t in enumerate(gaps)]
+
+    times = _beat_times(encode_beatgrid(beats))
+
+    for beat, derived in zip(beats, times, strict=True):
+        assert abs(derived - beat.time_ms / 1000.0) < 0.001
+
+
+def test_tempo_changes_need_no_special_handling() -> None:
+    """A tempo change is just another beat at its own time."""
+    beats = [
+        Beat(number=1, bpm=120.0, time_ms=0),
+        Beat(number=2, bpm=120.0, time_ms=500),
+        Beat(number=3, bpm=150.0, time_ms=1000),
+        Beat(number=4, bpm=150.0, time_ms=1400),
+    ]
+
+    times = _beat_times(encode_beatgrid(beats))
+
+    # float32 positions, so compare within a millisecond
+    for derived, expected in zip(times, [0.0, 0.5, 1.0, 1.4], strict=True):
+        assert abs(derived - expected) < 0.001
+
+
+def test_terminal_marker_carries_the_final_tempo() -> None:
+    """The last marker states the tempo held to the end of the track."""
+    beats = [Beat(number=1, bpm=120.0, time_ms=0), Beat(number=2, bpm=145.5, time_ms=500)]
+
+    payload = encode_beatgrid(beats)
+    position, bpm = struct.unpack(">ff", payload[-9:-1])
+
+    assert (position, round(bpm, 1)) == (0.5, 145.5)
+
+
+def test_no_beats_yields_no_grid() -> None:
+    """A track with no analysis produces no payload."""
+    assert encode_beatgrid([]) is None
