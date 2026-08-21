@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-22T00:00:00Z",
+  "updated_at": "2026-08-21T00:00:00Z",
   "allowed_patterns": [
     "adapter_per_vendor",
     "thin_cli",
@@ -11,7 +11,9 @@
     "domain_models_in_core",
     "storage_own_mount_and_backup",
     "unknown_field_preservation",
-    "single_active_task_per_agent"
+    "single_active_task_per_agent",
+    "merge_never_regenerate_vendor_index",
+    "audio_file_writes_require_explicit_optin"
   ],
   "forbidden_patterns": [
     "cli_business_logic",
@@ -21,7 +23,9 @@
     "core_imports_vendor_sql_directly",
     "parallel_agent_tasks",
     "silent_drop_unknown_fields",
-    "assume_schema_stable"
+    "assume_schema_stable",
+    "rmtree_vendor_library_dir",
+    "write_audio_tags_without_backup"
   ],
   "constraints": {
     "language": "python",
@@ -31,15 +35,35 @@
     "async": "asyncio",
     "packaging": "pyinstaller",
     "primary_test_mount": "/mnt/usb",
-    "vendors": ["rekordbox", "serato"],
+    "vendors": [
+      "rekordbox",
+      "serato"
+    ],
     "metadata_only": true,
-    "no_audio_processing": true
+    "no_audio_processing": true,
+    "audio_tag_writes": "stage_2_only_explicit_optin"
   },
   "layer_dependencies": {
-    "cli": ["jobs", "core"],
-    "jobs": ["core", "storage", "adapters"],
+    "cli": [
+      "jobs",
+      "core"
+    ],
+    "jobs": [
+      "core",
+      "storage",
+      "adapters"
+    ],
     "core": [],
-    "adapters": ["core", "storage"],
-    "storage": ["core"]
-  }
+    "adapters": [
+      "core",
+      "storage"
+    ],
+    "storage": [
+      "core"
+    ]
+  },
+  "known_layer_violations": [
+    "app/jobs/* imports app.services.scan_service (declared deps: core, storage, adapters)",
+    "app/services/migration_service.py imports serato_tools.database_v2 directly (vendor lib outside adapter layer)"
+  ]
 }

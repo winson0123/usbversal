@@ -1,7 +1,14 @@
-# Rekordbox → Serato Analysis Sync (Future Work)
+# Rekordbox → Serato Analysis Sync (Stage 2)
 
-**Status:** deferred — not implemented; playlist migration only  
-**Related:** [rekordbox-to-serato-playlist-migration.md](rekordbox-to-serato-playlist-migration.md), [ADR 0006](../decisions/0006-serato-analyzed-and-beatgrid-tags.md)
+**Status:** planned (Stage 2) — sequenced behind [Serato index bootstrap](serato-index-bootstrap.md)  
+**Related:** [ADR 0007](../decisions/0007-revive-analysis-sync-on-verified-formats.md), [ADR 0006](../decisions/0006-serato-analyzed-and-beatgrid-tags.md), [playlist migration](rekordbox-to-serato-playlist-migration.md)
+
+> **Update 2026-08-21.** This work is **no longer abandoned**. A controlled
+> Lexicon experiment decoded the `Serato Markers2` cue format from a
+> byte-exact before/after pair and showed the analyzed gate is satisfied by
+> writing a track's *real* hot cues. The section below records why the first
+> attempt failed; the plan that replaces it is in
+> [ADR 0007](../decisions/0007-revive-analysis-sync-on-verified-formats.md).
 
 ## Current scope
 
@@ -33,9 +40,7 @@ An experimental `sync-analysis` path was implemented and tested on a Pocket play
 
 Porting Rekordbox USBANLZ / exportLibrary analysis into Serato GEOB tags is **possible in theory** (see [Holzhaus/serato-tags](https://github.com/Holzhaus/serato-tags)) but **not reliable enough** for production without reverse-engineering more of Serato’s private format and analyzed-state rules. **Re-analyzing in Serato after playlist migration** is the supported workflow.
 
-## If revisited later (TASK-034)
-
-Hard problems to solve before any revival:
+## Hard problems, restated against the 2026-08-21 evidence
 
 1. Reproduce Serato’s **analyzed** state without native analyze (Markers2 cues, Offsets_, Overview quality).
 2. Variable-tempo beatgrid export from Rekordbox ANLZ with Serato-compatible marker spacing.
@@ -43,4 +48,16 @@ Hard problems to solve before any revival:
 4. Per-format tag containers (FLAC, WAV, MP4).
 5. Idempotent sync that does not clobber existing Serato analysis on partially analyzed libraries.
 
-Reference implementation was removed from the codebase; ADR 0006 retains test-stick measurements for future attempts.
+Reference implementation was removed from the codebase; ADR 0006 retains test-stick measurements.
+
+### Status of each against current evidence
+
+| # | Problem | Now |
+|---|---------|-----|
+| 1 | Reproduce Serato's analyzed state | **Explained.** Write the track's real hot cues from ANLZ `PCO2` into `Serato Markers2`; that is what Lexicon does. TASK-082 |
+| 2 | Variable-tempo beatgrid export | **Still open.** Only single-marker grids observed; ADR 0006's 2 BPM first-bar bug remains a live hazard. TASK-083 |
+| 3 | Hot cue / memory cue mapping | **Partly solved.** Slot = rekordbox cue `position`, position = ms as u32 BE. Only hot cues map; memory cues do not. Colour table is 2 entries deep. TASK-081 |
+| 4 | Per-format tag containers | **Still open.** WAV (RIFF `id3 ` chunk) is the only container with a fixture; **MP3 — the one that matters — is untested.** FLAC/MP4 unaddressed. TASK-084 |
+| 5 | Idempotent sync | **Still open.** Must preserve GEOB frames it does not own, and not clobber existing Serato analysis. TASK-085 |
+
+Decoded formats: [serato-schema-notes.md](../schemas/serato-schema-notes.md). Ground-truth fixtures: [`tests/fixtures/serato/`](../../tests/fixtures/serato/).

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-06-06T18:00:00Z",
+  "updated_at": "2026-08-21T00:00:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -9,10 +9,22 @@
     "blocked_reason": null
   },
   "pending_tasks": [
-    "TASK-002",
-    "TASK-003",
+    "TASK-071",
+    "TASK-072",
+    "TASK-073",
+    "TASK-074",
+    "TASK-075",
+    "TASK-076",
+    "TASK-080",
+    "TASK-081",
+    "TASK-082",
+    "TASK-083",
+    "TASK-084",
+    "TASK-085",
     "TASK-032",
-    "TASK-052"
+    "TASK-010",
+    "TASK-090",
+    "TASK-091"
   ],
   "blocked_tasks": [],
   "completed_tasks": [
@@ -85,6 +97,11 @@
       "id": "TASK-022",
       "title": "Event types and bus skeleton",
       "completed_at": "2026-06-06T18:00:00Z"
+    },
+    {
+      "id": "TASK-070",
+      "title": "Capture verified Serato write formats and re-plan Stage 1/2",
+      "completed_at": "2026-08-21T00:00:00Z"
     }
   ],
   "history": [
@@ -171,6 +188,12 @@
       "title": "Event types and bus skeleton",
       "status": "completed",
       "completed_at": "2026-06-06T18:00:00Z"
+    },
+    {
+      "id": "TASK-070",
+      "title": "Capture verified Serato write formats and re-plan Stage 1/2",
+      "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
     }
   ]
 }

@@ -1,7 +1,13 @@
 # ADR 0006: Serato “analyzed” gate and beatgrid encoding
 
-**Status:** superseded (2026-05-25) — analysis tag sync abandoned; see [future work doc](../planning/rekordbox-to-serato-analysis-sync.md)  
+**Status:** superseded (2026-08-21) by [ADR 0007](0007-revive-analysis-sync-on-verified-formats.md)  
 **Date:** 2026-05-25
+
+> **Update 2026-08-21.** The measurements below still stand, but the
+> conclusion does not. A controlled Lexicon experiment showed that the
+> analyzed gate is satisfied by writing a track's *real* hot cues into
+> `Serato Markers2` — the failure here was synthetic anchor cues, not the
+> approach. See [ADR 0007](0007-revive-analysis-sync-on-verified-formats.md).
 
 ## Context
 

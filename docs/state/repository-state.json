@@ -1,18 +1,19 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-06-05T08:52:00Z",
+  "updated_at": "2026-08-21T00:00:00Z",
   "project": "usbversal",
   "language": "python",
   "python_version": "3.11+",
   "modules_created": [
     "app",
-    "app.cli",
-    "app.core",
-    "app.storage",
-    "app.services",
     "app.adapters",
     "app.adapters.rekordbox",
-    "app.adapters.serato"
+    "app.adapters.serato",
+    "app.cli",
+    "app.core",
+    "app.jobs",
+    "app.services",
+    "app.storage"
   ],
   "features_implemented": {
     "mount_scanner_linux": true,
@@ -35,7 +36,17 @@
     "rekordbox_to_serato_playlist_migration": true,
     "cli_migrate_playlist": true,
     "cli_apply_plan": true,
-    "usb_integration_validation_doc": true
+    "usb_integration_validation_doc": true,
+    "event_bus_envelope": true,
+    "cli_progress_rendering": true,
+    "job_runner_asyncio": true,
+    "job_scan_async": true,
+    "job_cancel_resume_persisted": true,
+    "cli_jobs_list_cancel_resume": true,
+    "serato_index_authoring": false,
+    "serato_neworder_pref_backup": false,
+    "serato_analysis_tag_sync": false,
+    "rekordbox_export_pdb_read": false
   },
   "packaging": {
     "pyinstaller": true,
@@ -45,11 +56,13 @@
   },
   "test_status": {
     "ruff": "pass",
+    "ruff_format": "fail_4_files_pre_existing",
     "pytest": "pass",
-    "last_run": "2026-06-06T11:30:00Z",
-    "tests_passed": 57,
+    "last_run": "2026-08-21T00:00:00Z",
+    "tests_passed": 89,
     "tests_skipped": 1,
-    "tests_failed": 0
+    "tests_failed": 0,
+    "note": "usb mounted this run; 2 integration tests ran instead of skipping"
   },
   "dependencies": {
     "rbox": "0.1.7",
@@ -62,12 +75,13 @@
     "contributing": true,
     "architecture_md": true,
     "docs_scaffolding": true,
-    "adrs": 6,
-    "usb_integration_validation": true
+    "adrs": 7,
+    "usb_integration_validation": true,
+    "serato_write_formats_verified": true
   },
   "primary_test_usb": {
     "linux_wsl": "/mnt/usb",
-    "last_validated": "2026-06-05",
+    "last_validated": "2026-08-21",
     "rekordbox_playlists": 70,
     "rekordbox_tracks": 1625,
     "rekordbox_db": "/mnt/usb/PIONEER/rekordbox/exportLibrary.db",
@@ -75,7 +89,31 @@
     "serato_crates": 1,
     "pocket_playlist_tracks": 80,
     "pocket_crate_tracks": 80,
-    "migrate_dry_run_skipped": 0
+    "migrate_dry_run_skipped": 0,
+    "serato_neworder_pref": "present, 84 bytes, [crate]Pocket \u2014 NOT in backup set",
+    "serato_database_v2_bytes": 522473,
+    "serato_otrk_records": 793,
+    "serato_crate_pocket_tracks": 80,
+    "serato_otrk_fields_are_sparse": true,
+    "serato_extra_dirs": [
+      "DBV2-legacy.zip",
+      "Export Backups",
+      "Library",
+      "Lexicon",
+      "Metadata"
+    ]
   },
-  "execution_policy": "AGENT.md"
+  "execution_policy": "AGENT.md",
+  "fixtures": {
+    "serato_ground_truth": "tests/fixtures/serato/",
+    "description": "Byte-exact Lexicon before/after WAV pair for Serato Markers2 round-trip tests"
+  },
+  "known_gaps": [
+    "migrate-playlist cannot bootstrap: requires a pre-existing _Serato_ index (TASK-076)",
+    "neworder.pref is neither written nor included in the backup set (TASK-071)",
+    "nested playlist folders collide on leaf crate name (TASK-075)",
+    "MP3 GEOB container path untested; fixtures are WAV only (TASK-084)",
+    "rekordbox cue colour table only 2 entries deep (TASK-081)",
+    "export.pdb and ANLZ specs captured but never parsed (TASK-080, TASK-090)"
+  ]
 }

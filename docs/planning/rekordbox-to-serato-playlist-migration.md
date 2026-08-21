@@ -117,6 +117,19 @@ python -m app.cli migrate-playlist --mount /mnt/usb --playlist-name "Pocket" --o
 
 ## Open Questions
 
-1. Should migrated playlists appear as **new `.crate` files** or merge into an existing crate?
-2. Are duplicate track variants (`-1` suffix) intentional on Serato export — dedupe when copying?
-3. Does the DJ software re-scan `database V2` when only `.crate` files change?
+1. ~~Should migrated playlists appear as **new `.crate` files** or merge into an
+   existing crate?~~ **Answered 2026-08-21:** new `.crate` per playlist; existing
+   crates are preserved and never rewritten without an explicit flag.
+2. Are duplicate track variants (`-1` suffix) intentional on Serato export —
+   dedupe when copying?
+3. ~~Does the DJ software re-scan `database V2` when only `.crate` files
+   change?~~ **Answered 2026-08-21:** don't rely on it. Lexicon rewrites
+   `database V2` **and** `neworder.pref` alongside every crate it writes. A crate
+   referencing a `pfil` absent from `database V2` is not a supported state.
+
+## Known limitation: cannot bootstrap
+
+This pipeline matches against the **existing** Serato index, so it only migrates
+tracks Serato already knows, and fails outright when `_Serato_` is absent. On a
+plain rekordbox stick it does nothing. Closing that gap is
+[Stage 1](serato-index-bootstrap.md).

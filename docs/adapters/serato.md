@@ -1,21 +1,31 @@
 # Serato Adapter
 
-**Status:** read-only crate listing implemented (TASK-031). Writes deferred.
+**Status:** read-only listing + crate write implemented. Index authoring planned (Stage 1, TASK-071…076); analysis tags planned (Stage 2, TASK-080…085).
 
 ## Overview
 
 Serato uses **proprietary on-disk formats** under `_Serato_` directories. This adapter is the only module allowed to interpret Serato binary/text database files.
 
-## Schema Assumptions (Tentative)
+## Schema Status
 
-| Assumption | Confidence | Notes |
-|------------|------------|-------|
-| Library root contains `_Serato_` | high | |
-| `database V2` or successor files hold crate/track index | medium | Name may vary |
-| Crate = playlist equivalent | medium | Mapping to domain TBD |
-| Format changes without public schema docs | high risk | |
+As of 2026-08-21 the write formats are **decoded from a byte-exact before/after
+fixture pair**, not inferred. Full layouts live in
+[../schemas/serato-schema-notes.md](../schemas/serato-schema-notes.md);
+fixtures in [`tests/fixtures/serato/`](../../tests/fixtures/serato/).
 
-**All field layouts are unverified** until probed against fixtures and `/mnt/usb` samples.
+| Artifact | Confidence |
+|----------|------------|
+| TLV container (tag / u32 BE length / payload, type from tag prefix) | verified |
+| `.crate` structure (`vrsn`, `osrt`, `ovct`, ordered `otrk`) | verified |
+| `database V2` `otrk` minimal field set | verified |
+| `neworder.pref` (UTF-16BE `[crate]<name>` records) | verified |
+| `Serato Markers2` `CUE` layout | verified |
+| `Serato BeatGrid` / `Autotags` layout | verified format; no reference writer |
+| Path convention (drive-relative, no leading slash) | verified |
+| `%%` nested-crate naming | assumed, not exercised |
+| MP3 ID3 container path | **untested** — fixtures are WAV |
+
+Vendor formats still change without notice; treat versions defensively.
 
 ## Unknown Fields Tracking
 
@@ -50,12 +60,29 @@ See [../schemas/serato-schema-notes.md](../schemas/serato-schema-notes.md) and [
 | List database track index size | implemented | included in `list-crates` output |
 | Write crate from Rekordbox playlist | implemented | `migrate-playlist --mount …` |
 
-## Write Operations (Planned)
+## Write Operations
 
-- Apply limited plans once format is understood
-- Prefer append-only or field-level edits over full rewrite
+| Operation | Status | Task |
+|-----------|--------|------|
+| Write `.crate` from a Rekordbox playlist | implemented | TASK-033 |
+| Back up `neworder.pref` with the rest of `_Serato_` | **gap** | TASK-071 |
+| TLV codec preserving unknown tags | planned | TASK-072 |
+| `database V2` merge / append `otrk` | planned | TASK-073 |
+| `neworder.pref` merge / write | planned | TASK-074 |
+| `Parent%%Child` nested crate naming | planned | TASK-075 |
+| Bootstrap `_Serato_` on a rekordbox-only stick | planned | TASK-076 |
+| `Serato Markers2` hot cues | planned | TASK-082 |
+| `Serato BeatGrid` / `Autotags` | planned | TASK-083 |
+
+Rules: merge existing records, never regenerate; preserve unrecognized TLV tags
+verbatim; prefer append or field-level edits over full rewrite.
+
+**Do not use `serato_tools.usb_export.copy_crates_to_usb`** — it `rmtree`s the
+destination `_Serato_` directory.
 
 ## Related
 
 - [../schemas/serato-schema-notes.md](../schemas/serato-schema-notes.md)
+- [../planning/serato-index-bootstrap.md](../planning/serato-index-bootstrap.md)
+- [../decisions/0007-revive-analysis-sync-on-verified-formats.md](../decisions/0007-revive-analysis-sync-on-verified-formats.md)
 - [../decisions/0001-use-python-cli.md](../decisions/0001-use-python-cli.md)
