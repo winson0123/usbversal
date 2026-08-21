@@ -10,6 +10,21 @@
 > attempt failed; the plan that replaces it is in
 > [ADR 0007](../decisions/0007-revive-analysis-sync-on-verified-formats.md).
 
+## Full analysis surface
+
+A study of every analysis field — cues, beatgrid, BPM, key, gain — against the
+fixture pair and the real stick is in
+[analysis-data-study.md](../schemas/analysis-data-study.md). Headline findings:
+
+- A Lexicon sync changes **only** `Serato Markers2`. Audio is untouched,
+  `BeatGrid` and `Autotags` are byte-identical.
+- BPM appears in four places that all agree; key passes through unchanged;
+  gain has no Rekordbox source.
+- 93% of the library is constant tempo, so beatgrid mapping would be a single
+  terminal marker — but nothing writes beatgrids, so there is no oracle.
+- **36 of 40 sampled MP3s are ID3v2.3** while the only fixtures are v2.4, and
+  29 of 40 already carry `Serato Markers2`, so writes are updates.
+
 ## Current scope
 
 Usbversal copies **Rekordbox playlists to Serato crates** (`migrate-playlist`). It does **not** copy BPM, key, beatgrid, hot cues, or waveform analysis into Serato tags.
