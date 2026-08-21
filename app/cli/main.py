@@ -216,6 +216,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Validate plan and show outcomes without backup or writes",
     )
     apply_parser.add_argument(
+        "--stop-on-error",
+        action="store_true",
+        help="Halt after the first failing operation (default: continue and report)",
+    )
+    apply_parser.add_argument(
         "--target",
         default=None,
         help="Backup parent directory (default: <mount>/backups)",
@@ -566,6 +571,7 @@ def _cmd_apply(args: argparse.Namespace) -> int:
             args.plan,
             dry_run=args.dry_run,
             backup_root=args.target,
+            stop_on_error=args.stop_on_error,
         )
     except ApplyPlanError as exc:
         log.error("apply_failed", error=str(exc))
@@ -585,11 +591,14 @@ def _cmd_apply(args: argparse.Namespace) -> int:
 
     if args.json:
         print(json.dumps(result.to_dict(), indent=2))
-        return 0
+        return 1 if result.failed_count else 0
 
     print(f"Plan: {result.plan_path}")
     print(f"Mount: {result.mount}")
-    print(f"Operations: {len(result.operations)} ({result.success_count} ok)")
+    print(
+        f"Operations: {len(result.operations)} "
+        f"({result.success_count} ok, {result.failed_count} failed)"
+    )
     if result.dry_run:
         print("\n(dry-run: no backup or writes)")
     for op in result.operations:
@@ -603,7 +612,7 @@ def _cmd_apply(args: argparse.Namespace) -> int:
             f"({migration.get('serato_track_count')} tracks, "
             f"{migration.get('skipped_count')} skipped)",
         )
-    return 0
+    return 1 if result.failed_count else 0
 
 
 def _cmd_list_crates(args: argparse.Namespace) -> int:

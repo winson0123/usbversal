@@ -8,6 +8,7 @@ from typing import Any
 
 import structlog
 
+from app.adapters.serato.writer import CrateExistsError
 from app.core.apply_plan import ApplyPlan, ApplyPlanError, MigratePlaylistOperation, load_apply_plan
 from app.services.migration_service import (
     MigrationError,
@@ -154,6 +155,7 @@ def apply_plan_file(
     *,
     dry_run: bool = False,
     backup_root: str | Path | None = None,
+    stop_on_error: bool = False,
 ) -> ApplyResult:
     """
     Load and execute an apply plan against a mount.
@@ -161,18 +163,25 @@ def apply_plan_file(
     Operations run sequentially in plan order. Each migrate_playlist op takes
     its own backup before writing (same as the migrate-playlist CLI).
 
+    A failing operation is recorded on its ApplyOperationResult and the run
+    continues, so the caller always learns which operations succeeded. Check
+    ``failed_count`` to detect partial application.
+
     Args:
         mount: USB mount path (must match plan.mount when set).
         plan_path: JSON plan file path.
         dry_run: Validate and plan only; no backup or writes.
         backup_root: Optional backups parent directory.
+        stop_on_error: Halt after the first failing operation instead of
+            continuing. Earlier operations remain applied and reported.
 
     Returns:
         ApplyResult with per-operation outcomes.
 
     Raises:
-        ApplyPlanError: Invalid plan file or mount mismatch.
-        MigrationError: Propagated when the first operation fails (fail-fast).
+        ApplyPlanError: Invalid plan file, mount mismatch, or unsupported op.
+        OSError: Filesystem failures, including backup creation.
+        BackupVerificationError: A backup could not be verified before a write.
     """
     plan = load_apply_plan(plan_path)
     mount_path = _resolve_mount(mount, plan)
@@ -180,40 +189,56 @@ def apply_plan_file(
 
     results: list[ApplyOperationResult] = []
     for index, operation in enumerate(plan.operations):
-        if isinstance(operation, MigratePlaylistOperation):
-            try:
-                migration = _run_migrate_playlist(
-                    mount_path,
-                    operation,
-                    dry_run=dry_run,
-                    backup_root=backup,
-                )
-                results.append(
-                    ApplyOperationResult(
-                        index=index,
-                        op="migrate_playlist",
-                        result=migration.to_dict(),
-                        error=None,
-                    ),
-                )
-                logger.info(
-                    "apply_operation_completed",
-                    index=index,
-                    op="migrate_playlist",
-                    playlist=migration.plan.playlist_name,
-                    dry_run=dry_run,
-                )
-            except MigrationError as exc:
-                logger.warning(
-                    "apply_operation_failed",
-                    index=index,
-                    op="migrate_playlist",
-                    error=str(exc),
-                )
-                raise
-        else:
+        if not isinstance(operation, MigratePlaylistOperation):
             msg = f"Unsupported operation type at index {index}"
             raise ApplyPlanError(msg)
+
+        try:
+            migration = _run_migrate_playlist(
+                mount_path,
+                operation,
+                dry_run=dry_run,
+                backup_root=backup,
+            )
+        except (MigrationError, CrateExistsError) as exc:
+            # Per-operation failures are recorded and the run continues, so the
+            # caller learns which operations landed. Aborting here used to throw
+            # away the record of already-applied operations along with their
+            # backups. Infrastructure failures (OSError, backup verification)
+            # still propagate -- those are not per-playlist problems.
+            logger.warning(
+                "apply_operation_failed",
+                index=index,
+                op="migrate_playlist",
+                error=str(exc),
+            )
+            results.append(
+                ApplyOperationResult(
+                    index=index,
+                    op="migrate_playlist",
+                    result=None,
+                    error=str(exc),
+                ),
+            )
+            if stop_on_error:
+                break
+            continue
+
+        results.append(
+            ApplyOperationResult(
+                index=index,
+                op="migrate_playlist",
+                result=migration.to_dict(),
+                error=None,
+            ),
+        )
+        logger.info(
+            "apply_operation_completed",
+            index=index,
+            op="migrate_playlist",
+            playlist=migration.plan.playlist_name,
+            dry_run=dry_run,
+        )
 
     return ApplyResult(
         plan_path=Path(plan_path).resolve(),
