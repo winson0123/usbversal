@@ -147,14 +147,17 @@ Two consequences:
 
 ## Recommended scope
 
-Write **`Serato Markers2` only**, matching the one behaviour with a verified
-oracle. Specifically:
+> **Corrected 2026-08-21.** This section originally advised against writing
+> beatgrids on the grounds that Lexicon never writes them, so nothing could
+> validate the output. That was the wrong oracle to look for: Rekordbox's own
+> `PQTZ` reproduces the existing frame byte for byte, and Serato accepted both
+> cues and grids on the stick. See [ADR 0008](../decisions/0008-beatgrid-and-cue-sync-validated-in-serato.md).
+
+Write **`Serato Markers2` and `Serato BeatGrid`**. Specifically:
 
 - **Do** write hot cues. Reproducing the fixture diff is a byte-exact test.
-- **Do not** write `Serato BeatGrid` — the format is decoded, and constant-tempo
-  mapping is straightforward, but Lexicon never writes it, so there is no
-  reference for what Serato accepts. It is also where the earlier attempt
-  produced a 2 BPM first bar ([ADR 0006](../decisions/0006-serato-analyzed-and-beatgrid-tags.md)).
+- **Do** write beatgrids. Generating from `PQTZ` reproduces the existing frame
+  exactly, and Serato renders the result correctly.
 - **Do not** touch `Autotags`, `Overview`, `Analysis`, `Offsets_`, or
   `Markers_`. Nothing maps to them and Lexicon leaves them alone.
 - **Do not** rewrite text frames. Lexicon's NUL-stripping is incidental; BPM and
@@ -162,7 +165,8 @@ oracle. Specifically:
 
 ## Open before writing
 
-1. Audio files are **not in the backup set**. This is the blocker.
+1. ~~Audio files are not in the backup set.~~ Resolved: the `test` playlist run
+   backed up all four WAVs alongside both libraries, verified by checksum.
 2. The MP3 path has no fixture. v2.3 in particular is untested.
 3. Colour policy: pass Rekordbox RGB through, or map onto Serato's palette as
    Lexicon does. Nearly moot at 230/232 uncoloured.

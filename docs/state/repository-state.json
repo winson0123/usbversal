@@ -43,8 +43,8 @@
     "job_scan_async": true,
     "job_cancel_resume_persisted": true,
     "cli_jobs_list_cancel_resume": true,
-    "serato_index_authoring": false,
-    "serato_neworder_pref_backup": false,
+    "serato_index_authoring": true,
+    "serato_neworder_pref_backup": true,
     "serato_analysis_tag_sync": false,
     "rekordbox_export_pdb_read": false,
     "write_context_verifies_manifest": true,
@@ -53,10 +53,17 @@
     "layer_rules_enforced_in_tests": true,
     "vendor_imports_confined_to_adapters": true,
     "interactive_tui": false,
-    "playlist_sync_state": false,
+    "playlist_sync_state": true,
     "playlist_tree_model": false,
     "json_output_stdout_only": true,
-    "discovery_skips_backup_trees": true
+    "discovery_skips_backup_trees": true,
+    "sync_playlists": true,
+    "anlz_hot_cue_read": true,
+    "anlz_beatgrid_read": true,
+    "serato_markers2_write": true,
+    "serato_beatgrid_write": true,
+    "audio_tag_write_wav": true,
+    "audio_tag_write_mp3": false
   },
   "packaging": {
     "pyinstaller": true,
@@ -69,8 +76,8 @@
     "ruff_format": "pass",
     "pytest": "pass",
     "last_run": "2026-08-21T00:00:00Z",
-    "tests_passed": 123,
-    "tests_skipped": 1,
+    "tests_passed": 129,
+    "tests_skipped": 3,
     "tests_failed": 0,
     "note": "run with USBVERSAL_TEST_MOUNT=/mnt/wsl/usb; only the PyInstaller build skips"
   },
@@ -85,7 +92,7 @@
     "contributing": true,
     "architecture_md": true,
     "docs_scaffolding": true,
-    "adrs": 7,
+    "adrs": 8,
     "usb_integration_validation": true,
     "serato_write_formats_verified": true
   },
@@ -116,7 +123,10 @@
     "rekordbox_playlist_lists": 66,
     "scan_libraries_detected": 6,
     "pocket_dry_run_matched": 80,
-    "pocket_dry_run_skipped": 0
+    "pocket_dry_run_skipped": 0,
+    "test_playlist_synced": "2026-08-21, validated in Serato: crate, cues, beatgrids, analysed state",
+    "test_playlist_backup_id": "20260821T083513Z",
+    "broken_beatgrids_remaining": 79
   },
   "execution_policy": "AGENT.md",
   "fixtures": {
@@ -124,15 +134,12 @@
     "description": "Byte-exact Lexicon before/after WAV pair for Serato Markers2 round-trip tests"
   },
   "known_gaps": [
-    "TUI not started; argparse CLI is a test harness (M11)",
-    "per-playlist sync state red/yellow/green not computed (TASK-110)",
-    "playlist tree is flattened by every consumer (TASK-111)",
-    "empty mount point passes resolve_mount_path; must read as no-USB for the TUI (TASK-112)",
-    "detection is one-shot and walks up to 25k nodes; too heavy to poll (TASK-113)",
-    "JobProgress has no rate or ETA (TASK-114)",
-    "apply takes one backup per operation, not one per batch (TASK-115)",
-    "migrate-playlist cannot bootstrap a stick with no _Serato_ index (TASK-076)",
-    "neworder.pref is neither written nor backed up (TASK-071)",
-    "MP3 GEOB container path untested; fixtures are WAV only (TASK-084)"
+    "TUI not started; argparse CLI is a test harness",
+    "MP3 tag write path untested; 36/40 sampled MP3s are ID3v2.3 while fixtures are v2.4",
+    "variable-tempo beatgrids encoded but unvalidated in Serato (33/500 tracks)",
+    "79 files carry the broken +120s beatgrid from the abandoned attempt; repair not run",
+    "cue/beatgrid sync not wired into sync_playlists yet; run manually for the test playlist",
+    "playlist tree is flattened by every consumer",
+    "nested playlist folders collide on leaf crate name"
   ]
 }

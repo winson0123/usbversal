@@ -20,9 +20,10 @@ def test_list_playlists_json_output() -> None:
         library=library,
         playlists=(Playlist(id=18, name="House", parent_id=17, is_folder=False, track_count=3),),
     )
-    with patch("app.cli.main.list_rekordbox_playlists", return_value=result):
-        with patch("sys.stdout", new_callable=StringIO) as stdout:
-            code = main(["list-playlists", "--mount", "/mnt/usb", "--json"])
+    with patch("app.cli.main.open_library"):
+        with patch("app.cli.main.list_rekordbox_playlists", return_value=result):
+            with patch("sys.stdout", new_callable=StringIO) as stdout:
+                code = main(["list-playlists", "--mount", "/mnt/usb", "--json"])
     assert code == 0
     data = json.loads(stdout.getvalue())
     assert data["count"] == 1

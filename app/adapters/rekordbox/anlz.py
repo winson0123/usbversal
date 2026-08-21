@@ -111,3 +111,47 @@ def read_hot_cues(extended_file: str | Path) -> list[HotCue]:
     cues.sort(key=lambda cue: cue.slot)
     logger.debug("anlz_hot_cues_read", path=str(path), count=len(cues))
     return cues
+
+
+@dataclass(frozen=True)
+class Beat:
+    """
+    One beat from a Rekordbox beat grid.
+
+    Attributes:
+        number: Beat position in the bar, 1 to 4.
+        bpm: Tempo at this beat.
+        time_ms: Beat position in milliseconds.
+    """
+
+    number: int
+    bpm: float
+    time_ms: int
+
+
+def read_beats(analysis_file: str | Path) -> list[Beat]:
+    """
+    Read the beat grid from an ANLZ .DAT file.
+
+    Args:
+        analysis_file: Path to an ANLZ .DAT file.
+
+    Returns:
+        Beats in time order. Empty when the track has no grid.
+    """
+    path = Path(analysis_file)
+    if not path.is_file():
+        return []
+
+    data = path.read_bytes()
+    for tag, header_len, total_len, offset in _sections(data):
+        if tag != "PQTZ" or total_len <= header_len:
+            continue
+        body = data[offset + header_len : offset + total_len]
+        return [
+            Beat(number=number, bpm=tempo / 100.0, time_ms=time)
+            for number, tempo, time in (
+                struct.unpack(">HHI", body[i * 8 : (i + 1) * 8]) for i in range(len(body) // 8)
+            )
+        ]
+    return []

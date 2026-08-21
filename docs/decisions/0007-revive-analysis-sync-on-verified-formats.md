@@ -52,9 +52,10 @@ Specifically:
   Serato-readable at all. This requires **no audio file mutation**.
 - Stage 2 (analysis) writes `Serato Markers2` from ANLZ `PCO2` **hot cues** —
   real cues, not anchors — and `Serato BeatGrid` from `PQTZ`.
-- Beatgrid authoring has **no reference implementation to copy**, since Lexicon
-  declines to write them. It is therefore the lowest-confidence part of Stage 2
-  and ships behind an explicit opt-in flag, separate from cue sync.
+- ~~Beatgrid authoring has no reference implementation to copy.~~ **Superseded
+  2026-08-21 by [ADR 0008](0008-beatgrid-and-cue-sync-validated-in-serato.md):
+  Rekordbox's `PQTZ` is itself the oracle, and both cues and grids were
+  confirmed correct in Serato.**
 
 ## Consequences
 

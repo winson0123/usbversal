@@ -160,6 +160,26 @@
       "id": "TASK-112",
       "title": "Append records to Serato database V2",
       "completed_at": "2026-08-21T00:00:00Z"
+    },
+    {
+      "id": "TASK-114",
+      "title": "Sync playlists into Serato crates",
+      "completed_at": "2026-08-21T00:00:00Z"
+    },
+    {
+      "id": "TASK-115",
+      "title": "Read hot cues and encode Serato Markers2",
+      "completed_at": "2026-08-21T00:00:00Z"
+    },
+    {
+      "id": "TASK-116",
+      "title": "Study the full analysis surface",
+      "completed_at": "2026-08-21T00:00:00Z"
+    },
+    {
+      "id": "TASK-117",
+      "title": "Write cues and beatgrids to audio, validated in Serato",
+      "completed_at": "2026-08-21T00:00:00Z"
     }
   ],
   "history": [
@@ -322,6 +342,30 @@
     {
       "id": "TASK-112",
       "title": "Append records to Serato database V2",
+      "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-114",
+      "title": "Sync playlists into Serato crates",
+      "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-115",
+      "title": "Read hot cues and encode Serato Markers2",
+      "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-116",
+      "title": "Study the full analysis surface",
+      "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-117",
+      "title": "Write cues and beatgrids to audio, validated in Serato",
       "completed_at": "2026-08-21T00:00:00Z",
       "status": "completed"
     }
