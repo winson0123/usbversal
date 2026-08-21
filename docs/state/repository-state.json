@@ -46,7 +46,15 @@
     "serato_index_authoring": false,
     "serato_neworder_pref_backup": false,
     "serato_analysis_tag_sync": false,
-    "rekordbox_export_pdb_read": false
+    "rekordbox_export_pdb_read": false,
+    "write_context_verifies_manifest": true,
+    "mount_path_validation": true,
+    "apply_collects_per_operation_failures": true,
+    "layer_rules_enforced_in_tests": true,
+    "vendor_imports_confined_to_adapters": true,
+    "interactive_tui": false,
+    "playlist_sync_state": false,
+    "playlist_tree_model": false
   },
   "packaging": {
     "pyinstaller": true,
@@ -56,13 +64,12 @@
   },
   "test_status": {
     "ruff": "pass",
-    "ruff_format": "fail_4_files_pre_existing",
+    "ruff_format": "pass",
     "pytest": "pass",
     "last_run": "2026-08-21T00:00:00Z",
-    "tests_passed": 89,
-    "tests_skipped": 1,
-    "tests_failed": 0,
-    "note": "usb mounted this run; 2 integration tests ran instead of skipping"
+    "tests_passed": 118,
+    "tests_skipped": 3,
+    "tests_failed": 0
   },
   "dependencies": {
     "rbox": "0.1.7",
@@ -109,11 +116,15 @@
     "description": "Byte-exact Lexicon before/after WAV pair for Serato Markers2 round-trip tests"
   },
   "known_gaps": [
-    "migrate-playlist cannot bootstrap: requires a pre-existing _Serato_ index (TASK-076)",
-    "neworder.pref is neither written nor included in the backup set (TASK-071)",
-    "nested playlist folders collide on leaf crate name (TASK-075)",
-    "MP3 GEOB container path untested; fixtures are WAV only (TASK-084)",
-    "rekordbox cue colour table only 2 entries deep (TASK-081)",
-    "export.pdb and ANLZ specs captured but never parsed (TASK-080, TASK-090)"
+    "TUI not started; argparse CLI is a test harness (M11)",
+    "per-playlist sync state red/yellow/green not computed (TASK-110)",
+    "playlist tree is flattened by every consumer (TASK-111)",
+    "empty mount point passes resolve_mount_path; must read as no-USB for the TUI (TASK-112)",
+    "detection is one-shot and walks up to 25k nodes; too heavy to poll (TASK-113)",
+    "JobProgress has no rate or ETA (TASK-114)",
+    "apply takes one backup per operation, not one per batch (TASK-115)",
+    "migrate-playlist cannot bootstrap a stick with no _Serato_ index (TASK-076)",
+    "neworder.pref is neither written nor backed up (TASK-071)",
+    "MP3 GEOB container path untested; fixtures are WAV only (TASK-084)"
   ]
 }

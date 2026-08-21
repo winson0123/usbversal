@@ -9,6 +9,13 @@
     "blocked_reason": null
   },
   "pending_tasks": [
+    "TASK-110",
+    "TASK-111",
+    "TASK-112",
+    "TASK-113",
+    "TASK-114",
+    "TASK-115",
+    "TASK-116",
     "TASK-071",
     "TASK-072",
     "TASK-073",
@@ -21,10 +28,7 @@
     "TASK-083",
     "TASK-084",
     "TASK-085",
-    "TASK-032",
-    "TASK-010",
-    "TASK-090",
-    "TASK-091"
+    "TASK-090"
   ],
   "blocked_tasks": [],
   "completed_tasks": [
@@ -101,6 +105,41 @@
     {
       "id": "TASK-070",
       "title": "Capture verified Serato write formats and re-plan Stage 1/2",
+      "completed_at": "2026-08-21T00:00:00Z"
+    },
+    {
+      "id": "TASK-100",
+      "title": "Enforce the backup gate and validate mounts at the boundary",
+      "completed_at": "2026-08-21T00:00:00Z"
+    },
+    {
+      "id": "TASK-101",
+      "title": "Anchor job metadata at the package root",
+      "completed_at": "2026-08-21T00:00:00Z"
+    },
+    {
+      "id": "TASK-102",
+      "title": "Make apply report per-operation failures instead of aborting",
+      "completed_at": "2026-08-21T00:00:00Z"
+    },
+    {
+      "id": "TASK-103",
+      "title": "Remove dead code and unify library detection markers",
+      "completed_at": "2026-08-21T00:00:00Z"
+    },
+    {
+      "id": "TASK-104",
+      "title": "Confine vendor imports to adapters and enforce layers in tests",
+      "completed_at": "2026-08-21T00:00:00Z"
+    },
+    {
+      "id": "TASK-091",
+      "title": "Reconcile ruff format drift",
+      "completed_at": "2026-08-21T00:00:00Z"
+    },
+    {
+      "id": "TASK-105",
+      "title": "Trim to code the TUI needs; move reasoning into docs",
       "completed_at": "2026-08-21T00:00:00Z"
     }
   ],
@@ -192,6 +231,48 @@
     {
       "id": "TASK-070",
       "title": "Capture verified Serato write formats and re-plan Stage 1/2",
+      "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-100",
+      "title": "Enforce the backup gate and validate mounts at the boundary",
+      "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-101",
+      "title": "Anchor job metadata at the package root",
+      "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-102",
+      "title": "Make apply report per-operation failures instead of aborting",
+      "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-103",
+      "title": "Remove dead code and unify library detection markers",
+      "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-104",
+      "title": "Confine vendor imports to adapters and enforce layers in tests",
+      "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-091",
+      "title": "Reconcile ruff format drift",
+      "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-105",
+      "title": "Trim to code the TUI needs; move reasoning into docs",
       "completed_at": "2026-08-21T00:00:00Z",
       "status": "completed"
     }
