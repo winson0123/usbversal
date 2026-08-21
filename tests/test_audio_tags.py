@@ -114,10 +114,54 @@ def test_tempo_changes_produce_non_terminal_markers() -> None:
     terminal_pos, terminal_bpm = struct.unpack(">ff", payload[14:22])
 
     assert count == 2
-    assert (position, beats_to_next) == (0.0, 1)
+    # Two beats elapse before the next marker, which implies 120 BPM over 1.0s.
+    assert (position, beats_to_next) == (0.0, 2)
+    assert beats_to_next / (terminal_pos - position) * 60 == 120.0
     assert (terminal_pos, terminal_bpm) == (1.0, 140.0)
 
 
 def test_no_beats_yields_no_grid() -> None:
     """A track with no analysis produces no payload."""
     assert encode_beatgrid([]) is None
+
+
+def test_beats_to_next_is_the_index_delta() -> None:
+    """A marker counts every beat before the next marker, not its run length.
+
+    Getting this wrong understates the count and makes Serato derive a slower
+    tempo for the segment.
+    """
+    beats = [
+        Beat(number=1, bpm=120.0, time_ms=0),
+        Beat(number=2, bpm=120.0, time_ms=500),
+        Beat(number=3, bpm=120.0, time_ms=1000),
+        Beat(number=4, bpm=120.0, time_ms=1500),
+        Beat(number=1, bpm=140.0, time_ms=2000),
+    ]
+
+    payload = encode_beatgrid(beats)
+    position, beats_to_next = struct.unpack(">fI", payload[6:14])
+    terminal_pos, _ = struct.unpack(">ff", payload[14:22])
+
+    assert beats_to_next == 4
+    # Serato derives the segment tempo from marker spacing.
+    assert beats_to_next / (terminal_pos - position) * 60 == 120.0
+
+
+def test_steady_track_stays_a_single_marker() -> None:
+    """Millisecond jitter must not fragment a constant-tempo grid."""
+    beats = [Beat(number=(i % 4) + 1, bpm=128.0, time_ms=int(i * 468.75)) for i in range(64)]
+
+    payload = encode_beatgrid(beats)
+
+    assert struct.unpack(">I", payload[2:6])[0] == 1
+
+
+def test_tempo_change_opens_a_new_marker() -> None:
+    """A genuine tempo change starts a new section."""
+    beats = [Beat(number=1, bpm=120.0, time_ms=0), Beat(number=2, bpm=120.0, time_ms=500)]
+    beats += [Beat(number=3, bpm=150.0, time_ms=1000), Beat(number=4, bpm=150.0, time_ms=1400)]
+
+    payload = encode_beatgrid(beats)
+
+    assert struct.unpack(">I", payload[2:6])[0] >= 2

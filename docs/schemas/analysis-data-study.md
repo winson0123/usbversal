@@ -172,3 +172,65 @@ Write **`Serato Markers2` and `Serato BeatGrid`**. Specifically:
    Lexicon does. Nearly moot at 230/232 uncoloured.
 4. Whether `Serato Markers_` (v1) must stay consistent with `Markers2` on the
    29/40 files carrying both.
+
+---
+
+## Variable-tempo beatgrids [confirmed]
+
+Research, 2026-08-21, against 200 tracks on the stick.
+
+### A bug the validated case could not catch
+
+`beats_to_next` is the **index delta between markers**, not the length of the
+tempo run. The first implementation used the run length, which understates the
+count by one and makes Serato derive a slower tempo for the segment: four beats
+over two seconds encoded as three, implying 90 BPM instead of 120.
+
+Constant-tempo tracks are a single terminal marker and carry no `beats_to_next`
+at all, so the validated case could never have exposed this. **Every
+variable-tempo grid would have been wrong.**
+
+### Why Rekordbox's tempo cannot be trusted as a grouping key
+
+Rekordbox reports a smoothed tempo while the beat times themselves jitter. On a
+live-recorded track, gaps run 450–470 ms while the declared tempo sits at
+129.91 throughout:
+
+```text
+beat  1: gap=460ms declared=129.91 implied=130.43
+beat  2: gap=470ms declared=129.91 implied=127.66
+beat  3: gap=450ms declared=129.91 implied=133.33
+```
+
+Grouping by declared tempo assumes even spacing inside the run, so error
+accumulates — up to 175 ms over 386 beats, half a beat at that tempo.
+
+Markers are therefore closed when interpolated beats drift beyond a threshold,
+not only when the tempo changes, and a tempo change splits at exactly the beat
+that changed.
+
+### Accuracy reached
+
+Beat positions reconstructed from the encoded grid, against Rekordbox's:
+
+| | tracks | worst error |
+|---|---|---|
+| Constant tempo | 188 | **10.9 ms** |
+| Variable tempo | 12 | 115.0 ms (median 32.8 ms) |
+
+### The floor that tuning cannot reach
+
+Lowering the drift threshold from 10 ms to 0.5 ms improves the worst case to
+about 50 ms and then stops, while payloads grow from 15 bytes to roughly 5 KB.
+
+The residue is structural. A terminal marker means *this tempo holds to the end
+of the track*, so any wander after the final section start is unrepresentable.
+Making the terminal the last beat would fix it and would also stop a steady
+track encoding as the single marker Serato was verified to accept.
+
+### Recommendation
+
+Sync beatgrids for **constant-tempo tracks only**, which is 93% of the library.
+For variable-tempo tracks, skip the grid and leave Serato to analyse: an error
+of 100 ms is a third of a beat and audible, and the format cannot carry the
+truth without changing the shape that was validated.
