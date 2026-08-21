@@ -54,7 +54,9 @@
     "vendor_imports_confined_to_adapters": true,
     "interactive_tui": false,
     "playlist_sync_state": false,
-    "playlist_tree_model": false
+    "playlist_tree_model": false,
+    "json_output_stdout_only": true,
+    "discovery_skips_backup_trees": true
   },
   "packaging": {
     "pyinstaller": true,
@@ -67,9 +69,10 @@
     "ruff_format": "pass",
     "pytest": "pass",
     "last_run": "2026-08-21T00:00:00Z",
-    "tests_passed": 118,
-    "tests_skipped": 3,
-    "tests_failed": 0
+    "tests_passed": 123,
+    "tests_skipped": 1,
+    "tests_failed": 0,
+    "note": "run with USBVERSAL_TEST_MOUNT=/mnt/wsl/usb; only the PyInstaller build skips"
   },
   "dependencies": {
     "rbox": "0.1.7",
@@ -87,9 +90,9 @@
     "serato_write_formats_verified": true
   },
   "primary_test_usb": {
-    "linux_wsl": "/mnt/usb",
+    "linux_wsl": "/mnt/usb (bind-mounted to /mnt/wsl/usb for sandboxed access)",
     "last_validated": "2026-08-21",
-    "rekordbox_playlists": 70,
+    "rekordbox_playlists": 72,
     "rekordbox_tracks": 1625,
     "rekordbox_db": "/mnt/usb/PIONEER/rekordbox/exportLibrary.db",
     "serato_database_tracks": 793,
@@ -108,7 +111,12 @@
       "Library",
       "Lexicon",
       "Metadata"
-    ]
+    ],
+    "rekordbox_playlist_folders": 6,
+    "rekordbox_playlist_lists": 66,
+    "scan_libraries_detected": 6,
+    "pocket_dry_run_matched": 80,
+    "pocket_dry_run_skipped": 0
   },
   "execution_policy": "AGENT.md",
   "fixtures": {

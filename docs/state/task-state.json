@@ -141,6 +141,11 @@
       "id": "TASK-105",
       "title": "Trim to code the TUI needs; move reasoning into docs",
       "completed_at": "2026-08-21T00:00:00Z"
+    },
+    {
+      "id": "TASK-107",
+      "title": "Keep JSON output clean and skip backup trees when scanning",
+      "completed_at": "2026-08-21T00:00:00Z"
     }
   ],
   "history": [
@@ -273,6 +278,12 @@
     {
       "id": "TASK-105",
       "title": "Trim to code the TUI needs; move reasoning into docs",
+      "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-107",
+      "title": "Keep JSON output clean and skip backup trees when scanning",
       "completed_at": "2026-08-21T00:00:00Z",
       "status": "completed"
     }

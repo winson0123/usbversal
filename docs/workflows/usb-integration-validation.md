@@ -91,3 +91,23 @@ Restores Rekordbox + Serato **database/crate files** from backup; does not rever
 - [verification-workflow.md](verification-workflow.md)
 - [../planning/rekordbox-to-serato-playlist-migration.md](../planning/rekordbox-to-serato-playlist-migration.md)
 - [../storage/usb-detection.md](../storage/usb-detection.md)
+
+## Running from a sandboxed shell (WSL)
+
+A tool running in its own mount namespace does not see mounts created later in
+the host namespace -- `/` there is PRIVATE, so nothing propagates in. Bind-mount
+the stick under `/mnt/wsl`, which is a shared peer group visible to both:
+
+```bash
+sudo mount -t vfat /dev/sde1 /mnt/usb -o uid=1000,gid=1000,utf8
+sudo mkdir -p /mnt/wsl/usb && sudo mount --bind /mnt/usb /mnt/wsl/usb
+```
+
+Then point the integration tests at it:
+
+```bash
+USBVERSAL_TEST_MOUNT=/mnt/wsl/usb .venv/bin/pytest -q
+```
+
+Note that `/mnt/usb` survives unplugging as an empty directory, so an empty
+mount point means *no stick*, not a valid target.
