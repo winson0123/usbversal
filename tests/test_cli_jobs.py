@@ -13,7 +13,7 @@ from app.jobs.store import JobStore
 
 def test_jobs_list_empty(tmp_path: Path, monkeypatch) -> None:
     """jobs list reports no jobs when directory is empty."""
-    monkeypatch.setenv("USBversal_JOBS_DIR", str(tmp_path / "jobs"))
+    monkeypatch.setenv("USBVERSAL_JOBS_DIR", str(tmp_path / "jobs"))
     with patch("sys.stdout", new_callable=StringIO) as stdout:
         code = main(["jobs", "list"])
     assert code == 0
@@ -31,7 +31,7 @@ def test_jobs_list_json(tmp_path: Path, monkeypatch) -> None:
             parameters={"mount": "/mnt/usb"},
         )
     )
-    monkeypatch.setenv("USBversal_JOBS_DIR", str(tmp_path / "jobs"))
+    monkeypatch.setenv("USBVERSAL_JOBS_DIR", str(tmp_path / "jobs"))
 
     with patch("sys.stdout", new_callable=StringIO) as stdout:
         code = main(["jobs", "list", "--json"])
@@ -52,7 +52,7 @@ def test_jobs_cancel(tmp_path: Path, monkeypatch) -> None:
             parameters={},
         )
     )
-    monkeypatch.setenv("USBversal_JOBS_DIR", str(tmp_path / "jobs"))
+    monkeypatch.setenv("USBVERSAL_JOBS_DIR", str(tmp_path / "jobs"))
 
     with patch("sys.stdout", new_callable=StringIO) as stdout:
         code = main(["jobs", "cancel", "cancelme"])
@@ -77,7 +77,7 @@ def test_jobs_resume_scan(tmp_path: Path, monkeypatch) -> None:
             error="Interrupted",
         )
     )
-    monkeypatch.setenv("USBversal_JOBS_DIR", str(tmp_path / "cfg" / "jobs"))
+    monkeypatch.setenv("USBVERSAL_JOBS_DIR", str(tmp_path / "cfg" / "jobs"))
 
     with patch("sys.stdout", new_callable=StringIO) as stdout:
         code = main(["jobs", "resume", "resume1", "--json"])

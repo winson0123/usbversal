@@ -42,8 +42,8 @@ def test_usbversal_binary_help() -> None:
 
 
 @pytest.mark.skipif(
-    os.environ.get("USBversal_PACKAGING_BUILD") != "1",
-    reason="Set USBversal_PACKAGING_BUILD=1 to run full PyInstaller build in CI",
+    os.environ.get("USBVERSAL_PACKAGING_BUILD") != "1",
+    reason="Set USBVERSAL_PACKAGING_BUILD=1 to run full PyInstaller build in CI",
 )
 def test_pyinstaller_build_and_help() -> None:
     """

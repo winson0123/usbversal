@@ -28,7 +28,7 @@ Spec: [packaging/usbversal.spec](../packaging/usbversal.spec)
 |------|----------------|
 | `test_packaging_spec_exists` | Always |
 | `test_usbversal_binary_help` | When `dist/usbversal` exists (after build) |
-| `test_pyinstaller_build_and_help` | When `USBversal_PACKAGING_BUILD=1` (full CI release job) |
+| `test_pyinstaller_build_and_help` | When `USBVERSAL_PACKAGING_BUILD=1` (full CI release job) |
 
 ## Pre-release gates
 

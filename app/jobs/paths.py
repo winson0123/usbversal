@@ -15,8 +15,12 @@ def _is_python_interpreter(path: Path) -> bool:
     Returns:
         True for names like ``python`` or ``python3.13``.
     """
-    name = path.name
-    return name == "python" or name.startswith("python") or name.startswith("pypy")
+    return path.name.startswith(("python", "pypy"))
+
+
+def _package_root() -> Path:
+    """Return the directory containing the ``app`` package."""
+    return Path(__file__).resolve().parents[2]
 
 
 def get_runtime_base_dir() -> Path:
@@ -25,9 +29,11 @@ def get_runtime_base_dir() -> Path:
 
     Resolution order:
     - PyInstaller binary: directory containing ``sys.executable``
-    - Console script or ``.py`` entry: directory containing that file
-    - Virtualenv console script: repository/package root (not ``.venv/bin``)
-    - ``python -m app.cli``: repository/package root (parent of ``app/``)
+    - Entry point inside the ``app`` package (``python -m app.cli``):
+      package root, **not** the package subdirectory holding ``__main__.py``
+    - Virtualenv console script: package root, not ``.venv/bin``
+    - Any other console script or ``.py`` entry: directory containing it
+    - No usable ``sys.argv``: package root
 
     Returns:
         Base directory for colocated runtime data.
@@ -35,15 +41,20 @@ def get_runtime_base_dir() -> Path:
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
 
+    root = _package_root()
     if sys.argv:
         entry = Path(sys.argv[0]).resolve()
         if entry.is_file() and not _is_python_interpreter(entry):
             base = entry.parent
+            # ``python -m app.cli`` puts __main__.py's directory in argv[0],
+            # which would scatter job records inside the source tree.
+            if base.is_relative_to(root / "app"):
+                return root
             if base.name == "bin" and (base.parent / "pyvenv.cfg").is_file():
-                return Path(__file__).resolve().parents[2]
+                return root
             return base
 
-    return Path(__file__).resolve().parents[2]
+    return root
 
 
 def get_jobs_dir() -> Path:
@@ -51,12 +62,12 @@ def get_jobs_dir() -> Path:
     Return the directory used for persisted job JSON records.
 
     Jobs are stored beside the running executable or application tree at
-    ``<runtime_base>/jobs/``. Override with ``USBversal_JOBS_DIR`` for tests.
+    ``<runtime_base>/jobs/``. Override with ``USBVERSAL_JOBS_DIR`` for tests.
 
     Returns:
         Path to the jobs directory (created by callers when writing).
     """
-    override = os.environ.get("USBversal_JOBS_DIR")
+    override = os.environ.get("USBVERSAL_JOBS_DIR")
     if override:
         return Path(override)
     return get_runtime_base_dir() / "jobs"

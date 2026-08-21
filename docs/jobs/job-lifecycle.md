@@ -48,7 +48,7 @@ Job records stored beside the running executable or application tree:
 
 For PyInstaller builds, ``runtime_base`` is the directory containing the binary.
 For ``python -m app.cli``, it is the repository root (parent of ``app/``).
-Override with ``USBversal_JOBS_DIR`` when needed.
+Override with ``USBVERSAL_JOBS_DIR`` when needed.
 
 Contains state, checkpoints, cancel flags, backup references, and error messages. Stale `running` jobs are recovered as `failed` on load.
 
