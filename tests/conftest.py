@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from app.services.library import UsbLibrary, probe_mount
 from app.storage.backup import BackupResult, create_backup
 
 INTEGRATION_MOUNT_ENV = "USBVERSAL_TEST_MOUNT"
@@ -52,3 +53,19 @@ def make_backup(tmp_path: Path) -> Callable[..., BackupResult]:
         )
 
     return _make
+
+
+def make_library(mount: Path, adapter: object) -> UsbLibrary:
+    """
+    Build a UsbLibrary around a stubbed Rekordbox adapter.
+
+    Args:
+        mount: Mount root that already contains the expected vendor paths.
+        adapter: Object standing in for the Rekordbox read adapter.
+
+    Returns:
+        UsbLibrary usable by services that take a session handle.
+    """
+    probe = probe_mount(mount)
+    assert probe is not None, f"probe found nothing at {mount}"
+    return UsbLibrary(probe=probe, rekordbox=adapter)  # type: ignore[arg-type]

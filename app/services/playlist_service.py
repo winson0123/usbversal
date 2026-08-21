@@ -1,14 +1,12 @@
 """Playlist listing orchestration."""
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 import structlog
 
-from app.adapters.rekordbox import open_rekordbox_library
 from app.core.domain import Playlist, RekordboxLibrary
-from app.storage.mounts import resolve_mount_path
+from app.services.library import UsbLibrary
 
 logger = structlog.get_logger(__name__)
 
@@ -53,24 +51,16 @@ class PlaylistListResult:
         }
 
 
-def list_rekordbox_playlists(mount: str | Path) -> PlaylistListResult:
+def list_rekordbox_playlists(library: UsbLibrary) -> PlaylistListResult:
     """
-    List Rekordbox playlists on a mount (read-only).
+    List Rekordbox playlists from an opened library (read-only).
 
     Args:
-        mount: Mount path (e.g. /mnt/usb).
+        library: Opened session handle.
 
     Returns:
         PlaylistListResult with library metadata and playlists.
-
-    Raises:
-        DatabaseNotFoundError: No Rekordbox database on mount.
-        UnsupportedDatabaseError: Database format not supported.
-        AdapterError: Other adapter failures.
     """
-    mount_path = resolve_mount_path(mount)
-    logger.info("list_playlists_started", mount=str(mount_path))
-    adapter = open_rekordbox_library(mount_path)
-    playlists = tuple(adapter.list_playlists())
+    playlists = tuple(library.rekordbox.list_playlists())
     logger.info("list_playlists_completed", count=len(playlists))
-    return PlaylistListResult(library=adapter.library, playlists=playlists)
+    return PlaylistListResult(library=library.rekordbox.library, playlists=playlists)

@@ -14,6 +14,7 @@ from app.services.migration_service import (
     migrate_playlist_to_crate,
 )
 from app.storage.backup import BackupManifest
+from tests.conftest import make_library
 
 
 def test_sanitize_crate_name() -> None:
@@ -80,12 +81,11 @@ def test_build_migration_plan_with_mocks(tmp_path: Path) -> None:
         "/Contents/Missing/track.mp3",
     ]
 
-    with patch("app.services.migration_service.open_rekordbox_library", return_value=mock_adapter):
-        with patch(
-            "app.services.migration_service.read_database_track_paths",
-            return_value=["Contents/Artist/track.mp3"],
-        ):
-            plan = build_migration_plan(mount, playlist_id=1)
+    with patch(
+        "app.services.migration_service.read_database_track_paths",
+        return_value=["Contents/Artist/track.mp3"],
+    ):
+        plan = build_migration_plan(make_library(mount, mock_adapter), playlist_id=1)
 
     assert plan.playlist_name == "Pocket"
     assert plan.serato_paths == ("Contents/Artist/track.mp3",)
@@ -112,7 +112,9 @@ def test_migrate_playlist_dry_run(tmp_path: Path) -> None:
             skipped_paths=(),
             rekordbox_paths=("/Contents/a.mp3",),
         )
-        result = migrate_playlist_to_crate(mount, playlist_id=1, dry_run=True)
+        result = migrate_playlist_to_crate(
+            make_library(mount, MagicMock()), playlist_id=1, dry_run=True
+        )
 
     assert result.dry_run is True
     assert result.backup is None
@@ -131,9 +133,8 @@ def test_build_migration_plan_playlist_not_found(tmp_path: Path) -> None:
     mock_adapter = MagicMock()
     mock_adapter.list_playlists.return_value = []
 
-    with patch("app.services.migration_service.open_rekordbox_library", return_value=mock_adapter):
-        with pytest.raises(PlaylistNotFoundError):
-            build_migration_plan(mount, playlist_id=99)
+    with pytest.raises(PlaylistNotFoundError):
+        build_migration_plan(make_library(mount, mock_adapter), playlist_id=99)
 
 
 def test_migrate_playlist_end_to_end(tmp_path: Path) -> None:
@@ -159,12 +160,11 @@ def test_migrate_playlist_end_to_end(tmp_path: Path) -> None:
     mock_adapter.list_playlists.return_value = [playlist]
     mock_adapter.get_playlist_track_paths.return_value = ["/Contents/Artist/track.mp3"]
 
-    with patch("app.services.migration_service.open_rekordbox_library", return_value=mock_adapter):
-        with patch(
-            "app.services.migration_service.read_database_track_paths",
-            return_value=["Contents/Artist/track.mp3"],
-        ):
-            result = migrate_playlist_to_crate(mount, playlist_id=1)
+    with patch(
+        "app.services.migration_service.read_database_track_paths",
+        return_value=["Contents/Artist/track.mp3"],
+    ):
+        result = migrate_playlist_to_crate(make_library(mount, mock_adapter), playlist_id=1)
 
     assert result.crate_path is not None
     assert result.crate_path.name == "Pocket.crate"

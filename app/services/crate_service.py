@@ -56,15 +56,19 @@ def list_serato_crates(mount: str | Path) -> CrateListResult:
     """
     List Serato crates on a mount (read-only).
 
+    Independent of the Rekordbox session handle: reading crates is cheap and
+    needs no open Rekordbox database.
+
     Args:
         mount: Mount path (e.g. /mnt/usb).
 
     Returns:
         CrateListResult with library metadata and crates.
+
+    Raises:
+        SeratoLibraryNotFoundError: The mount has no Serato library.
     """
-    mount_path = resolve_mount_path(mount)
-    logger.info("list_crates_started", mount=str(mount_path))
-    adapter = open_serato_library(mount_path)
+    adapter = open_serato_library(resolve_mount_path(mount))
     crates = tuple(adapter.list_crates())
     logger.info("list_crates_completed", crate_count=len(crates))
     return CrateListResult(library=adapter.library, crates=crates)

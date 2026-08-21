@@ -9,15 +9,13 @@ from typing import Any
 import structlog
 
 from app.adapters.base import WriteContext
-from app.adapters.rekordbox import open_rekordbox_library
 from app.adapters.serato import read_database_track_paths
-from app.adapters.serato.paths import resolve_serato_library
 from app.adapters.serato.writer import sanitize_crate_name, write_crate
 from app.core.domain import Playlist
 from app.core.track_paths import build_serato_path_index, normalize_track_path
 from app.services.backup_service import backup_mount_for_migration
+from app.services.library import UsbLibrary
 from app.storage.backup import BackupResult
-from app.storage.mounts import resolve_mount_path
 
 logger = structlog.get_logger(__name__)
 
@@ -136,7 +134,7 @@ def _find_playlist(
 
 
 def build_migration_plan(
-    mount: str | Path,
+    library: UsbLibrary,
     *,
     playlist_id: int | None = None,
     playlist_name: str | None = None,
@@ -157,16 +155,11 @@ def build_migration_plan(
         SeratoLibraryRequiredError: No Serato library on mount.
         UnsupportedDatabaseError: Rekordbox format unsupported.
     """
-    mount_path = resolve_mount_path(mount)
-    serato = resolve_serato_library(mount_path)
-    if serato is None:
-        raise SeratoLibraryRequiredError(f"No Serato library under {mount_path}")
+    database_path = library.serato_database
+    if database_path is None:
+        raise SeratoLibraryRequiredError(f"No Serato library under {library.mount}")
 
-    _, database_path = serato
-    rb_adapter = open_rekordbox_library(mount_path)
-    if not hasattr(rb_adapter, "get_playlist_track_paths"):
-        raise MigrationError("Migration requires Rekordbox One Library (exportLibrary.db)")
-
+    rb_adapter = library.rekordbox
     playlists = tuple(rb_adapter.list_playlists())
     playlist = _find_playlist(
         playlists,
@@ -206,7 +199,7 @@ def build_migration_plan(
 
 
 def migrate_playlist_to_crate(
-    mount: str | Path,
+    library: UsbLibrary,
     *,
     playlist_id: int | None = None,
     playlist_name: str | None = None,
@@ -232,9 +225,8 @@ def migrate_playlist_to_crate(
         CrateExistsError: Target crate exists and overwrite is False.
         MigrationError: Subclasses for specific failures.
     """
-    mount_path = resolve_mount_path(mount)
     plan = build_migration_plan(
-        mount_path,
+        library,
         playlist_id=playlist_id,
         playlist_name=playlist_name,
     )
@@ -247,11 +239,10 @@ def migrate_playlist_to_crate(
             f"No tracks from playlist {plan.playlist_name!r} match the Serato library index",
         )
 
-    backup = backup_mount_for_migration(mount_path, backup_root=backup_root)
-    serato = resolve_serato_library(mount_path)
-    if serato is None:
-        raise SeratoLibraryRequiredError(f"No Serato library under {mount_path}")
-    serato_root, _ = serato
+    backup = backup_mount_for_migration(library.mount, backup_root=backup_root)
+    serato_root = library.serato_root
+    if serato_root is None:
+        raise SeratoLibraryRequiredError(f"No Serato library under {library.mount}")
 
     write_context = WriteContext(backup_path=backup.backup_dir)
     crate_path = write_crate(

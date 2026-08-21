@@ -20,6 +20,7 @@ from app.services.errors import (
     SeratoLibraryRequiredError,
     UnsupportedDatabaseError,
 )
+from app.services.library import open_library, probe_mount
 from app.services.migration_service import migrate_playlist_to_crate
 from app.services.playlist_service import list_rekordbox_playlists
 from app.services.rollback_service import rollback_mount_libraries, rollback_result_to_dict
@@ -113,6 +114,13 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Output machine-readable JSON",
     )
 
+    probe_parser = sub.add_parser(
+        "probe",
+        help="Report what DJ library sits on a mount (stat-only)",
+    )
+    probe_parser.add_argument("--mount", required=True, help="Mount path (e.g. /mnt/usb)")
+    probe_parser.add_argument("--json", action="store_true", help="Output machine-readable JSON")
+
     crates_parser = sub.add_parser(
         "list-crates",
         help="List Serato crates on a mount (read-only)",
@@ -171,6 +179,42 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _cmd_probe(args: argparse.Namespace) -> int:
+    """
+    Report what DJ library sits on a mount.
+
+    Args:
+        args: Parsed namespace with mount and json flags.
+
+    Returns:
+        Exit code 0 when a supported library is present, 1 otherwise.
+    """
+    probe = probe_mount(args.mount)
+    if probe is None:
+        if args.json:
+            print(
+                json.dumps({"mount": args.mount, "is_dj_usb": False, "reason": "empty"}, indent=2)
+            )
+        else:
+            print(f"No stick at {args.mount} (path absent or empty)")
+        return 1
+
+    if args.json:
+        print(json.dumps(probe.to_dict(), indent=2))
+        return 0 if probe.is_dj_usb and probe.is_supported else 1
+
+    if not probe.is_dj_usb:
+        print(f"Not a DJ USB: {probe.mount}")
+        return 1
+    print(f"Mount: {probe.mount}")
+    print(f"Rekordbox: {probe.rekordbox_database} ({probe.rekordbox_format.value})")
+    print(f"Serato: {probe.serato_database or '(none — needs bootstrapping)'}")
+    if not probe.is_supported:
+        print("Unsupported Rekordbox format")
+        return 1
+    return 0
+
+
 def _cmd_list_playlists(args: argparse.Namespace) -> int:
     """
     Run the list-playlists command.
@@ -183,7 +227,7 @@ def _cmd_list_playlists(args: argparse.Namespace) -> int:
     """
     log = structlog.get_logger()
     try:
-        result = list_rekordbox_playlists(args.mount)
+        result = list_rekordbox_playlists(open_library(args.mount))
     except DatabaseNotFoundError as exc:
         log.error("list_playlists_failed", error=str(exc))
         return 1
@@ -294,7 +338,7 @@ def _cmd_migrate_playlist(args: argparse.Namespace) -> int:
     log = structlog.get_logger()
     try:
         result = migrate_playlist_to_crate(
-            args.mount,
+            open_library(args.mount),
             playlist_id=args.playlist_id,
             playlist_name=args.playlist_name,
             dry_run=args.dry_run,
@@ -391,6 +435,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
+    if args.command == "probe":
+        return _cmd_probe(args)
     if args.command == "list-playlists":
         return _cmd_list_playlists(args)
     if args.command == "backup":

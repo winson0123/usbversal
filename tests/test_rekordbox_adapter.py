@@ -9,6 +9,7 @@ from app.adapters.base import DatabaseNotFoundError, UnsupportedDatabaseError, W
 from app.adapters.rekordbox.paths import resolve_rekordbox_database
 from app.adapters.rekordbox.reader import RboxOneLibraryAdapter, open_rekordbox_library
 from app.core.domain import RekordboxDbFormat, RekordboxLibrary
+from app.services.library import open_library
 from app.services.playlist_service import list_rekordbox_playlists
 from tests.conftest import integration_mount
 
@@ -91,7 +92,7 @@ def test_list_rekordbox_playlists_integration() -> None:
     if not db_file.is_file():
         pytest.skip(f"{db_file} not available")
 
-    result = list_rekordbox_playlists(mount)
+    result = list_rekordbox_playlists(open_library(mount))
     assert result.library.db_format == RekordboxDbFormat.ONE_LIBRARY
     assert len(result.playlists) > 0
     assert any(p.name == "House" for p in result.playlists)

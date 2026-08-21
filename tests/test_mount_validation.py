@@ -6,7 +6,7 @@ import pytest
 
 from app.services.backup_service import backup_mount_libraries
 from app.services.crate_service import list_serato_crates
-from app.services.playlist_service import list_rekordbox_playlists
+from app.services.library import open_library
 from app.storage.mounts import resolve_mount_path
 
 
@@ -31,7 +31,7 @@ def test_resolve_mount_path_rejects_file(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "service",
-    [list_rekordbox_playlists, list_serato_crates, backup_mount_libraries],
+    [open_library, list_serato_crates, backup_mount_libraries],
 )
 def test_services_reject_missing_mount(tmp_path: Path, service) -> None:
     """Every mount-taking service validates before doing vendor work."""
