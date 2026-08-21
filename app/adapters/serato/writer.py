@@ -2,37 +2,20 @@
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 import structlog
 from serato_tools.crate import Crate
 
 from app.adapters.base import WriteContext
+from app.adapters.serato.naming import sanitize_crate_name
 from app.adapters.serato.paths import subcrates_dir
 
 logger = structlog.get_logger(__name__)
 
-_INVALID_CRATE_CHARS = re.compile(r'[<>:"/\\|?*]')
-
 
 class CrateExistsError(Exception):
     """Raised when a target crate file already exists and overwrite is disabled."""
-
-
-def sanitize_crate_name(name: str) -> str:
-    """
-    Convert a playlist name into a safe Serato crate filename stem.
-
-    Args:
-        name: Rekordbox playlist display name.
-
-    Returns:
-        Sanitized name without .crate extension.
-    """
-    cleaned = _INVALID_CRATE_CHARS.sub("_", name.strip())
-    cleaned = cleaned.strip(" .")
-    return cleaned or "Untitled"
 
 
 def write_crate(

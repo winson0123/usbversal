@@ -89,6 +89,48 @@ class RekordboxLibrary:
     db_format: RekordboxDbFormat
 
 
+class SyncState(StrEnum):
+    """How completely a Rekordbox playlist is mirrored into a Serato crate."""
+
+    NOT_SYNCED = "not_synced"
+    PARTIAL = "partial"
+    SYNCED = "synced"
+
+
+@dataclass(frozen=True)
+class PlaylistSyncState:
+    """
+    How much of one playlist has reached its Serato crate.
+
+    Attributes:
+        playlist_id: Rekordbox playlist id.
+        playlist_name: Rekordbox playlist display name.
+        crate_name: Crate filename stem the playlist maps to.
+        total: Tracks in the Rekordbox playlist.
+        in_crate: Playlist tracks already present in the crate.
+        syncable: Playlist tracks Serato can index today.
+    """
+
+    playlist_id: int
+    playlist_name: str
+    crate_name: str
+    total: int
+    in_crate: int
+    syncable: int
+
+    @property
+    def state(self) -> SyncState:
+        """Traffic-light state derived from crate coverage."""
+        if self.total == 0 or self.in_crate >= self.total:
+            return SyncState.SYNCED
+        return SyncState.PARTIAL if self.in_crate else SyncState.NOT_SYNCED
+
+    @property
+    def blocked(self) -> int:
+        """Tracks that cannot be synced because Serato has no record of them."""
+        return self.total - self.syncable
+
+
 @dataclass(frozen=True)
 class SeratoCrate:
     """

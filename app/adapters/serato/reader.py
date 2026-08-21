@@ -62,6 +62,19 @@ class SeratoToolsAdapter(SeratoReadAdapter):
         return crates
 
 
+def read_crate_track_paths(crate_path: Path) -> list[str]:
+    """
+    Read track paths from a Serato crate file, in crate order.
+
+    Args:
+        crate_path: Path to a .crate file.
+
+    Returns:
+        Track paths as stored by Serato (drive-relative, no leading slash).
+    """
+    return list(Crate(str(crate_path)).get_track_paths())
+
+
 def read_database_track_paths(database_path: Path) -> list[str]:
     """
     Read raw track paths from a Serato database V2 file.

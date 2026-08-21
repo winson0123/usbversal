@@ -24,6 +24,7 @@ from app.services.library import open_library, probe_mount
 from app.services.migration_service import migrate_playlist_to_crate
 from app.services.playlist_service import list_rekordbox_playlists
 from app.services.rollback_service import rollback_mount_libraries, rollback_result_to_dict
+from app.services.sync_service import playlist_sync_states, sync_states_to_dict
 
 structlog.configure(
     processors=[
@@ -121,6 +122,13 @@ def _build_parser() -> argparse.ArgumentParser:
     probe_parser.add_argument("--mount", required=True, help="Mount path (e.g. /mnt/usb)")
     probe_parser.add_argument("--json", action="store_true", help="Output machine-readable JSON")
 
+    status_parser = sub.add_parser(
+        "status",
+        help="Show per-playlist sync state (red/yellow/green)",
+    )
+    status_parser.add_argument("--mount", required=True, help="Mount path (e.g. /mnt/usb)")
+    status_parser.add_argument("--json", action="store_true", help="Output machine-readable JSON")
+
     crates_parser = sub.add_parser(
         "list-crates",
         help="List Serato crates on a mount (read-only)",
@@ -212,6 +220,44 @@ def _cmd_probe(args: argparse.Namespace) -> int:
     if not probe.is_supported:
         print("Unsupported Rekordbox format")
         return 1
+    return 0
+
+
+_STATE_LABEL = {"not_synced": "not synced", "partial": "partial", "synced": "synced"}
+
+
+def _cmd_status(args: argparse.Namespace) -> int:
+    """
+    Show how much of each playlist has reached Serato.
+
+    Args:
+        args: Parsed namespace with mount and json flags.
+
+    Returns:
+        Exit code 0 on success, 1 on failure.
+    """
+    log = structlog.get_logger()
+    try:
+        states = playlist_sync_states(open_library(args.mount))
+    except (SeratoLibraryNotFoundError, ValueError, OSError) as exc:
+        log.error("status_failed", error=str(exc))
+        return 1
+
+    if args.json:
+        print(json.dumps(sync_states_to_dict(states), indent=2))
+        return 0
+
+    for state in states:
+        blocked = f"  [{state.blocked} not in Serato library]" if state.blocked else ""
+        print(
+            f"  {_STATE_LABEL[state.state.value]:<11} "
+            f"{state.in_crate:>4}/{state.total:<4} {state.playlist_name}{blocked}"
+        )
+    summary = sync_states_to_dict(states)["summary"]
+    print(
+        f"\n{len(states)} playlists: "
+        + ", ".join(f"{v} {_STATE_LABEL[k]}" for k, v in summary.items())
+    )
     return 0
 
 
@@ -437,6 +483,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "probe":
         return _cmd_probe(args)
+    if args.command == "status":
+        return _cmd_status(args)
     if args.command == "list-playlists":
         return _cmd_list_playlists(args)
     if args.command == "backup":
