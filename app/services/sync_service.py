@@ -2,20 +2,32 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import structlog
 
+from app.adapters.base import WriteContext
 from app.adapters.serato import (
     crate_name_for,
     read_crate_track_paths,
     read_database_track_paths,
 )
+from app.adapters.serato.neworder import merge_crate_order, write_crate_order
 from app.adapters.serato.paths import list_crate_files
+from app.adapters.serato.writer import (
+    CrateExistsError,
+    append_database_tracks,
+    write_crate,
+)
 from app.core.domain import Playlist, PlaylistSyncState
 from app.core.track_paths import normalize_track_path
+from app.services.backup_service import backup_mount_for_migration
 from app.services.library import UsbLibrary
+from app.services.migration_service import PlaylistNotFoundError, SeratoLibraryRequiredError
+from app.services.track_records import build_track_record, load_lookups, serato_path
 
 logger = structlog.get_logger(__name__)
 
@@ -144,3 +156,205 @@ def sync_states_to_dict(states: tuple[PlaylistSyncState, ...]) -> dict[str, Any]
         "summary": summary,
         "count": len(states),
     }
+
+
+@dataclass(frozen=True)
+class PlaylistSyncResult:
+    """
+    Outcome of syncing one playlist.
+
+    Attributes:
+        playlist_id: Rekordbox playlist id.
+        playlist_name: Rekordbox playlist display name.
+        crate_name: Crate filename stem written.
+        tracks: Tracks placed in the crate.
+        error: Failure message, when the playlist could not be synced.
+    """
+
+    playlist_id: int
+    playlist_name: str
+    crate_name: str
+    tracks: int
+    error: str | None = None
+
+
+@dataclass(frozen=True)
+class SyncReport:
+    """
+    Outcome of one sync run.
+
+    Attributes:
+        mount: Mount that was synced.
+        dry_run: True when nothing was written.
+        backup_id: Backup taken before writing, None on a dry run.
+        records_added: Track records added to the Serato database.
+        results: Per-playlist outcomes in selection order.
+    """
+
+    mount: Path
+    dry_run: bool
+    backup_id: str | None
+    records_added: int
+    results: tuple[PlaylistSyncResult, ...]
+
+    @property
+    def crates_written(self) -> int:
+        """Number of playlists that reached a crate."""
+        return sum(1 for r in self.results if r.error is None)
+
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Serialize the report for machine-readable output.
+
+        Returns:
+            JSON-friendly dict describing the run.
+        """
+        return {
+            "mount": str(self.mount),
+            "dry_run": self.dry_run,
+            "backup_id": self.backup_id,
+            "records_added": self.records_added,
+            "crates_written": self.crates_written,
+            "playlists": [
+                {
+                    "playlist_id": r.playlist_id,
+                    "playlist_name": r.playlist_name,
+                    "crate_name": r.crate_name,
+                    "tracks": r.tracks,
+                    "error": r.error,
+                }
+                for r in self.results
+            ],
+        }
+
+
+def sync_playlists(
+    library: UsbLibrary,
+    playlist_ids: Sequence[int],
+    *,
+    dry_run: bool = False,
+    backup_root: str | Path | None = None,
+) -> SyncReport:
+    """
+    Mirror the selected Rekordbox playlists into Serato crates.
+
+    Takes one backup for the whole run, adds any track records Serato is
+    missing in a single pass, then writes one crate per playlist and updates
+    the crate order. Nothing outside ``_Serato_`` is written.
+
+    Args:
+        library: Opened session handle.
+        playlist_ids: Rekordbox playlist ids to sync, in selection order.
+        dry_run: Plan only; take no backup and write nothing.
+        backup_root: Optional backups parent directory.
+
+    Returns:
+        SyncReport describing what was written.
+
+    Raises:
+        SeratoLibraryRequiredError: The mount has no Serato library.
+        PlaylistNotFoundError: A selected id is missing or is a folder.
+    """
+    serato_root = library.serato_root
+    database_path = library.serato_database
+    if serato_root is None or database_path is None:
+        raise SeratoLibraryRequiredError(f"No Serato library under {library.mount}")
+
+    by_id = {p.id: p for p in library.rekordbox.list_playlists()}
+    selected = []
+    for playlist_id in playlist_ids:
+        playlist = by_id.get(playlist_id)
+        if playlist is None or playlist.is_folder:
+            raise PlaylistNotFoundError(f"Playlist not found: {playlist_id}")
+        selected.append(playlist)
+
+    tracks_by_playlist = {p.id: library.rekordbox.get_playlist_track_paths(p.id) for p in selected}
+    indexed = _database_index(database_path)
+    missing = []
+    seen: set[str] = set()
+    for paths in tracks_by_playlist.values():
+        for raw in paths:
+            key = normalize_track_path(raw)
+            if key not in indexed and key not in seen:
+                seen.add(key)
+                missing.append(raw)
+
+    if dry_run:
+        return SyncReport(
+            mount=library.mount,
+            dry_run=True,
+            backup_id=None,
+            records_added=len(missing),
+            results=tuple(
+                PlaylistSyncResult(
+                    playlist_id=p.id,
+                    playlist_name=p.name,
+                    crate_name=crate_name_for(p),
+                    tracks=len(tracks_by_playlist[p.id]),
+                )
+                for p in selected
+            ),
+        )
+
+    backup = backup_mount_for_migration(library.mount, backup_root=backup_root)
+    context = WriteContext(backup_path=backup.backup_dir)
+
+    records_added = 0
+    if missing:
+        lookups = load_lookups(library.rekordbox.database)
+        by_path = {c.path: c for c in library.rekordbox.database.get_contents()}
+        records = [build_track_record(by_path[raw], lookups) for raw in missing if raw in by_path]
+        records_added = append_database_tracks(
+            database_path=database_path, records=records, write_context=context
+        )
+
+    results: list[PlaylistSyncResult] = []
+    for playlist in selected:
+        crate_name = crate_name_for(playlist)
+        paths = [serato_path(raw) for raw in tracks_by_playlist[playlist.id]]
+        try:
+            write_crate(
+                serato_root=serato_root,
+                crate_name=crate_name,
+                track_paths=paths,
+                write_context=context,
+                overwrite=True,
+            )
+        except (CrateExistsError, OSError) as exc:
+            results.append(
+                PlaylistSyncResult(
+                    playlist_id=playlist.id,
+                    playlist_name=playlist.name,
+                    crate_name=crate_name,
+                    tracks=0,
+                    error=str(exc),
+                )
+            )
+            continue
+        results.append(
+            PlaylistSyncResult(
+                playlist_id=playlist.id,
+                playlist_name=playlist.name,
+                crate_name=crate_name,
+                tracks=len(paths),
+            )
+        )
+
+    write_crate_order(
+        serato_root,
+        merge_crate_order(serato_root, [r.crate_name for r in results if r.error is None]),
+    )
+
+    logger.info(
+        "sync_completed",
+        playlists=len(results),
+        records_added=records_added,
+        backup_id=backup.backup_id,
+    )
+    return SyncReport(
+        mount=library.mount,
+        dry_run=False,
+        backup_id=backup.backup_id,
+        records_added=records_added,
+        results=tuple(results),
+    )

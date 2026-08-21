@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 from pathlib import Path
 
 import structlog
@@ -58,6 +59,10 @@ def write_crate(
         logger.info("serato_crate_removed_for_overwrite", path=str(crate_path))
 
     crate = Crate(str(crate_path))
+    # Crate.DEFAULT_ENTRIES is class-level and add_track mutates it, so a new
+    # crate inherits tracks added to any earlier one. Start from a private copy
+    # holding only the header fields.
+    crate.entries = [copy.deepcopy(entry) for entry in crate.entries if str(entry[0]) != "otrk"]
     for path in track_paths:
         crate.add_track(path)
     crate.save(str(crate_path))

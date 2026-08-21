@@ -7,6 +7,7 @@ from typing import Any
 
 import structlog
 
+from app.adapters.serato.neworder import neworder_path
 from app.adapters.serato.paths import list_crate_files, resolve_serato_library
 from app.storage.backup import BackupResult, create_backup
 from app.storage.mounts import resolve_mount_path
@@ -56,6 +57,9 @@ def serato_files_on_mount(mount_path: Path) -> list[Path]:
         return []
     serato_root, database_path = resolved
     found: list[Path] = [database_path]
+    order_file = neworder_path(serato_root)
+    if order_file.is_file():
+        found.append(order_file)
     for crate_path in list_crate_files(serato_root):
         if crate_path.is_file() and crate_path not in found:
             found.append(crate_path)
