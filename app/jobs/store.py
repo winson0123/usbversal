@@ -164,45 +164,6 @@ class JobStore:
         self.save(record)
         return record
 
-    def update_checkpoint(
-        self,
-        job_id: str,
-        *,
-        step_index: int | None = None,
-        step_name: str | None = None,
-        backup_ids: list[str] | None = None,
-        partial_results: dict | None = None,
-    ) -> JobRecord:
-        """
-        Update checkpoint fields on a persisted job record.
-
-        Args:
-            job_id: Job identifier.
-            step_index: Optional new step index.
-            step_name: Optional new step name.
-            backup_ids: Optional backup id list replacement.
-            partial_results: Optional partial results dict replacement.
-
-        Returns:
-            Updated JobRecord.
-
-        Raises:
-            JobNotFoundError: When the job file does not exist.
-        """
-        record = self.load(job_id)
-        checkpoint = record.checkpoint
-        if step_index is not None:
-            checkpoint.step_index = step_index
-        if step_name is not None:
-            checkpoint.step_name = step_name
-        if backup_ids is not None:
-            checkpoint.backup_ids = backup_ids
-        if partial_results is not None:
-            checkpoint.partial_results = partial_results
-        record.checkpoint = checkpoint
-        self.save(record)
-        return record
-
     def is_cancel_requested(self, job_id: str) -> bool:
         """
         Return whether cancellation was requested for a job.

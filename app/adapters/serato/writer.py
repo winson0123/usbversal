@@ -9,6 +9,7 @@ import structlog
 from serato_tools.crate import Crate
 
 from app.adapters.base import WriteContext
+from app.adapters.serato.paths import subcrates_dir
 
 logger = structlog.get_logger(__name__)
 
@@ -60,7 +61,7 @@ def write_crate(
         ValueError: If write_context backup_path is invalid.
     """
     _ = write_context  # validated in WriteContext.__post_init__
-    subcrates = serato_root / "Subcrates"
+    subcrates = subcrates_dir(serato_root)
     subcrates.mkdir(parents=True, exist_ok=True)
     safe_name = sanitize_crate_name(crate_name)
     crate_path = (subcrates / f"{safe_name}.crate").resolve()

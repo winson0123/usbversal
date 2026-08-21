@@ -1,5 +1,6 @@
 """Read-only DJ library detection on mount paths."""
 
+from dataclasses import dataclass
 from pathlib import Path
 
 import structlog
@@ -8,20 +9,95 @@ from app.core.domain import LibraryLocation, LibraryType
 
 logger = structlog.get_logger(__name__)
 
-# (relative path parts OR filename, confidence, indicator label)
-_REKORDBOX_MARKERS: tuple[tuple[tuple[str, ...] | str, float, str], ...] = (
-    (("PIONEER", "rekordbox"), 0.95, "PIONEER/rekordbox directory"),
-    (("export.pdb",), 0.9, "export.pdb file"),
-    (("master.db",), 0.85, "master.db file"),
-    (("rekordbox",), 0.7, "rekordbox directory"),
+
+def _path_ends_with(parts: tuple[str, ...], suffix: tuple[str, ...]) -> bool:
+    """
+    Return True if parts end with the suffix sequence (case-insensitive).
+
+    Args:
+        parts: Relative path components.
+        suffix: Required trailing components.
+
+    Returns:
+        True when suffix matches the end of parts.
+    """
+    if len(suffix) > len(parts):
+        return False
+    tail = parts[-len(suffix) :]
+    return tuple(p.lower() for p in tail) == tuple(s.lower() for s in suffix)
+
+
+@dataclass(frozen=True)
+class _DirMarker:
+    """Matches when the current directory's path suffix equals ``parts``."""
+
+    parts: tuple[str, ...]
+    confidence: float
+    label: str
+
+    def locate(
+        self, current: Path, rel_parts: tuple[str, ...], filenames: list[str]
+    ) -> Path | None:
+        """Return the directory itself when its trailing path components match."""
+        del filenames
+        return current if _path_ends_with(rel_parts, self.parts) else None
+
+
+@dataclass(frozen=True)
+class _FileMarker:
+    """Matches when ``name`` is a file in the current directory."""
+
+    name: str
+    confidence: float
+    label: str
+    require_ancestor: str | None = None
+
+    def locate(
+        self, current: Path, rel_parts: tuple[str, ...], filenames: list[str]
+    ) -> Path | None:
+        """Return the matched file path, optionally gated on an ancestor directory."""
+        if self.name not in filenames:
+            return None
+        if self.require_ancestor is not None and self.require_ancestor not in rel_parts:
+            return None
+        return current / self.name
+
+
+@dataclass(frozen=True)
+class _SuffixMarker:
+    """Matches when any file carries ``suffix`` and an ancestor directory matches."""
+
+    suffix: str
+    confidence: float
+    label: str
+    require_ancestor: str
+
+    def locate(
+        self, current: Path, rel_parts: tuple[str, ...], filenames: list[str]
+    ) -> Path | None:
+        """Return the containing directory when a matching file is present."""
+        if self.require_ancestor not in rel_parts:
+            return None
+        if not any(f.lower().endswith(self.suffix) for f in filenames):
+            return None
+        return current
+
+
+Marker = _DirMarker | _FileMarker | _SuffixMarker
+
+_REKORDBOX_MARKERS: tuple[Marker, ...] = (
+    _DirMarker(("PIONEER", "rekordbox"), 0.95, "PIONEER/rekordbox directory"),
+    _DirMarker(("rekordbox",), 0.70, "rekordbox directory"),
+    _FileMarker("export.pdb", 0.85, "export.pdb file"),
+    _FileMarker("master.db", 0.81, "master.db file"),
 )
 
-_SERATO_MARKERS: tuple[tuple[tuple[str, ...] | str, float, str], ...] = (
-    (("_Serato_",), 0.95, "_Serato_ directory"),
-    (("Serato", "database V2"), 0.9, "Serato/database V2"),
-    (("Serato",), 0.75, "Serato directory"),
-    (("database V2",), 0.85, "database V2 file"),
-    ((".crate",), 0.6, "Serato .crate file"),
+_SERATO_MARKERS: tuple[Marker, ...] = (
+    _DirMarker(("_Serato_",), 0.95, "_Serato_ directory"),
+    _DirMarker(("Serato",), 0.75, "Serato directory"),
+    _FileMarker("database V2", 0.90, "Serato/database V2", require_ancestor="Serato"),
+    _FileMarker("database V2", 0.85, "database V2 file"),
+    _SuffixMarker(".crate", 0.60, "Serato .crate file", require_ancestor="Subcrates"),
 )
 
 
@@ -70,8 +146,13 @@ class LibraryDiscovery:
             depth = len(current.relative_to(mount_resolved).parts)
             rel_parts = current.relative_to(mount_resolved).parts if depth > 0 else ()
 
-            self._check_rekordbox(current, rel_parts, filenames, mount_resolved, found)
-            self._check_serato(current, rel_parts, filenames, mount_resolved, found)
+            for markers, library_type in (
+                (_REKORDBOX_MARKERS, LibraryType.REKORDBOX),
+                (_SERATO_MARKERS, LibraryType.SERATO),
+            ):
+                self._apply_markers(
+                    markers, library_type, current, rel_parts, filenames, mount_resolved, found
+                )
 
             # Prune hidden dirs to reduce noise
             dirnames[:] = [d for d in dirnames if not d.startswith(".")]
@@ -107,88 +188,32 @@ class LibraryDiscovery:
             self._nodes_visited += 1
             yield dirpath, dirnames, filenames
 
-    def _check_rekordbox(
+    def _apply_markers(
         self,
+        markers: tuple[Marker, ...],
+        library_type: LibraryType,
         current: Path,
         rel_parts: tuple[str, ...],
         filenames: list[str],
         mount: Path,
         found: dict[str, LibraryLocation],
     ) -> None:
-        """Apply Rekordbox heuristics at the current path."""
-        for marker, confidence, label in _REKORDBOX_MARKERS:
-            if isinstance(marker, str):
-                if marker in filenames:
-                    loc_path = current / marker
-                    self._add(found, loc_path, LibraryType.REKORDBOX, confidence, mount, (label,))
-                continue
-
-            if self._path_ends_with(rel_parts, marker):
-                loc_path = current
-                self._add(found, loc_path, LibraryType.REKORDBOX, confidence, mount, (label,))
-
-            # Also check if marker is a direct child
-            if len(marker) == 1 and marker[0] in filenames:
-                loc_path = current / marker[0]
-                self._add(
-                    found,
-                    loc_path,
-                    LibraryType.REKORDBOX,
-                    confidence * 0.95,
-                    mount,
-                    (label,),
-                )
-
-    def _check_serato(
-        self,
-        current: Path,
-        rel_parts: tuple[str, ...],
-        filenames: list[str],
-        mount: Path,
-        found: dict[str, LibraryLocation],
-    ) -> None:
-        """Apply Serato heuristics at the current path."""
-        for marker, confidence, label in _SERATO_MARKERS:
-            if marker == (".crate",):
-                crate_files = [f for f in filenames if f.lower().endswith(".crate")]
-                if crate_files and "Subcrates" in rel_parts:
-                    loc_path = current
-                    self._add(found, loc_path, LibraryType.SERATO, confidence, mount, (label,))
-                continue
-
-            if isinstance(marker, str):
-                if marker in filenames:
-                    loc_path = current / marker
-                    self._add(found, loc_path, LibraryType.SERATO, confidence, mount, (label,))
-                continue
-
-            if self._path_ends_with(rel_parts, marker):
-                loc_path = current
-                self._add(found, loc_path, LibraryType.SERATO, confidence, mount, (label,))
-
-            if len(marker) == 2:
-                parent_name = marker[0]
-                child_name = marker[1]
-                if parent_name in rel_parts and child_name in filenames:
-                    loc_path = current / child_name if current.name != child_name else current
-                    self._add(found, loc_path, LibraryType.SERATO, confidence, mount, (label,))
-
-    @staticmethod
-    def _path_ends_with(parts: tuple[str, ...], suffix: tuple[str, ...]) -> bool:
         """
-        Return True if parts end with the suffix sequence (case-insensitive).
+        Record every marker that matches at the current directory.
 
         Args:
-            parts: Relative path components.
-            suffix: Required trailing components.
-
-        Returns:
-            True when suffix matches the end of parts.
+            markers: Vendor marker set to evaluate.
+            library_type: Vendor the markers belong to.
+            current: Directory being visited.
+            rel_parts: Path components of ``current`` relative to the mount root.
+            filenames: Filenames directly inside ``current``.
+            mount: Mount root.
+            found: Mutable detection map keyed by resolved path.
         """
-        if len(suffix) > len(parts):
-            return False
-        tail = parts[-len(suffix) :]
-        return tuple(p.lower() for p in tail) == tuple(s.lower() for s in suffix)
+        for marker in markers:
+            path = marker.locate(current, rel_parts, filenames)
+            if path is not None:
+                self._add(found, path, library_type, marker.confidence, mount, (marker.label,))
 
     @staticmethod
     def _add(

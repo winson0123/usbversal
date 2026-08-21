@@ -243,10 +243,8 @@ class JobRunner:
     ) -> None:
         """Update checkpoint fields on the in-memory and persisted record."""
         record = self._registry.get(job_id)
-        if step_index is not None:
-            record.checkpoint.step_index = step_index
-        if step_name is not None:
-            record.checkpoint.step_name = step_name
+        record.checkpoint.step_index = step_index
+        record.checkpoint.step_name = step_name
         if partial_results is not None:
             record.checkpoint.partial_results = partial_results
         if backup_ids is not None:

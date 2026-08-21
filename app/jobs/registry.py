@@ -10,7 +10,8 @@ class JobRegistry:
     """
     Maps job ids to job records for a single process.
 
-    Persistence to disk is planned for resumability (TASK-042).
+    In-memory only. Cross-process persistence lives in JobStore, which the
+    runner writes through on every state change.
     """
 
     def __init__(self) -> None:

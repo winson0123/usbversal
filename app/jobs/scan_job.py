@@ -25,17 +25,10 @@ async def run_scan_job(ctx: JobContext) -> ScanResult:
     """
     ctx.check_cancelled()
     mount = ctx.parameters.get("mount")
-    user_emit = ctx.parameters.get("emit")
 
     ctx.progress("Scan starting", current=0, total=1)
 
-    def bridge_emit(event: Any) -> None:
-        if user_emit is not None:
-            user_emit(event)
-        if ctx.emit is not None:
-            ctx.emit(event)
-
-    result = await asyncio.to_thread(run_scan, mount=mount, emit=bridge_emit)
+    result = await asyncio.to_thread(run_scan, mount=mount, emit=ctx.emit)
 
     ctx.check_cancelled()
     ctx.progress("Scan complete", current=1, total=1)
