@@ -74,10 +74,10 @@ Formats: [serato-schema-notes.md](../schemas/serato-schema-notes.md).
 
 | ID | Title | Notes |
 |----|-------|-------|
-| `TASK-071` | Add `neworder.pref` to the Serato backup set | **Safety gap.** `serato_files_on_mount` covers `database V2` + `.crate` only, so rollback cannot restore crate ordering. Do this before any Stage 1 write. |
+| ~~`TASK-071`~~ | ~~Add `neworder.pref` to the Serato backup set~~ | Done — TASK-114 added it to `serato_files_on_mount` |
 | ~~`TASK-073`~~ | ~~`database V2` append writer~~ | Done — TASK-112. A Rekordbox-to-`otrk` field mapper is still outstanding and moves to TASK-113. |
-| `TASK-113` | Rekordbox metadata → `otrk` fields | Artist/album/genre/key arrive as ids needing `get_*_by_id` lookups. String formats are fussy (`tbpm` `"127.61"`, `tlen` `"03:34.99"`, `tsiz` `"8.2MB"`); wrong formats display oddly rather than failing. Diff against how Lexicon formatted the same tracks. |
-| `TASK-074` | `neworder.pref` merge/write | UTF-16BE `[begin record]` / `[crate]<name>` / `[end record]`. Preserve existing crate order, append new. |
+| ~~`TASK-113`~~ | ~~Rekordbox metadata → `otrk` fields~~ | Done — TASK-113, formats derived by diffing 793 records Lexicon wrote |
+| ~~`TASK-074`~~ | ~~`neworder.pref` merge/write~~ | Done — TASK-114, `adapters/serato/neworder.py` |
 | `TASK-075` | Nested playlist folders → `Parent%%Child.crate` | Current code flattens to the leaf name, so same-named playlists in different folders collide. Convention is [assumed], not verified — validate in Serato. |
 | `TASK-076` | Bootstrap `_Serato_` on a rekordbox-only stick | Create `_Serato_/`, `Subcrates/`, `database V2`, `neworder.pref` where absent. Removes `SeratoLibraryRequiredError` as a dead end. Backup-gated; verify `PIONEER/` hash is unchanged. |
 
@@ -90,11 +90,11 @@ plus per-file backup required.** Sequenced strictly after M8.
 
 | ID | Title | Notes |
 |----|-------|-------|
-| `TASK-080` | ANLZ reader — `PQTZ` beatgrid, `PCO2` hot cues | Resolve via track `analyze_path`. Format is [assumed] from public docs, **never parsed on a real stick** — validate before building on it. Distinguish hot cues from memory cues. |
-| `TASK-081` | Rekordbox → Serato cue colour table | **Only 2 of N mappings known** (`magenta_red`→`#CC0044`, `blue_light`→`#0088CC`). Derive from rekordbox colour IDs or generate more Lexicon samples. Blocks TASK-082 from being correct, not from running. |
-| `TASK-082` | `Serato Markers2` GEOB writer (hot cues) | Verified layout. Round-trip target: applying AFTER's cue list to `Techno1.BEFORE.wav` must reproduce `Techno1.AFTER.wav`'s payload byte-for-byte. This is the tag that satisfies Serato's analyzed gate. |
-| `TASK-083` | `Serato BeatGrid` + `Autotags` GEOB writer | **Lowest confidence in M9** — Lexicon does not write beatgrids, so there is no reference. Only single-marker grids observed; ADR 0006's 2 BPM first-bar bug is a live hazard for variable tempo. Ship behind a flag separate from cue sync. |
-| `TASK-084` | Container tag I/O — MP3 and WAV | **MP3 is untested and is the one that matters** (a rekordbox USB is all MP3). WAV needs RIFF `id3 ` chunk rewrite + RIFF size fixup; fixtures cover WAV only. Must preserve GEOB frames it does not own. FLAC/MP4 out of scope. |
+| ~~`TASK-080`~~ | ~~ANLZ reader — `PQTZ` beatgrid, `PCO2` hot cues~~ | Done — TASK-115, `adapters/rekordbox/anlz.py` |
+| ~~`TASK-081`~~ | ~~Rekordbox → Serato cue colour table~~ | Dropped — Rekordbox stores RGB in the ANLZ entry, so no table is needed |
+| ~~`TASK-082`~~ | ~~`Serato Markers2` GEOB writer (hot cues)~~ | Done — TASK-115, byte-exact against the fixture pair |
+| ~~`TASK-083`~~ | ~~`Serato BeatGrid` + `Autotags` GEOB writer~~ | Done — TASK-117/119; `Autotags` deliberately not written |
+| `TASK-084` | Container tag I/O — **MP3 only; WAV done** | **MP3 is untested and is the one that matters** (a rekordbox USB is all MP3). WAV needs RIFF `id3 ` chunk rewrite + RIFF size fixup; fixtures cover WAV only. Must preserve GEOB frames it does not own. FLAC/MP4 out of scope. |
 | `TASK-085` | `sync-analysis` CLI (re-introduce) | Backup-gated, idempotent, must not clobber existing Serato analysis on partially analyzed libraries. Confirm with the user before writing. |
 
 ## M10 — Deferred
@@ -106,19 +106,22 @@ plus per-file backup required.** Sequenced strictly after M8.
 
 ## M11 — Interactive TUI (the shipped product)
 
+> IDs renumbered to the 200s on 2026-08-21: 110-116 had been reused by the
+> write-path work and collided.
+
 The argparse CLI is a **test harness**, not the deliverable. Plan:
 [interactive-tui.md](../planning/interactive-tui.md). These gate the real tool
 and none of them exist yet.
 
 | ID | Title | Notes |
 |----|-------|-------|
-| `TASK-110` | Per-playlist sync state (red / yellow / green) | Diff each Rekordbox playlist's tracks against its Serato crate: none → red, some → yellow, all → green. Largest missing piece; gates the library screen. |
-| `TASK-111` | Playlist tree model | `Playlist.parent_id` exists but every consumer flattens it. Needs real nesting plus aggregate sync state per folder. |
-| `TASK-112` | Single "valid DJ USB?" readiness verdict | One call for the waiting/detect screens. Must treat an **empty mount point as no USB** — `/mnt/usb` survives unplugging as an empty dir and passes `resolve_mount_path`. |
-| `TASK-113` | Removable-media polling | Detection is one-shot today. `LibraryDiscovery` walks up to 25,000 nodes — far too heavy for a UI loop. Needs a cheap mount-appeared/disappeared watch. |
-| `TASK-114` | Progress rate + ETA | `JobProgress` has `current`/`total` but no rate or estimate. |
-| `TASK-115` | Batch sync over selected playlists | `apply` takes **one backup per operation**; 40 playlists must take one backup up front. Build on the collect-and-report shape from TASK-102. |
-| `TASK-116` | TUI framework ADR + shell | textual / prompt_toolkit / rich / curses. Must survive PyInstaller one-file packaging (ADR 0003). |
+| ~~`TASK-200`~~ | ~~Per-playlist sync state~~ | Done — TASK-111, `playlist_sync_states()` |
+| `TASK-201` | Playlist tree model | `Playlist.parent_id` exists but every consumer flattens it. Needs real nesting plus aggregate sync state per folder. |
+| ~~`TASK-202`~~ | ~~Single "valid DJ USB?" readiness verdict~~ | Done — TASK-110, `probe_mount()` returns None for an empty mount point |
+| `TASK-203` | Removable-media polling | Detection is one-shot today. `LibraryDiscovery` walks up to 25,000 nodes — far too heavy for a UI loop. Needs a cheap mount-appeared/disappeared watch. |
+| `TASK-204` | Progress rate + ETA | `JobProgress` has `current`/`total` but no rate or estimate. |
+| ~~`TASK-205`~~ | ~~Batch sync over selected playlists~~ | Done — TASK-114, `sync_playlists()` takes one backup per run |
+| `TASK-206` | TUI framework ADR + shell | textual / prompt_toolkit / rich / curses. Must survive PyInstaller one-file packaging (ADR 0003). |
 
 ---
 

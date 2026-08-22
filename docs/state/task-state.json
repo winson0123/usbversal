@@ -9,19 +9,15 @@
     "blocked_reason": null
   },
   "pending_tasks": [
-    "TASK-113",
-    "TASK-074",
+    "TASK-VALIDATE-GRID",
+    "TASK-085",
+    "TASK-084",
+    "TASK-201",
+    "TASK-203",
+    "TASK-204",
+    "TASK-206",
     "TASK-075",
     "TASK-076",
-    "TASK-114",
-    "TASK-115",
-    "TASK-116",
-    "TASK-080",
-    "TASK-081",
-    "TASK-082",
-    "TASK-083",
-    "TASK-084",
-    "TASK-085",
     "TASK-090"
   ],
   "blocked_tasks": [],
@@ -179,6 +175,21 @@
     {
       "id": "TASK-117",
       "title": "Write cues and beatgrids to audio, validated in Serato",
+      "completed_at": "2026-08-21T00:00:00Z"
+    },
+    {
+      "id": "TASK-118",
+      "title": "Fix beats_to_next and bound beatgrid drift",
+      "completed_at": "2026-08-21T00:00:00Z"
+    },
+    {
+      "id": "TASK-119",
+      "title": "Carry every Rekordbox beat straight into the Serato grid",
+      "completed_at": "2026-08-21T00:00:00Z"
+    },
+    {
+      "id": "TASK-120",
+      "title": "Add a handoff covering state, next steps, and traps",
       "completed_at": "2026-08-21T00:00:00Z"
     }
   ],
@@ -366,6 +377,24 @@
     {
       "id": "TASK-117",
       "title": "Write cues and beatgrids to audio, validated in Serato",
+      "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-118",
+      "title": "Fix beats_to_next and bound beatgrid drift",
+      "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-119",
+      "title": "Carry every Rekordbox beat straight into the Serato grid",
+      "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-120",
+      "title": "Add a handoff covering state, next steps, and traps",
       "completed_at": "2026-08-21T00:00:00Z",
       "status": "completed"
     }
