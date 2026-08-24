@@ -13,23 +13,21 @@ def encode_beatgrid(beats: list[Beat]) -> bytes | None:
     """
     Build a Serato BeatGrid payload from Rekordbox beats.
 
-    Rekordbox records every beat, and Serato's format can hold a marker per
-    beat, so each one is carried across directly. Every marker but the last
-    reaches the next in a single beat; the last records the tempo it holds to
-    the end of the track.
+    Serato writes a single terminal marker holding the first downbeat and the
+    tempo, and extrapolates the rest of the track from it. That form only
+    describes a steady tempo, so tracks whose tempo varies are left alone for
+    Serato to analyse itself.
 
     Args:
         beats: Beats in time order, as read from ANLZ.
 
     Returns:
-        Encoded payload, or None when there are no beats.
+        Fourteen-byte payload, or None when there are no beats or the tempo
+        is not constant.
     """
-    if not beats:
+    if not beats or len({beat.bpm for beat in beats}) > 1:
         return None
 
-    payload = bytearray(_HEADER + struct.pack(">I", len(beats)))
-    for beat in beats[:-1]:
-        payload += struct.pack(">fI", beat.time_ms / 1000.0, 1)
-    payload += struct.pack(">ff", beats[-1].time_ms / 1000.0, beats[-1].bpm)
-    payload += b"\x00"
-    return bytes(payload)
+    downbeats = [beat for beat in beats if beat.number == 1] or beats
+    anchor = downbeats[0]
+    return _HEADER + struct.pack(">I", 1) + struct.pack(">ff", anchor.time_ms / 1000.0, anchor.bpm)
