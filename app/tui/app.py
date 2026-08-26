@@ -13,8 +13,8 @@ class UsbversalApp(App):
     """
     Top-level Textual application shell.
 
-    Only the Home screen (steps 1-2 of the target flow) exists so far;
-    Library, Progress, and Done are TASK-207 and TASK-208.
+    Home (steps 1-2) and Library (step 3) exist; Progress and Done
+    (steps 4-5, running an actual sync) are TASK-208.
     """
 
     TITLE = "usbversal"

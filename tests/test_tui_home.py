@@ -4,12 +4,14 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from textual.screen import Screen
 from textual.widgets import Static
 
 from app.core.domain import MountPoint
 from app.storage.mount_watch import MountWatcher
 from app.storage.mounts import MountScanner
 from app.tui.app import UsbversalApp
+from app.tui.screens.home import HomeScreen
 
 
 class _FakeScanner(MountScanner):
@@ -22,13 +24,26 @@ class _FakeScanner(MountScanner):
         return self.mounts
 
 
+class _DummyLibraryScreen(Screen):
+    """Stands in for the real Library screen -- that screen's own behaviour
+    is covered by tests/test_tui_library.py; these tests only need proof that
+    Home handed off to it with the right library."""
+
+    def __init__(self, library: object) -> None:
+        super().__init__()
+        self.library = library
+
+    def compose(self):
+        yield Static("dummy")
+
+
 def _point(path: Path) -> MountPoint:
     return MountPoint(path=path, source="test")
 
 
-def _status_text(app: UsbversalApp) -> str:
+def _status_text(screen: HomeScreen) -> str:
     """Read back the Home screen's status line as plain text."""
-    return str(app.screen.query_one("#status", Static).render())
+    return str(screen.query_one("#status", Static).render())
 
 
 @pytest.mark.asyncio
@@ -38,10 +53,11 @@ async def test_shows_searching_with_nothing_mounted() -> None:
     app = UsbversalApp(watcher)
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.screen.poll_mounts()
+        home = app.screen
+        home.poll_mounts()
         await pilot.pause()
 
-        assert "Searching for valid DJ USBs" in _status_text(app)
+        assert "Searching for valid DJ USBs" in _status_text(home)
 
 
 @pytest.mark.asyncio
@@ -52,15 +68,16 @@ async def test_shows_none_found_for_a_mount_that_is_not_a_dj_usb(tmp_path: Path)
     with patch("app.tui.screens.home.probe_mount", return_value=None):
         async with app.run_test() as pilot:
             await pilot.pause()
-            app.screen.poll_mounts()
+            home = app.screen
+            home.poll_mounts()
             await pilot.pause()
 
-            assert "Did not detect a valid DJ USB" in _status_text(app)
+            assert "Did not detect a valid DJ USB" in _status_text(home)
 
 
 @pytest.mark.asyncio
-async def test_a_valid_mount_opens_the_library(tmp_path: Path) -> None:
-    """A mount that passes the probe is opened and reported ready."""
+async def test_a_valid_mount_opens_the_library_and_hands_off(tmp_path: Path) -> None:
+    """A mount that passes the probe is opened and the Library screen takes over."""
     watcher = MountWatcher(_FakeScanner([_point(tmp_path)]))
     app = UsbversalApp(watcher)
 
@@ -72,17 +89,19 @@ async def test_a_valid_mount_opens_the_library(tmp_path: Path) -> None:
     with (
         patch("app.tui.screens.home.probe_mount", return_value=fake_probe),
         patch("app.tui.screens.home.open_library", return_value=fake_library),
+        patch("app.tui.screens.home.LibraryScreen", _DummyLibraryScreen),
     ):
         async with app.run_test() as pilot:
             await pilot.pause()
-            app.screen.poll_mounts()
+            home = app.screen
+            home.poll_mounts()
             await pilot.pause()
             await app.workers.wait_for_complete()
             await pilot.pause()
 
+            assert home.library is fake_library
+            assert isinstance(app.screen, _DummyLibraryScreen)
             assert app.screen.library is fake_library
-            assert "Ready" in _status_text(app)
-            assert "3 playlists" in _status_text(app)
 
 
 @pytest.mark.asyncio
@@ -102,13 +121,15 @@ async def test_an_open_failure_is_reported_not_raised(tmp_path: Path) -> None:
     ):
         async with app.run_test() as pilot:
             await pilot.pause()
-            app.screen.poll_mounts()
+            home = app.screen
+            home.poll_mounts()
             await pilot.pause()
             await app.workers.wait_for_complete()
             await pilot.pause()
 
-            assert app.screen.library is None
-            assert "Did not detect a valid DJ USB" in _status_text(app)
+            assert home.library is None
+            assert isinstance(app.screen, HomeScreen)
+            assert "Did not detect a valid DJ USB" in _status_text(home)
 
 
 @pytest.mark.asyncio
@@ -125,15 +146,17 @@ async def test_stops_polling_once_a_library_is_open(tmp_path: Path) -> None:
     with (
         patch("app.tui.screens.home.probe_mount", return_value=fake_probe) as probe,
         patch("app.tui.screens.home.open_library", return_value=fake_library),
+        patch("app.tui.screens.home.LibraryScreen", _DummyLibraryScreen),
     ):
         async with app.run_test() as pilot:
             await pilot.pause()
-            app.screen.poll_mounts()
+            home = app.screen
+            home.poll_mounts()
             await pilot.pause()
             await app.workers.wait_for_complete()
             await pilot.pause()
 
-            app.screen.poll_mounts()
+            home.poll_mounts()
             await pilot.pause()
 
             assert probe.call_count == 1

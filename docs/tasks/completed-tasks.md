@@ -198,6 +198,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-207 — TUI Library screen
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | `app/tui/screens/library.py` — the playlist folder tree with per-node red/yellow/green state and multi-select; `HomeScreen` now hands off to it |
+| Verification | ruff ✓ ruff format ✓ pytest 209 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

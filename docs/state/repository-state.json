@@ -66,7 +66,7 @@
     "progress_rate_and_eta": true,
     "tui_framework_decided": true,
     "tui_home_screen": true,
-    "tui_library_screen": false,
+    "tui_library_screen": true,
     "tui_progress_done_screens": false,
     "json_output_stdout_only": true,
     "discovery_skips_backup_trees": true,
@@ -91,7 +91,7 @@
     "ruff_format": "pass",
     "pytest": "pass",
     "last_run": "2026-08-27T00:00:00Z",
-    "tests_passed": 204,
+    "tests_passed": 209,
     "tests_skipped": 4,
     "tests_failed": 0,
     "note": "run with no stick mounted and no dist/usbversal built; the 4 skips are 2 integration tests gated on USBVERSAL_TEST_MOUNT, the opt-in full PyInstaller build (USBVERSAL_PACKAGING_BUILD=1), and the binary-help smoke test that needs a prior ./scripts/build-release.sh -- a real build was run and verified during TASK-206, then cleaned up"
@@ -150,7 +150,7 @@
     "description": "Byte-exact Lexicon before/after WAV pair for Serato Markers2 round-trip tests"
   },
   "known_gaps": [
-    "TUI has only the Home screen (Waiting/Detect); Library, Progress, and Done screens are TASK-207/208. sync_playlists is still not reachable from either the CLI or the TUI.",
+    "TUI has Home and Library screens (Waiting/Detect/select-to-sync); Progress and Done, and actually running sync_playlists, are TASK-208.",
     "MP3 tag write path untested; 36/40 sampled MP3s are ID3v2.3 while fixtures are v2.4",
     "variable-tempo beatgrids encoded but unvalidated in Serato (33/500 tracks)",
     "79 files carry the broken +120s beatgrid from the abandoned attempt; repair not run",

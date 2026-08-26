@@ -23,6 +23,7 @@ from app.services.library import (
     open_library,
     probe_mount,
 )
+from app.tui.screens.library import LibraryScreen
 
 _SEARCHING = "Searching for valid DJ USBs…"
 _NONE_FOUND = "Did not detect a valid DJ USB"
@@ -31,7 +32,7 @@ _STATUS_ID = "status"
 
 class HomeScreen(Screen):
     """
-    Poll for a mount to appear, then check it for Rekordbox export validity.
+    Poll for a mount to appear, check it, then push the Library screen.
 
     A mount is "valid" when it has a supported Rekordbox export
     (``MountProbe.is_dj_usb and MountProbe.is_supported``) -- Serato need not
@@ -87,6 +88,7 @@ class HomeScreen(Screen):
         self.library = library
         count = len(library.rekordbox.list_playlists())
         self._show(f"Ready: {mount.name} — {count} playlists")
+        self.app.push_screen(LibraryScreen(library))
 
     def _show(self, message: str) -> None:
         self.query_one(f"#{_STATUS_ID}", Static).update(message)

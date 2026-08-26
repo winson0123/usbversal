@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-27T00:00:00Z",
+  "updated_at": "2026-08-27T01:00:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -9,7 +9,6 @@
     "blocked_reason": null
   },
   "pending_tasks": [
-    "TASK-207",
     "TASK-208",
     "TASK-075",
     "TASK-076",
@@ -255,6 +254,11 @@
     {
       "id": "TASK-206",
       "title": "TUI framework ADR + shell",
+      "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-207",
+      "title": "TUI Library screen",
       "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
@@ -544,6 +548,12 @@
     {
       "id": "TASK-206",
       "title": "TUI framework ADR + shell",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-207",
+      "title": "TUI Library screen",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }
