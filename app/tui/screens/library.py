@@ -1,9 +1,8 @@
 """Library screen: step 3 of the target flow -- the playlist tree.
 
 Arrow keys move, space toggles selection (a folder toggles every descendant
-playlist at once), enter confirms. Confirming does not yet run a sync --
-that's screens 4-5, TASK-208 -- so it reports the selection instead of acting
-on it.
+playlist at once), enter confirms and, with at least one playlist selected,
+starts the sync (step 4, the Progress screen).
 """
 
 from __future__ import annotations
@@ -17,6 +16,7 @@ from textual.widgets.tree import TreeNode
 from app.core.domain import SyncState
 from app.services.library import UsbLibrary
 from app.services.sync_service import PlaylistTreeSyncState, playlist_tree_sync_states
+from app.tui.screens.progress import ProgressScreen
 
 _MARKER = {
     SyncState.SYNCED: ("green", "synced"),
@@ -126,10 +126,13 @@ class LibraryScreen(Screen):
         count = len(self._selected)
         message = f"{count} playlist{'s' if count != 1 else ''} selected"
         if count:
-            message += " -- press enter to sync (not wired yet, TASK-208)"
+            message += " -- press enter to sync"
         self.query_one(f"#{_STATUS_ID}", Static).update(message)
 
     def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
-        """Enter on a node: report the selection. Running the sync is TASK-208."""
+        """Enter on a node: with a selection, start the sync."""
         event.stop()
-        self._update_status()
+        if not self._selected:
+            self._update_status()
+            return
+        self.app.push_screen(ProgressScreen(self._library, sorted(self._selected)))

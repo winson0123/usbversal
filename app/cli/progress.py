@@ -4,14 +4,7 @@ import sys
 import time
 
 from app.core.event_envelope import Event
-from app.jobs.progress_rate import ProgressRateTracker
-
-
-def _format_duration(seconds: float) -> str:
-    """Format a duration in seconds as ``Xs`` or ``XmYYs``."""
-    whole = round(seconds)
-    minutes, secs = divmod(whole, 60)
-    return f"{minutes}m{secs:02d}s" if minutes else f"{secs}s"
+from app.jobs.progress_rate import ProgressRateTracker, format_duration
 
 
 class CliProgressRenderer:
@@ -62,7 +55,7 @@ class CliProgressRenderer:
             if estimate.rate_per_second is not None:
                 line += f" ({estimate.rate_per_second:.1f}/s"
                 if estimate.eta_seconds is not None:
-                    line += f", eta {_format_duration(estimate.eta_seconds)}"
+                    line += f", eta {format_duration(estimate.eta_seconds)}"
                 line += ")"
         else:
             line = message

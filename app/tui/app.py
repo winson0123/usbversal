@@ -13,8 +13,9 @@ class UsbversalApp(App):
     """
     Top-level Textual application shell.
 
-    Home (steps 1-2) and Library (step 3) exist; Progress and Done
-    (steps 4-5, running an actual sync) are TASK-208.
+    All five target-flow screens exist: Home (steps 1-2), Library (step 3),
+    Progress and Done (steps 4-5, TASK-208) -- the full Waiting -> Detect ->
+    Library -> Progress -> Done flow is reachable end to end.
     """
 
     TITLE = "usbversal"

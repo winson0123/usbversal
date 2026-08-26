@@ -1,9 +1,11 @@
 # Interactive TUI (Planning)
 
-**Status:** in progress — M11. Framework decided and scaffolded (TASK-206);
-Home (steps 1-2) and Library (step 3, TASK-207) screens built; Progress/Done
-(steps 4-5, TASK-208) open -- that's also where an actual sync gets wired in,
-since Library only reports a selection today rather than acting on it.
+**Status:** All 5 target-flow screens built and wired end to end (TASK-206
+through TASK-208) -- Waiting → Detect → Library → Progress → Done, with
+`sync_playlists()` actually reachable and running from the TUI. Not yet
+validated against real hardware (`/mnt/usb`), only synthetic fixtures; not
+yet the packaged binary's default action (still `usbversal tui`
+/ `python -m app.tui`, alongside the CLI test harness).
 **Related:** [serato-index-bootstrap.md](serato-index-bootstrap.md),
 [ADR 0007](../decisions/0007-revive-analysis-sync-on-verified-formats.md),
 [ADR 0009](../decisions/0009-use-textual-for-the-tui.md)

@@ -473,3 +473,37 @@ def test_correct_index_bpm_requires_an_index_file(tmp_path: Path) -> None:
 
     with pytest.raises(SeratoLibraryRequiredError):
         correct_index_bpm(library)
+
+
+def test_on_progress_reports_each_analysis_track(tmp_path: Path) -> None:
+    """A progress callback fires once per track with real analysis data."""
+    mount = _stick(tmp_path, indexed=["Contents/a.wav", "Contents/b.wav"])
+    for name in ("a", "b"):
+        _place_audio(mount, f"Contents/{name}.wav")
+        dat = mount / "PIONEER" / "USBANLZ" / name / "ANLZ0000.DAT"
+        _write_analysis(dat, beats=[(1, 128.0, 0)], cues=[])
+    contents = [
+        _content(
+            f"/Contents/{name}.wav", analysis_data_file_path=f"/PIONEER/USBANLZ/{name}/ANLZ0000.DAT"
+        )
+        for name in ("a", "b")
+    ]
+    playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
+    library = _library(mount, [playlist], {1: ["/Contents/a.wav", "/Contents/b.wav"]}, contents)
+    calls: list[tuple[int, int]] = []
+
+    sync_playlists(library, [1], on_progress=lambda done, total: calls.append((done, total)))
+
+    assert calls == [(1, 2), (2, 2)]
+
+
+def test_on_progress_is_not_called_when_nothing_has_analysis_data(tmp_path: Path) -> None:
+    """No analysis targets means no progress callback at all."""
+    mount = _stick(tmp_path, indexed=["Contents/a.mp3"])
+    playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
+    library = _library(mount, [playlist], {1: ["/Contents/a.mp3"]}, [_content("/Contents/a.mp3")])
+    calls: list[tuple[int, int]] = []
+
+    sync_playlists(library, [1], on_progress=lambda done, total: calls.append((done, total)))
+
+    assert calls == []

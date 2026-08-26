@@ -58,7 +58,7 @@
     "apply_collects_per_operation_failures": true,
     "layer_rules_enforced_in_tests": true,
     "vendor_imports_confined_to_adapters": true,
-    "interactive_tui": false,
+    "interactive_tui": true,
     "playlist_sync_state": true,
     "playlist_tree_model": true,
     "playlist_tree_sync_rollup": true,
@@ -67,7 +67,9 @@
     "tui_framework_decided": true,
     "tui_home_screen": true,
     "tui_library_screen": true,
-    "tui_progress_done_screens": false,
+    "tui_progress_done_screens": true,
+    "sync_playlists_reachable_from_tui": true,
+    "sync_playlists_progress_callback": true,
     "json_output_stdout_only": true,
     "discovery_skips_backup_trees": true,
     "sync_playlists": true,
@@ -91,7 +93,7 @@
     "ruff_format": "pass",
     "pytest": "pass",
     "last_run": "2026-08-27T00:00:00Z",
-    "tests_passed": 209,
+    "tests_passed": 219,
     "tests_skipped": 4,
     "tests_failed": 0,
     "note": "run with no stick mounted and no dist/usbversal built; the 4 skips are 2 integration tests gated on USBVERSAL_TEST_MOUNT, the opt-in full PyInstaller build (USBVERSAL_PACKAGING_BUILD=1), and the binary-help smoke test that needs a prior ./scripts/build-release.sh -- a real build was run and verified during TASK-206, then cleaned up"
@@ -150,7 +152,7 @@
     "description": "Byte-exact Lexicon before/after WAV pair for Serato Markers2 round-trip tests"
   },
   "known_gaps": [
-    "TUI has Home and Library screens (Waiting/Detect/select-to-sync); Progress and Done, and actually running sync_playlists, are TASK-208.",
+    "TUI covers all 5 target-flow screens and sync_playlists is reachable end to end from it; still no progress reporting for the crate-write/record-add steps, only the per-track analysis pass",
     "MP3 tag write path untested; 36/40 sampled MP3s are ID3v2.3 while fixtures are v2.4",
     "variable-tempo beatgrids encoded but unvalidated in Serato (33/500 tracks)",
     "79 files carry the broken +120s beatgrid from the abandoned attempt; repair not run",

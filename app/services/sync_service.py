@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -402,6 +402,7 @@ def _sync_analysis(
     paths: set[str],
     lookups: RekordboxLookups,
     write_context: WriteContext,
+    on_progress: Callable[[int, int], None] | None = None,
 ) -> AnalysisSyncResult:
     """
     Write beatgrids and hot cues from Rekordbox ANLZ data into Serato tags.
@@ -419,6 +420,9 @@ def _sync_analysis(
             and carry Rekordbox analysis data.
         lookups: Id-to-name tables, for key lookups.
         write_context: Validated backup context (required before any write).
+        on_progress: Optional callback invoked as ``(tracks_done, total)`` after
+            each track, whether or not it produced a write -- this is the slow,
+            per-track part of a sync, so it is what a progress bar should track.
 
     Returns:
         Counts of what was written, and one message per track that failed.
@@ -429,32 +433,37 @@ def _sync_analysis(
     errors: list[str] = []
     updates: dict[str, TrackAnalysis] = {}
 
-    for raw in sorted(paths):
-        content = contents.get(raw)
-        if content is None:
-            continue
-        audio_path = mount / serato_path(raw)
-        dat_path = _analysis_dat_path(mount, content)
-        if dat_path is None or not audio_path.is_file():
-            continue
-
+    ordered = sorted(paths)
+    for done, raw in enumerate(ordered, start=1):
         try:
-            beats = read_beats(dat_path)
-            cues = read_hot_cues(extended_path(dat_path))
-            if not beats and not cues:
+            content = contents.get(raw)
+            if content is None:
                 continue
-            _write_track_tags(audio_path, beats, cues)
-        except (AnlzError, TagFormatError, OSError) as exc:
-            errors.append(f"{raw}: {exc}")
-            continue
+            audio_path = mount / serato_path(raw)
+            dat_path = _analysis_dat_path(mount, content)
+            if dat_path is None or not audio_path.is_file():
+                continue
 
-        if beats:
-            grids += 1
-            updates[serato_path(raw)] = TrackAnalysis(
-                bpm=beats[0].bpm, key=lookups.keys.get(content.key_id)
-            )
-        if cues:
-            cues_written += 1
+            try:
+                beats = read_beats(dat_path)
+                cues = read_hot_cues(extended_path(dat_path))
+                if not beats and not cues:
+                    continue
+                _write_track_tags(audio_path, beats, cues)
+            except (AnlzError, TagFormatError, OSError) as exc:
+                errors.append(f"{raw}: {exc}")
+                continue
+
+            if beats:
+                grids += 1
+                updates[serato_path(raw)] = TrackAnalysis(
+                    bpm=beats[0].bpm, key=lookups.keys.get(content.key_id)
+                )
+            if cues:
+                cues_written += 1
+        finally:
+            if on_progress is not None:
+                on_progress(done, len(ordered))
 
     rows_updated = 0
     if updates and index_path is not None:
@@ -481,6 +490,7 @@ def sync_playlists(
     *,
     dry_run: bool = False,
     backup_root: str | Path | None = None,
+    on_progress: Callable[[int, int], None] | None = None,
 ) -> SyncReport:
     """
     Mirror the selected Rekordbox playlists into Serato crates.
@@ -497,6 +507,11 @@ def sync_playlists(
         playlist_ids: Rekordbox playlist ids to sync, in selection order.
         dry_run: Plan only; take no backup and write nothing.
         backup_root: Optional backups parent directory.
+        on_progress: Optional callback invoked as ``(tracks_done, total)``
+            while writing analysis -- the slow, per-track part of a sync, so
+            it is what a caller driving a progress bar should watch. Not
+            called for a dry run, and not called at all when there is
+            nothing with Rekordbox analysis data to write.
 
     Returns:
         SyncReport describing what was written.
@@ -576,6 +591,7 @@ def sync_playlists(
         analysis_targets,
         lookups,
         context,
+        on_progress,
     )
 
     results: list[PlaylistSyncResult] = []

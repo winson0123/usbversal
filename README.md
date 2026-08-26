@@ -43,9 +43,10 @@ Use this mount only for integration validation tasks explicitly scoped in `docs/
 The `usbversal` binary and `python -m app.cli` accept the same commands. The
 current argparse interface is a **harness for testing the underlying services**;
 the shipped tool is an interactive terminal UI, built on `textual`
-([ADR 0009](docs/decisions/0009-use-textual-for-the-tui.md)) and still in
-progress (see
-[docs/planning/interactive-tui.md](docs/planning/interactive-tui.md)):
+([ADR 0009](docs/decisions/0009-use-textual-for-the-tui.md)). Its full
+Waiting → Detect → Library → Progress → Done flow is wired end to end (see
+[docs/planning/interactive-tui.md](docs/planning/interactive-tui.md)),
+though not yet validated against real hardware:
 
 ```bash
 usbversal tui

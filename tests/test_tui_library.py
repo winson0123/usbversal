@@ -2,15 +2,30 @@
 
 import struct
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from textual.app import App
+from textual.screen import Screen
 from textual.widgets import Static, Tree
 
 from app.core.domain import Playlist
 from app.tui.screens.library import LibraryScreen
 from tests.conftest import EMPTY_DATABASE_V2, make_library
+
+
+class _DummyProgressScreen(Screen):
+    """Stands in for the real Progress screen -- that screen's own behaviour
+    is covered by tests/test_tui_progress.py; these tests only need proof
+    that Library handed off to it with the right selection."""
+
+    def __init__(self, library: object, playlist_ids: list[int]) -> None:
+        super().__init__()
+        self.library = library
+        self.playlist_ids = playlist_ids
+
+    def compose(self):
+        yield Static("dummy")
 
 
 def _stick(root: Path, *, crates: dict[str, list[str]], indexed: list[str]) -> Path:
@@ -144,15 +159,33 @@ async def test_space_on_a_folder_selects_every_descendant(tmp_path: Path) -> Non
 
 
 @pytest.mark.asyncio
-async def test_enter_reports_the_selection_without_syncing(tmp_path: Path) -> None:
-    """Confirming a selection reports it rather than acting on it (TASK-208)."""
+async def test_enter_with_no_selection_does_not_start_a_sync(tmp_path: Path) -> None:
+    """Confirming with nothing selected just re-reports zero selected."""
     library = _library_with_two_playlists(tmp_path)
     app = _Harness(library)
-    async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.press("space")
-        await pilot.press("enter")
-        await pilot.pause()
+    with patch("app.tui.screens.library.ProgressScreen", _DummyProgressScreen):
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            await pilot.press("enter")
+            await pilot.pause()
 
-        status = str(app.screen.query_one("#selection-status", Static).render())
-        assert "TASK-208" in status
+            assert isinstance(app.screen, LibraryScreen)
+            status = str(app.screen.query_one("#selection-status", Static).render())
+            assert "0 playlists selected" in status
+
+
+@pytest.mark.asyncio
+async def test_enter_with_a_selection_starts_the_sync(tmp_path: Path) -> None:
+    """Confirming a selection hands off to the Progress screen with it."""
+    library = _library_with_two_playlists(tmp_path)
+    app = _Harness(library)
+    with patch("app.tui.screens.library.ProgressScreen", _DummyProgressScreen):
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            await pilot.press("space")
+            await pilot.press("enter")
+            await pilot.pause()
+
+            assert isinstance(app.screen, _DummyProgressScreen)
+            assert app.screen.library is library
+            assert app.screen.playlist_ids == [1]

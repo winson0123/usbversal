@@ -208,6 +208,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-208 — TUI Progress + Done screens
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | `app/tui/screens/progress.py` — runs `sync_playlists` via a worker, renders live progress and a completion summary; the first point `sync_playlists` is reachable from the TUI |
+| Verification | ruff ✓ ruff format ✓ pytest 219 passed / 4 skipped; manual end-to-end smoke (Home → Library → Progress → Done → Library) with real screens chained together |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

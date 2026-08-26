@@ -63,3 +63,21 @@ class ProgressRateTracker:
         remaining = total - current
         eta = remaining / rate if remaining > 0 else 0.0
         return ProgressEstimate(rate_per_second=rate, eta_seconds=eta)
+
+
+def format_duration(seconds: float) -> str:
+    """
+    Format a duration in seconds as ``Xs`` or ``XmYYs``.
+
+    Shared by the CLI progress renderer and the TUI progress screen so an ETA
+    reads the same way in both.
+
+    Args:
+        seconds: Duration to format.
+
+    Returns:
+        A short, human-readable duration string.
+    """
+    whole = round(seconds)
+    minutes, secs = divmod(whole, 60)
+    return f"{minutes}m{secs:02d}s" if minutes else f"{secs}s"
