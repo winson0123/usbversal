@@ -1,15 +1,17 @@
 # Handoff — 2026-08-26
 
-Rekordbox → Serato analysis porting is **working and confirmed in Serato**, but
-almost none of it is reachable from the code. Read this before touching either.
+Rekordbox → Serato analysis porting is **working and confirmed in Serato**, and
+as of TASK-130 `sync_playlists()` now writes it: every synced track with
+Rekordbox analysis gets its beatgrid and hot cues, and `location.sqlite` is
+updated for any track that got a grid. Read this before touching either.
 
 **Read [`AGENT.md`](../AGENT.md) first.** One task at a time, one commit per
 task, state files updated after each.
 
 | | |
 |---|---|
-| Tests | 141 passed, 3 skipped (`ruff` and `ruff format` clean) |
-| Size | app 4,837 lines, tests 2,529 |
+| Tests | 157 passed, 3 skipped (`ruff` and `ruff format` clean) |
+| Size | app 5,053 lines, tests 2,905 |
 | Branch | `main`, clean, **no remote** |
 | Stick | `/mnt/usb`, bind-mounted to `/mnt/wsl/usb` — see the mount trap below |
 
@@ -39,13 +41,16 @@ therefore mandatory, not cosmetic.
 
 ---
 
-## What works, and what is only a script
+## What works, and what is still unvalidated by the tool
 
 **Confirmed working in Serato**, on the Pocket crate: the crate appears, tracks
 carry Rekordbox beatgrids and hot cues, and the deck shows Rekordbox's BPM.
+That was done by hand in the terminal.
 
-**But the analysis path is not wired to anything.** These adapters exist and are
-tested, and no service or command calls them:
+**As of TASK-130, `sync_playlists()` reproduces it.** For every track in a
+synced playlist that has Rekordbox analysis data, it now writes the beatgrid
+and hot cues into the audio tags and, when a grid was written, updates
+`location.sqlite` so the list agrees with the deck:
 
 | Module | Does |
 |--------|------|
@@ -55,10 +60,25 @@ tested, and no service or command calls them:
 | `adapters/serato/tags.py` | reads/writes GEOB frames in MP3 and WAV |
 | `adapters/serato/library_db.py` | reads/updates `location.sqlite` |
 
-`sync_playlists()` writes crates, `database V2` records, and `neworder.pref`. It
-does **not** write grids, cues, or the index. Everything demonstrated on the
-stick was done by hand in the terminal and cannot be reproduced by running the
-tool.
+`sync_playlists()` now writes crates, `database V2` records, `neworder.pref`,
+grids, cues, and the index in one backup-gated pass. A track whose audio or
+ANLZ data cannot be read is skipped and recorded in `SyncReport.analysis_errors`
+rather than aborting the run. What it does **not** yet do:
+
+- **Verify writes.** `write_geob` has no size/hash check or read-back; a hand-run
+  pass caught two real defects this way (TASK-131).
+- **Correct the index for tracks it does not touch.** Index BPM only updates
+  for a track that got a fresh grid in this pass; the ~70 already-wrong
+  constant-tempo rows from before this tool existed stay wrong until a
+  dedicated correction pass runs (TASK-132).
+- **Guard against clobbering Mixed In Key or Sound Forge frames.** Nothing
+  currently writes to those files, but nothing tests that either (TASK-133).
+- **Reach the CLI or TUI.** `sync_playlists()` is callable and tested; no
+  command invokes it yet, same as before this task.
+
+This has been exercised against synthetic fixtures (a real WAV carrying real
+Serato frames, and hand-built ANLZ containers), not yet re-run against the test
+stick end to end. Re-validate on `/mnt/usb` before trusting it there.
 
 ---
 
@@ -92,10 +112,11 @@ Backups on the stick, newest last:
 
 ## Do this next
 
-### 1. Wire analysis sync into `sync_playlists`
+### 1. Re-validate `sync_playlists` on the real stick
 
-Grids and cues into the audio, then the index. This is the gap between "proved
-it works" and "the tool does it".
+TASK-130 wired grids, cues, and the index into `sync_playlists`, but it has
+only run against synthetic fixtures so far. Run it against a real playlist on
+`/mnt/usb` and confirm in Serato before trusting the wiring generally.
 
 ### 2. Move write verification into `write_geob`
 

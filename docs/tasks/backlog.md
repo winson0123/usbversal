@@ -111,7 +111,7 @@ them. See [HANDOFF.md](../HANDOFF.md).
 
 | ID | Title | Notes |
 |----|-------|-------|
-| `TASK-130` | Wire grids, cues and the library index into `sync_playlists` | The whole analysis path is unreachable from the tool; everything demonstrated was hand-run. |
+| ~~`TASK-130`~~ | ~~Wire grids, cues and the library index into `sync_playlists`~~ | Done — every synced track with Rekordbox analysis now gets its beatgrid and hot cues written, and `location.sqlite` is updated for any track that got a grid. Backs up each audio file it is about to touch. No write verification yet (TASK-131) and no index BPM correction pass for the ~70 already-wrong rows (TASK-132). |
 | `TASK-131` | Move write verification into `write_geob` | Size, audio hash, frame read-back, abort on first anomaly. Caught two real defects when run by hand; five files were lost without it. |
 | `TASK-132` | Codify the index BPM rules | Variable tempo takes the first beat's tempo, not Rekordbox's headline or Serato's pick. ~70 constant-tempo rows are still at half or double. |
 | `TASK-133` | Never-clobber regression test | ~20% of the library carries Mixed In Key frames; one file carries Sound Forge frames. |

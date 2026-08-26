@@ -2,7 +2,7 @@
 
 **Status:** `idle`
 **Task ID:** none
-**Last updated:** 2026-08-21
+**Last updated:** 2026-08-26
 
 ---
 
@@ -10,79 +10,68 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-070` |
-| Objective | Capture externally verified Serato write formats into the docs system and re-plan Stage 1 / Stage 2 |
-| Completed | 2026-08-21 |
+| Task ID | `TASK-130` |
+| Objective | Wire Rekordbox beatgrid/hot-cue writing and the `location.sqlite` index update into `sync_playlists`, so a normal sync run reproduces what was previously only demonstrated by hand |
+| Completed | 2026-08-26 |
 
 ### Scope
 
-Documentation and planning only — **no application code changed**.
-
 Files touched:
 
-- `docs/schemas/serato-schema-notes.md` (rewritten — verified formats)
-- `docs/schemas/rekordbox-schema-notes.md` (appended — `export.pdb`, ANLZ)
-- `docs/decisions/0007-revive-analysis-sync-on-verified-formats.md` (new)
-- `docs/decisions/0006-serato-analyzed-and-beatgrid-tags.md` (marked superseded)
-- `docs/planning/serato-index-bootstrap.md` (new — Stage 1)
-- `docs/planning/rekordbox-to-serato-analysis-sync.md` (deferred → planned)
-- `docs/planning/rekordbox-to-serato-playlist-migration.md` (open questions answered)
-- `docs/adapters/serato.md` (schema + write status)
-- `docs/tasks/backlog.md` (re-planned; M8/M9/M10 added)
-- `docs/state/*.json`
-- `tests/fixtures/serato/` (new — ground-truth WAV pair + README)
+- `app/services/sync_service.py` — `_sync_analysis`, `_write_track_tags`,
+  `_analysis_dat_path` helpers; `sync_playlists` now runs the analysis pass
+  after crate/database writes; `SyncReport` gained `grids_written`,
+  `cues_written`, `index_rows_updated`, `analysis_errors`
+- `app/services/backup_service.py` — `serato_files_on_mount` now includes
+  `location.sqlite` when present; `backup_mount_for_migration` gained
+  `extra_files` (mirrors the existing parameter on `backup_mount_libraries`)
+- `tests/test_sync_playlists.py` — ANLZ/asset-table fixture builders, four new
+  end-to-end tests (grid+cues+index written; no analysis data leaves the index
+  alone; a malformed ANLZ file is skipped, not fatal; the audio file about to
+  be tagged is captured in the run's backup)
+- `tests/test_backup.py` — direct coverage for the two backup_service changes
+- `docs/HANDOFF.md`, `docs/tasks/backlog.md`, `docs/state/*.json`
 
-### Source
+### Design decisions
 
-An external agent's handoff, delivered as an untracked working directory and
-**deleted after capture by request**. Its Part A findings were reproduced
-locally before capture:
-
-- Decoding `Techno1.BEFORE.wav` vs `Techno1.AFTER.wav` yields exactly the
-  documented diff — two `CUE` entries appear in `Serato Markers2`
-  (`slot=0 pos=0ms #CC0044`, `slot=1 pos=441ms #0088CC`), while
-  `Serato BeatGrid` and `Serato Autotags` are byte-identical.
-- `test.crate`, `database-V2-local`, and `neworder.pref` decoded to the
-  documented structures; their decoded content is transcribed into
-  `serato-schema-notes.md`.
-- A crate written by usbversal's own `write_crate` was dumped and confirmed
-  structurally valid (correct `ptrk` form, order preserved; `ovct` column set
-  differs from Lexicon's, which is cosmetic).
-
-Only the two WAV fixtures were retained, at the user's direction.
-
-### Key findings driving the re-plan
-
-1. **usbversal cannot bootstrap.** `migrate-playlist` matches against the
-   existing Serato index and raises `SeratoLibraryRequiredError` when `_Serato_`
-   is absent, so on a plain rekordbox stick it does nothing. → M8.
-2. **`neworder.pref` is neither written nor backed up** — a live rollback gap.
-   → TASK-071.
-3. **ADR 0006's conclusion is superseded.** The analyzed gate is satisfied by
-   real hot cues; the earlier failure was synthetic anchor cues. → ADR 0007, M9.
-4. Nested playlist folders collide on the leaf name. → TASK-075.
-5. **`otrk` fields are sparse on real data.** Confirmed on `/mnt/usb`: `talb`
-   appears on 299/793 records, `tlen` on 183, and `udsc` appears at all despite
-   being absent from the handoff's field list. A writer must not assume a fixed
-   record shape. This was not visible from the WAV fixture alone.
+- **Index BPM comes from the first beat's tempo**, not Rekordbox's headline
+  average — this is the rule HANDOFF.md documents as correct (Rekordbox
+  consistently mis-picks the section for variable-tempo tracks). Full
+  correction of already-wrong rows outside this pass is TASK-132.
+- **The index is only updated for a track that got a fresh grid in this
+  pass.** A track with hot cues but no beatgrid, or with neither, leaves
+  Serato's existing index row untouched — the point is to keep the list in
+  step with what the deck now actually reads, not to guess at BPM from
+  Rekordbox metadata for a file this pass never wrote to.
+- **Per-track failures are caught and recorded, not fatal.** A missing audio
+  file, an unreadable ANLZ container, or a tag write that does not fit the
+  padding budget is appended to `SyncReport.analysis_errors` and the run
+  continues — consistent with the per-operation-failure model TASK-102
+  established for `apply`.
+- **Only files with Rekordbox analysis data are added to the run's backup**,
+  not every audio file in the synced playlists — `_analysis_dat_path` is
+  checked before the backup is taken, so untouched files are not copied.
+- Write verification (size/hash/read-back, abort on first anomaly) is
+  deliberately **not** in this pass — that is TASK-131, scoped separately per
+  AGENT.md ("do not batch unrelated changes"). `write_geob`'s existing
+  same-size-tag guard is the only safety net right now.
 
 ### Verification log
 
 | Check | Result |
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
-| `.venv/bin/ruff format --check .` | **fail — 4 files**, all pre-existing and untouched here (see TASK-091) |
-| `.venv/bin/pytest` | 89 passed, 1 skipped (USB mounted this run, so 2 integration tests ran) |
-| `.venv/bin/python -m app.cli --help` | all commands listed |
-| Markers2 fixture decode | BEFORE 30 B / AFTER 72 B, matches documented layout |
-| `/mnt/usb` format re-validation | `database V2` 793 `otrk`, `neworder.pref` 84 B, `Pocket.crate` 80 `otrk` — all decode per spec |
-| Doc relative links | 1 broken, pre-existing (`release-workflow.md` → `../packaging/usbversal.spec`) |
+| `.venv/bin/ruff format --check .` | pass |
+| `.venv/bin/pytest` | 157 passed, 3 skipped (no stick mounted this session; skips are the two `/mnt/usb` integration tests and the PyInstaller build) |
+| `.venv/bin/python -m app.cli --help` | all commands listed (unchanged — `sync_playlists` still has no CLI entry point) |
 
-`ruff format --check` failed before this task and is untouched by it — the diff
-is documentation plus binary fixtures. Fixing it is TASK-091, kept as a separate
-commit per AGENT.md ("do not batch unrelated changes").
+Exercised against synthetic fixtures only: `tests/fixtures/serato/Techno1.BEFORE.wav`
+(a real WAV carrying real Serato GEOB frames with realistic padding) plus
+hand-built ANLZ `.DAT`/`.EXT` containers. **Not yet re-run against the real
+test stick** — see "Do this next" §1 in HANDOFF.md.
 
 ## Next
 
-`TASK-071` (backup `neworder.pref`) — smallest safety-relevant unit, and a
-precondition for every other Stage 1 write.
+`TASK-131` (write verification in `write_geob`) — the next HANDOFF.md
+priority, and the natural follow-on now that `write_geob` is on the path
+`sync_playlists` actually runs instead of only a hand-run script.

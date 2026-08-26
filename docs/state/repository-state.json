@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-21T00:00:00Z",
+  "updated_at": "2026-08-26T00:00:00Z",
   "project": "usbversal",
   "language": "python",
   "python_version": "3.11+",
@@ -45,7 +45,10 @@
     "cli_jobs_list_cancel_resume": true,
     "serato_index_authoring": true,
     "serato_neworder_pref_backup": true,
-    "serato_analysis_tag_sync": false,
+    "serato_analysis_tag_sync": true,
+    "sync_playlists_writes_grids_and_cues": true,
+    "sync_playlists_updates_library_index": true,
+    "serato_library_index_backup": true,
     "rekordbox_export_pdb_read": false,
     "write_context_verifies_manifest": true,
     "mount_path_validation": true,
@@ -75,11 +78,11 @@
     "ruff": "pass",
     "ruff_format": "pass",
     "pytest": "pass",
-    "last_run": "2026-08-21T00:00:00Z",
-    "tests_passed": 129,
+    "last_run": "2026-08-26T00:00:00Z",
+    "tests_passed": 157,
     "tests_skipped": 3,
     "tests_failed": 0,
-    "note": "run with USBVERSAL_TEST_MOUNT=/mnt/wsl/usb; only the PyInstaller build skips"
+    "note": "run with no stick mounted this pass; the 3 skips are integration tests gated on USBVERSAL_TEST_MOUNT plus the PyInstaller build"
   },
   "dependencies": {
     "rbox": "0.1.7",
@@ -134,11 +137,13 @@
     "description": "Byte-exact Lexicon before/after WAV pair for Serato Markers2 round-trip tests"
   },
   "known_gaps": [
-    "TUI not started; argparse CLI is a test harness",
+    "TUI not started; argparse CLI is a test harness, and sync_playlists is not wired into it",
     "MP3 tag write path untested; 36/40 sampled MP3s are ID3v2.3 while fixtures are v2.4",
     "variable-tempo beatgrids encoded but unvalidated in Serato (33/500 tracks)",
     "79 files carry the broken +120s beatgrid from the abandoned attempt; repair not run",
-    "cue/beatgrid sync not wired into sync_playlists yet; run manually for the test playlist",
+    "write_geob has no size/hash verification or abort-on-first-anomaly (TASK-131)",
+    "index BPM rule (first beat's tempo) only applies to tracks synced going forward; ~70 already-wrong constant-tempo rows are not corrected (TASK-132)",
+    "no never-clobber regression test for Mixed In Key / Sound Forge frames (TASK-133)",
     "playlist tree is flattened by every consumer",
     "nested playlist folders collide on leaf crate name"
   ]

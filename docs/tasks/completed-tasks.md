@@ -89,6 +89,45 @@ Historical record. Mirror of `docs/state/task-state.json` history.
 
 ---
 
+## TASK-126 — Correct the stale guidance and document location.sqlite
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-26 |
+| Objective | Fix the beatgrid-only-for-constant-tempo claim in `analysis-data-study.md` and document `location.sqlite` in the Serato schema notes |
+| Verification | Documentation only |
+
+**Note:** this record and the two below were backfilled into
+`completed-tasks.md` at TASK-130; `docs/state/task-state.json` is the
+authoritative history for everything between TASK-060 and TASK-126 that this
+file never recorded — see `git log` for the actual sequence.
+
+---
+
+## TASK-127 — Cover the ANLZ reader with tests
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-26 |
+| Objective | `tests/test_anlz.py` — section walk, hot/memory cue distinction, slot conversion, RGB read, tempo scaling, malformed/missing-file handling |
+| Verification | pytest: 8 new tests, all passing |
+
+---
+
+## TASK-130 — Wire grids, cues and the library index into `sync_playlists`
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-26 |
+| Objective | `sync_playlists` writes Rekordbox beatgrids/hot cues into audio tags and updates `location.sqlite`, not just crates and `database V2` |
+| Verification | ruff ✓ ruff format ✓ pytest 157 passed / 3 skipped |
+
+**Note:** exercised against synthetic fixtures only (a real WAV with real
+Serato frames, hand-built ANLZ containers); not yet re-run against the test
+stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

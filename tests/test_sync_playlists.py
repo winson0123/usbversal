@@ -1,5 +1,7 @@
 """Tests for syncing playlists into Serato crates."""
 
+import shutil
+import sqlite3
 import struct
 from pathlib import Path
 from types import SimpleNamespace
@@ -8,16 +10,81 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.adapters.serato import read_crate_track_paths, read_database_track_paths
+from app.adapters.serato.library_db import library_db_path, read_track_analysis
 from app.adapters.serato.neworder import read_crate_order, write_crate_order
+from app.adapters.serato.tags import read_geob
 from app.core.domain import Playlist
 from app.services.migration_service import PlaylistNotFoundError
 from app.services.sync_service import sync_playlists
 from tests.conftest import EMPTY_DATABASE_V2, make_library
 
 TRACKS = ["/Contents/a.mp3", "/Contents/b.mp3"]
+FIXTURES = Path(__file__).parent / "fixtures" / "serato"
+
+_ASSET_SCHEMA = """
+create table asset (
+    id integer primary key autoincrement,
+    revision integer not null,
+    portable_id text,
+    file_name text,
+    key text not null default '',
+    bpm real,
+    is_stale integer not null default 0
+);
+create table space (id integer, name text, revision integer);
+create table serato (database_name text, revision integer);
+create table master (uuid blob, revision integer);
+"""
 
 
-def _stick(root: Path, *, indexed: list[str], order: list[str] | None = None) -> Path:
+def _section(tag: bytes, header_extra: bytes, body: bytes) -> bytes:
+    """Build one ANLZ section with its header and total lengths."""
+    header_len = 12 + len(header_extra)
+    total_len = header_len + len(body)
+    return tag + struct.pack(">II", header_len, total_len) + header_extra + body
+
+
+def _anlz(sections: bytes) -> bytes:
+    """Wrap sections in a PMAI container."""
+    return b"PMAI" + struct.pack(">II", 28, 28 + len(sections)) + b"\x00" * 16 + sections
+
+
+def _pqtz(beats: list[tuple[int, float, int]]) -> bytes:
+    """Build a PQTZ beat grid section."""
+    body = b"".join(struct.pack(">HHI", n, int(bpm * 100), t) for n, bpm, t in beats)
+    return _section(b"PQTZ", b"\x00" * 12, body)
+
+
+def _cue(number: int, time_ms: int, colour: tuple[int, int, int]) -> bytes:
+    """Build one PCO2 extended cue entry."""
+    body = b"\x01\x00\x03\xe8" + struct.pack(">I", time_ms) + b"\x00" * 20 + b"\x00"
+    body += bytes(colour)
+    return b"PCP2" + struct.pack(">II", 16, 16 + len(body)) + struct.pack(">I", number) + body
+
+
+def _pco2(kind: int, cues: list[bytes]) -> bytes:
+    """Build a PCO2 cue-list section; kind 1 is hot cues."""
+    extra = struct.pack(">IHH", kind, len(cues), 0)
+    return _section(b"PCO2", extra, b"".join(cues))
+
+
+def _write_analysis(
+    dat_path: Path, *, beats: list[tuple[int, float, int]], cues: list[tuple[int, int, tuple]]
+) -> None:
+    """Write a .DAT/.EXT pair holding a beatgrid and extended cues."""
+    dat_path.parent.mkdir(parents=True, exist_ok=True)
+    dat_path.write_bytes(_anlz(_pqtz(beats)))
+    ext = dat_path.with_suffix(".EXT")
+    ext.write_bytes(_anlz(_pco2(1, [_cue(n, t, c) for n, t, c in cues])))
+
+
+def _stick(
+    root: Path,
+    *,
+    indexed: list[str],
+    order: list[str] | None = None,
+    asset_rows: dict[str, tuple[float, str]] | None = None,
+) -> Path:
     """Create a mount with a Rekordbox export and a Serato library."""
     rb = root / "PIONEER" / "rekordbox"
     rb.mkdir(parents=True)
@@ -34,10 +101,27 @@ def _stick(root: Path, *, indexed: list[str], order: list[str] | None = None) ->
     (serato / "database V2").write_bytes(blob)
     if order is not None:
         write_crate_order(serato, order)
+
+    if asset_rows is not None:
+        index_path = library_db_path(serato)
+        index_path.parent.mkdir(parents=True, exist_ok=True)
+        con = sqlite3.connect(index_path)
+        con.executescript(_ASSET_SCHEMA)
+        con.executemany(
+            "insert into asset (revision, portable_id, file_name, key, bpm) values (?,?,?,?,?)",
+            [(10, path, Path(path).name, key, bpm) for path, (bpm, key) in asset_rows.items()],
+        )
+        con.execute("insert into space values (1, 'Serato Library', 10)")
+        con.execute("insert into serato values ('', 10)")
+        con.execute("insert into master values (x'00', 10)")
+        con.commit()
+        con.close()
     return root
 
 
-def _library(mount: Path, playlists: list[Playlist], tracks: dict[int, list[str]], contents=None):
+def _library(
+    mount: Path, playlists: list[Playlist], tracks: dict[int, list[str]], contents=None, keys=None
+):
     """Build a session handle over a stubbed Rekordbox adapter."""
     adapter = MagicMock()
     adapter.list_playlists.return_value = playlists
@@ -46,13 +130,15 @@ def _library(mount: Path, playlists: list[Playlist], tracks: dict[int, list[str]
     database.get_artists.return_value = []
     database.get_albums.return_value = []
     database.get_genres.return_value = []
-    database.get_keys.return_value = []
+    database.get_keys.return_value = keys or []
     database.get_contents.return_value = contents or []
     adapter.database = database
     return make_library(mount, adapter)
 
 
-def _content(path: str) -> SimpleNamespace:
+def _content(
+    path: str, *, analysis_data_file_path: str | None = None, key_id: int | None = None
+) -> SimpleNamespace:
     """Minimal Rekordbox content row."""
     return SimpleNamespace(
         path=path,
@@ -60,7 +146,7 @@ def _content(path: str) -> SimpleNamespace:
         artist_id=None,
         album_id=None,
         genre_id=None,
-        key_id=None,
+        key_id=key_id,
         length=10,
         file_size=1000,
         bitrate=320,
@@ -69,6 +155,7 @@ def _content(path: str) -> SimpleNamespace:
         release_year=0,
         release_date="",
         date_added=None,
+        analysis_data_file_path=analysis_data_file_path,
     )
 
 
@@ -186,3 +273,111 @@ def test_each_crate_holds_only_its_own_tracks(tmp_path: Path) -> None:
     subcrates = mount / "_Serato_" / "Subcrates"
     assert read_crate_track_paths(subcrates / "one.crate") == ["Contents/one.mp3"]
     assert read_crate_track_paths(subcrates / "two.crate") == ["Contents/two.mp3"]
+
+
+def _place_audio(mount: Path, relative: str) -> Path:
+    """Copy the fixture WAV to a track path under the mount."""
+    target = mount / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(FIXTURES / "Techno1.BEFORE.wav", target)
+    return target
+
+
+def test_analysis_writes_beatgrid_cues_and_index(tmp_path: Path) -> None:
+    """A track with Rekordbox analysis gets a grid, cues, and an updated index row."""
+    mount = _stick(
+        tmp_path,
+        indexed=["Contents/track.wav"],
+        asset_rows={"Contents/track.wav": (999.0, "")},
+    )
+    _place_audio(mount, "Contents/track.wav")
+    dat = mount / "PIONEER" / "USBANLZ" / "P001" / "ANLZ0000.DAT"
+    _write_analysis(
+        dat,
+        beats=[(1, 136.0, 0), (2, 136.0, 441), (3, 136.0, 882)],
+        cues=[(1, 0, (0xFF, 0x00, 0x17)), (2, 441, (0x00, 0xC4, 0xFF))],
+    )
+    content = _content(
+        "/Contents/track.wav",
+        analysis_data_file_path="/PIONEER/USBANLZ/P001/ANLZ0000.DAT",
+        key_id=5,
+    )
+    playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
+    library = _library(
+        mount,
+        [playlist],
+        {1: ["/Contents/track.wav"]},
+        [content],
+        keys=[SimpleNamespace(id=5, name="8A")],
+    )
+
+    report = sync_playlists(library, [1])
+
+    assert report.grids_written == 1
+    assert report.cues_written == 1
+    assert report.index_rows_updated == 1
+    assert report.analysis_errors == ()
+
+    frames = read_geob(mount / "Contents" / "track.wav")
+    assert frames["Serato BeatGrid"]
+    assert frames["Serato Markers2"]
+
+    analysis = read_track_analysis(library_db_path(mount / "_Serato_"))["Contents/track.wav"]
+    assert analysis.bpm == 136.0
+    assert analysis.key == "8A"
+
+
+def test_no_analysis_data_leaves_index_untouched(tmp_path: Path) -> None:
+    """A track Rekordbox never analysed is left exactly as Serato had it."""
+    mount = _stick(
+        tmp_path, indexed=["Contents/track.wav"], asset_rows={"Contents/track.wav": (99.0, "Am")}
+    )
+    _place_audio(mount, "Contents/track.wav")
+    content = _content("/Contents/track.wav")
+    playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
+    library = _library(mount, [playlist], {1: ["/Contents/track.wav"]}, [content])
+
+    report = sync_playlists(library, [1])
+
+    assert report.grids_written == 0
+    assert report.index_rows_updated == 0
+    analysis = read_track_analysis(library_db_path(mount / "_Serato_"))["Contents/track.wav"]
+    assert (analysis.bpm, analysis.key) == (99.0, "Am")
+
+
+def test_malformed_analysis_is_skipped_not_fatal(tmp_path: Path) -> None:
+    """A corrupt ANLZ file is recorded as an error but does not abort the sync."""
+    mount = _stick(tmp_path, indexed=["Contents/track.wav"])
+    _place_audio(mount, "Contents/track.wav")
+    dat = mount / "PIONEER" / "USBANLZ" / "P001" / "ANLZ0000.DAT"
+    dat.parent.mkdir(parents=True)
+    dat.write_bytes(b"NOPE" + b"\x00" * 40)
+    content = _content(
+        "/Contents/track.wav", analysis_data_file_path="/PIONEER/USBANLZ/P001/ANLZ0000.DAT"
+    )
+    playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
+    library = _library(mount, [playlist], {1: ["/Contents/track.wav"]}, [content])
+
+    report = sync_playlists(library, [1])
+
+    assert report.grids_written == 0
+    assert len(report.analysis_errors) == 1
+    assert report.crates_written == 1
+
+
+def test_analysis_targets_are_backed_up(tmp_path: Path) -> None:
+    """The audio file about to be tagged is captured in the run's backup."""
+    mount = _stick(tmp_path, indexed=["Contents/track.wav"])
+    _place_audio(mount, "Contents/track.wav")
+    dat = mount / "PIONEER" / "USBANLZ" / "P001" / "ANLZ0000.DAT"
+    _write_analysis(dat, beats=[(1, 128.0, 0)], cues=[])
+    content = _content(
+        "/Contents/track.wav", analysis_data_file_path="/PIONEER/USBANLZ/P001/ANLZ0000.DAT"
+    )
+    playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
+    library = _library(mount, [playlist], {1: ["/Contents/track.wav"]}, [content])
+
+    report = sync_playlists(library, [1])
+
+    backup_dir = mount / "backups" / report.backup_id
+    assert (backup_dir / "Contents" / "track.wav").is_file()

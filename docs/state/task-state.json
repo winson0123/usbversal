@@ -9,7 +9,6 @@
     "blocked_reason": null
   },
   "pending_tasks": [
-    "TASK-130",
     "TASK-131",
     "TASK-132",
     "TASK-133",
@@ -221,6 +220,11 @@
     {
       "id": "TASK-127",
       "title": "Cover the ANLZ reader with tests",
+      "completed_at": "2026-08-26T00:00:00Z"
+    },
+    {
+      "id": "TASK-130",
+      "title": "Wire grids, cues and the library index into sync_playlists",
       "completed_at": "2026-08-26T00:00:00Z"
     }
   ],
@@ -462,6 +466,12 @@
     {
       "id": "TASK-127",
       "title": "Cover the ANLZ reader with tests",
+      "completed_at": "2026-08-26T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-130",
+      "title": "Wire grids, cues and the library index into sync_playlists",
       "completed_at": "2026-08-26T00:00:00Z",
       "status": "completed"
     }

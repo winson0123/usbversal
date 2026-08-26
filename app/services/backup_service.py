@@ -7,6 +7,7 @@ from typing import Any
 
 import structlog
 
+from app.adapters.serato.library_db import library_db_path
 from app.adapters.serato.neworder import neworder_path
 from app.adapters.serato.paths import list_crate_files, resolve_serato_library
 from app.storage.backup import BackupResult, create_backup
@@ -60,6 +61,9 @@ def serato_files_on_mount(mount_path: Path) -> list[Path]:
     order_file = neworder_path(serato_root)
     if order_file.is_file():
         found.append(order_file)
+    index_file = library_db_path(serato_root)
+    if index_file.is_file():
+        found.append(index_file)
     for crate_path in list_crate_files(serato_root):
         if crate_path.is_file() and crate_path not in found:
             found.append(crate_path)
@@ -70,6 +74,7 @@ def backup_mount_for_migration(
     mount: str | Path,
     *,
     backup_root: str | Path | None = None,
+    extra_files: list[str | Path] | None = None,
 ) -> BackupResult:
     """
     Back up Rekordbox and Serato library files before a cross-vendor write.
@@ -77,6 +82,8 @@ def backup_mount_for_migration(
     Args:
         mount: Mount path containing both libraries.
         backup_root: Optional parent directory for backups (default: mount/backups).
+        extra_files: Additional absolute or mount-relative files to include, such
+            as the audio files a caller is about to tag.
 
     Returns:
         BackupResult with manifest covering all copied files.
@@ -87,6 +94,13 @@ def backup_mount_for_migration(
     """
     mount_path = resolve_mount_path(mount)
     files = rekordbox_files_on_mount(mount_path) + serato_files_on_mount(mount_path)
+    if extra_files:
+        for item in extra_files:
+            path = Path(item)
+            if not path.is_absolute():
+                path = mount_path / path
+            if path.is_file():
+                files.append(path)
     unique: list[Path] = []
     seen: set[Path] = set()
     for path in files:
