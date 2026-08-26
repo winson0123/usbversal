@@ -178,6 +178,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-204 — Progress rate + ETA
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-26 |
+| Objective | `jobs/progress_rate.py`'s `ProgressRateTracker` — whole-run rate and ETA from `current`/`total` samples, wired into `CliProgressRenderer` |
+| Verification | ruff ✓ ruff format ✓ pytest 200 passed / 3 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

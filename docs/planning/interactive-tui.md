@@ -59,10 +59,10 @@ rather than retrofitted later.
    presence, not DJ USB validity — the caller runs `probe_mount` (also
    stat-only) on whatever appears.
 
-5. **ETA on progress.** `JobProgress` carries `current`/`total` but no rate or
-   time estimate, and `CliProgressRenderer` throttles to 10/s and prints
-   lines. A TUI needs rate tracking to render a bar with a completion
-   estimate. → **TASK-204**, still open.
+5. ~~**ETA on progress.**~~ Done — TASK-204, `jobs.progress_rate.ProgressRateTracker`.
+   `CliProgressRenderer` now appends a rate and ETA to its lines once a job
+   has two samples; a future TUI progress bar would use the same tracker
+   rather than parsing the CLI's text output.
 
 6. ~~**Batch sync over selected playlists.**~~ Done — TASK-114/TASK-205,
    `sync_playlists()` takes one backup for the whole run and reports

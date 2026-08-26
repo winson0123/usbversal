@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-26T13:00:00Z",
+  "updated_at": "2026-08-26T14:00:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -9,7 +9,6 @@
     "blocked_reason": null
   },
   "pending_tasks": [
-    "TASK-204",
     "TASK-206",
     "TASK-075",
     "TASK-076",
@@ -245,6 +244,11 @@
     {
       "id": "TASK-203",
       "title": "Removable-media polling",
+      "completed_at": "2026-08-26T00:00:00Z"
+    },
+    {
+      "id": "TASK-204",
+      "title": "Progress rate + ETA",
       "completed_at": "2026-08-26T00:00:00Z"
     }
   ],
@@ -522,6 +526,12 @@
     {
       "id": "TASK-203",
       "title": "Removable-media polling",
+      "completed_at": "2026-08-26T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-204",
+      "title": "Progress rate + ETA",
       "completed_at": "2026-08-26T00:00:00Z",
       "status": "completed"
     }

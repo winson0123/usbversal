@@ -133,7 +133,7 @@ and none of them exist yet.
 | ~~`TASK-201`~~ | ~~Playlist tree model~~ | Done — `core/playlist_tree.py` (`build_playlist_tree`) nests the flat list; `sync_service.playlist_tree_sync_states` adds the per-folder rollup (green only if every descendant is synced, red only if none are, yellow otherwise; an empty folder reads red, not vacuously green). |
 | ~~`TASK-202`~~ | ~~Single "valid DJ USB?" readiness verdict~~ | Done — TASK-110, `probe_mount()` returns None for an empty mount point |
 | ~~`TASK-203`~~ | ~~Removable-media polling~~ | Done — `storage/mount_watch.py`'s `MountWatcher.poll()` diffs `MountScanner.list_mounts()` against the previous poll's set; one directory listing per poll, no library detection or database opens. Callers run `services.library.probe_mount` (also stat-only) on an appeared mount to check DJ USB validity. |
-| `TASK-204` | Progress rate + ETA | `JobProgress` has `current`/`total` but no rate or estimate. |
+| ~~`TASK-204`~~ | ~~Progress rate + ETA~~ | Done — `jobs/progress_rate.py`'s `ProgressRateTracker` averages rate over the whole run (steadier than a most-recent-interval rate for variable-cost steps like tag writes) and derives an ETA when `total` is known. Wired into `CliProgressRenderer`, which now appends `(N.N/s, eta Xs)` once a job has two samples, tracked per `job_id`. |
 | ~~`TASK-205`~~ | ~~Batch sync over selected playlists~~ | Done — TASK-114, `sync_playlists()` takes one backup per run |
 | `TASK-206` | TUI framework ADR + shell | textual / prompt_toolkit / rich / curses. Must survive PyInstaller one-file packaging (ADR 0003). |
 

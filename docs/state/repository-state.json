@@ -62,6 +62,7 @@
     "playlist_tree_model": true,
     "playlist_tree_sync_rollup": true,
     "removable_media_polling": true,
+    "progress_rate_and_eta": true,
     "json_output_stdout_only": true,
     "discovery_skips_backup_trees": true,
     "sync_playlists": true,
@@ -84,7 +85,7 @@
     "ruff_format": "pass",
     "pytest": "pass",
     "last_run": "2026-08-26T00:00:00Z",
-    "tests_passed": 189,
+    "tests_passed": 200,
     "tests_skipped": 3,
     "tests_failed": 0,
     "note": "run with no stick mounted; the 3 skips are integration tests gated on USBVERSAL_TEST_MOUNT plus the PyInstaller build"
