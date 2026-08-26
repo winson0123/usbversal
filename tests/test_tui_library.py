@@ -29,6 +29,18 @@ class _DummyProgressScreen(Screen):
         yield Static("dummy")
 
 
+def _write_crate(serato_root: Path, name: str, paths: list[str]) -> None:
+    """Write one .crate file holding the given track paths."""
+    version = "1.0/Serato ScratchLive Crate".encode("utf-16-be")
+    blob = b"vrsn" + struct.pack(">I", len(version)) + version
+    for path in paths:
+        inner = (
+            b"ptrk" + struct.pack(">I", len(path.encode("utf-16-be"))) + path.encode("utf-16-be")
+        )
+        blob += b"otrk" + struct.pack(">I", len(inner)) + inner
+    (serato_root / "Subcrates" / f"{name}.crate").write_bytes(blob)
+
+
 def _stick(root: Path, *, crates: dict[str, list[str]], indexed: list[str]) -> Path:
     """Create a mount with a Rekordbox export and a Serato library."""
     rb = root / "PIONEER" / "rekordbox"
@@ -48,16 +60,7 @@ def _stick(root: Path, *, crates: dict[str, list[str]], indexed: list[str]) -> P
         )
     (serato / "database V2").write_bytes(db)
     for name, paths in crates.items():
-        version = "1.0/Serato ScratchLive Crate".encode("utf-16-be")
-        blob = b"vrsn" + struct.pack(">I", len(version)) + version
-        for path in paths:
-            inner = (
-                b"ptrk"
-                + struct.pack(">I", len(path.encode("utf-16-be")))
-                + path.encode("utf-16-be")
-            )
-            blob += b"otrk" + struct.pack(">I", len(inner)) + inner
-        (serato / "Subcrates" / f"{name}.crate").write_bytes(blob)
+        _write_crate(serato, name, paths)
     return root
 
 
@@ -113,6 +116,56 @@ async def test_tree_shows_every_playlist_with_its_state(tmp_path: Path) -> None:
 
         assert any("Techno" in label and "synced" in label for label in labels)
         assert any("Trance" in label and "not synced" in label for label in labels)
+
+
+@pytest.mark.asyncio
+async def test_tree_labels_show_synced_over_total_counts(tmp_path: Path) -> None:
+    """Each row shows how many tracks are synced, not just the state word."""
+    library = _library_with_two_playlists(tmp_path)
+    app = _Harness(library)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        tree = app.screen.query_one(Tree)
+        labels = {node.data.node.playlist.name: str(node.label) for node in tree.root.children}
+
+        assert "1/1" in labels["Techno"]
+        assert "0/1" in labels["Trance"]
+
+
+@pytest.mark.asyncio
+async def test_returning_to_the_screen_reflects_a_sync_that_just_happened(
+    tmp_path: Path,
+) -> None:
+    """The bug this closes: the tree used to stay stale until the app restarted.
+
+    LibraryScreen built its tree once in on_mount and never again, so
+    Done -> enter -> pop_screen landed back on a screen still showing
+    whatever was true before the sync ran. on_screen_resume now rebuilds it.
+    """
+    library = _library_with_two_playlists(tmp_path)
+    app = _Harness(library)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        tree = app.screen.query_one(Tree)
+        before = {node.data.node.playlist.name: str(node.label) for node in tree.root.children}
+        assert "0/1" in before["Trance"]
+
+        # Simulate what a completed sync writes: Trance now has a crate.
+        _write_crate(library.mount / "_Serato_", "Trance", ["Contents/b.mp3"])
+
+        # Simulate returning from Progress/Done: push another screen, then
+        # pop back to this one -- the same path DoneScreen's enter takes.
+        app.push_screen(Screen())
+        await pilot.pause()
+        app.pop_screen()
+        await pilot.pause()
+
+        tree = app.screen.query_one(Tree)
+        after = {node.data.node.playlist.name: str(node.label) for node in tree.root.children}
+        assert "1/1" in after["Trance"]
+        assert "synced" in after["Trance"]
+        assert "not" not in after["Trance"]
 
 
 @pytest.mark.asyncio

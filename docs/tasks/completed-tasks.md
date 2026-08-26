@@ -248,6 +248,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-210 — Library screen: refresh on resume, show synced/total counts
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | Fix the Library screen showing stale sync state after a sync (needed an app restart to update), and add visible `x/x` synced/total counts per the user's request |
+| Verification | ruff ✓ ruff format ✓ pytest 243 passed / 4 skipped; **not yet re-confirmed on real hardware** |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

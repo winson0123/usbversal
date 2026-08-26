@@ -213,6 +213,46 @@ def test_tree_empty_folder_is_red_not_green(tmp_path: Path) -> None:
     assert root.state is SyncState.NOT_SYNCED
 
 
+def test_tree_leaf_carries_its_own_synced_and_total_counts(tmp_path: Path) -> None:
+    """A leaf's synced/total match its own crate coverage, not just its state."""
+    mount = _stick(
+        tmp_path,
+        crates={"Pocket": ["Contents/a.mp3"]},
+        indexed=["Contents/a.mp3", "Contents/b.mp3", "Contents/c.mp3"],
+    )
+    playlist = Playlist(id=1, name="Pocket", parent_id=None, is_folder=False)
+    tracks = {1: ["/Contents/a.mp3", "/Contents/b.mp3", "/Contents/c.mp3"]}
+    library = make_library(mount, _adapter([playlist], tracks))
+
+    (leaf,) = playlist_tree_sync_states(library)
+
+    assert (leaf.synced, leaf.total) == (1, 3)
+
+
+def test_tree_folder_counts_sum_its_children(tmp_path: Path) -> None:
+    """A folder's synced/total are the sum across its descendants."""
+    mount = _stick(
+        tmp_path,
+        crates={"Genres%%Techno": ["Contents/a.mp3"]},
+        indexed=["Contents/a.mp3", "Contents/b.mp3", "Contents/c.mp3"],
+    )
+    folder = Playlist(id=9, name="Genres", parent_id=None, is_folder=True)
+    techno = Playlist(id=1, name="Techno", parent_id=9, is_folder=False)
+    trance = Playlist(id=2, name="Trance", parent_id=9, is_folder=False)
+    library = make_library(
+        mount,
+        _adapter(
+            [folder, techno, trance],
+            {1: ["/Contents/a.mp3"], 2: ["/Contents/b.mp3", "/Contents/c.mp3"]},
+        ),
+    )
+
+    (root,) = playlist_tree_sync_states(library)
+
+    # Techno: 1/1 synced. Trance: 0/2 synced. Folder sums both.
+    assert (root.synced, root.total) == (1, 3)
+
+
 def test_tree_rollup_composes_through_nested_folders(tmp_path: Path) -> None:
     """A folder of folders rolls up through both levels correctly."""
     mount = _stick(

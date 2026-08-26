@@ -2,7 +2,11 @@
 
 Arrow keys move, space toggles selection (a folder toggles every descendant
 playlist at once), enter confirms and, with at least one playlist selected,
-starts the sync (step 4, the Progress screen).
+starts the sync (step 4, the Progress screen). Coming back here after a sync
+(Done -> enter -> pop_screen) re-reads sync state from disk rather than
+showing whatever was true when the screen first loaded -- a track this
+screen doesn't reload for stays looking unsynced until the whole app
+restarts, which is exactly the bug this refresh-on-resume exists to avoid.
 """
 
 from __future__ import annotations
@@ -27,6 +31,14 @@ _SELECTED = "✓"
 _UNSELECTED = "·"
 _PARTIAL_SELECTED = "~"
 _STATUS_ID = "selection-status"
+
+# Fixed-width columns so the count and state sit in roughly the same place on
+# every row regardless of name length or nesting depth -- a real table would
+# align perfectly, but Tree has no column model, and a fixed-width label
+# gets close enough without giving up the folder hierarchy a table can't show.
+_NAME_WIDTH = 30
+_COUNT_WIDTH = 7
+_STATE_WIDTH = 10
 
 
 class LibraryScreen(Screen):
@@ -60,8 +72,21 @@ class LibraryScreen(Screen):
         yield Static("", id=_STATUS_ID)
         yield Footer()
 
-    async def on_mount(self) -> None:
+    async def on_screen_resume(self) -> None:
+        """
+        (Re)build the tree every time this screen becomes the active one.
+
+        Fires on the screen's first activation as well as later resumes
+        (confirmed empirically -- Textual gives no separate "first time"
+        signal), so this is the one place the tree is built at all; there is
+        no separate on_mount doing it too.
+        """
+        await self._refresh()
+
+    async def _refresh(self) -> None:
         tree = self.query_one(Tree)
+        tree.clear()
+        self._selected.clear()
         # playlist_tree_sync_states reads through library.rekordbox, which
         # must stay on the app's one dedicated thread -- see
         # UsbversalApp.run_rekordbox.
@@ -101,8 +126,13 @@ class LibraryScreen(Screen):
             checkbox = _SELECTED
         else:
             checkbox = _PARTIAL_SELECTED
+        name = f"{checkbox} {state.node.playlist.name}"
+        counts = f"{state.synced}/{state.total}"
         colour, word = _MARKER[state.state]
-        return f"{checkbox} {state.node.playlist.name}  [{colour}]{word}[/{colour}]"
+        return (
+            f"{name:<{_NAME_WIDTH}} {counts:>{_COUNT_WIDTH}}  "
+            f"[{colour}]{word:>{_STATE_WIDTH}}[/{colour}]"
+        )
 
     def action_toggle_selection(self) -> None:
         """Toggle the highlighted node; a folder toggles every descendant playlist."""

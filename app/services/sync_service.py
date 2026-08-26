@@ -139,11 +139,17 @@ class PlaylistTreeSyncState:
         node: Underlying tree node (the playlist/folder plus nested children).
         state: This node's traffic-light state -- a leaf's own state, or a
             folder's rolled up from its descendants.
+        synced: Tracks already in the crate -- a leaf's own ``in_crate``, or
+            the sum across a folder's descendants.
+        total: Tracks in the playlist -- a leaf's own ``total``, or the sum
+            across a folder's descendants.
         children: Nested tree-sync-state nodes, mirroring ``node.children``.
     """
 
     node: PlaylistNode
     state: SyncState
+    synced: int
+    total: int
     children: tuple[PlaylistTreeSyncState, ...] = ()
 
 
@@ -174,10 +180,11 @@ def playlist_tree_sync_states(library: UsbLibrary) -> tuple[PlaylistTreeSyncStat
     """
     Build the playlist tree with a red/yellow/green state at every node.
 
-    A leaf's state comes straight from ``playlist_sync_states``. A folder's
-    state is rolled up from its children -- which, for a nested folder, is
-    already itself a rollup, so the same three-way rule composes correctly at
-    every depth without re-walking descendants.
+    A leaf's state and counts come straight from ``playlist_sync_states``. A
+    folder's state is rolled up from its children -- which, for a nested
+    folder, is already itself a rollup, so the same three-way rule composes
+    correctly at every depth without re-walking descendants -- and its counts
+    are simply the sum of its children's.
 
     Args:
         library: Opened session handle.
@@ -185,16 +192,23 @@ def playlist_tree_sync_states(library: UsbLibrary) -> tuple[PlaylistTreeSyncStat
     Returns:
         Root-level tree-sync-state nodes, in Rekordbox order.
     """
-    leaf_states = {state.playlist_id: state.state for state in playlist_sync_states(library)}
+    leaf_states = {state.playlist_id: state for state in playlist_sync_states(library)}
     roots = build_playlist_tree(library.rekordbox.list_playlists())
 
     def _walk(node: PlaylistNode) -> PlaylistTreeSyncState:
         children = tuple(_walk(child) for child in node.children)
         if node.playlist.is_folder:
             state = _rollup_state([child.state for child in children])
+            synced = sum(child.synced for child in children)
+            total = sum(child.total for child in children)
         else:
-            state = leaf_states.get(node.playlist.id, SyncState.NOT_SYNCED)
-        return PlaylistTreeSyncState(node=node, state=state, children=children)
+            leaf = leaf_states.get(node.playlist.id)
+            state = leaf.state if leaf is not None else SyncState.NOT_SYNCED
+            synced = leaf.in_crate if leaf is not None else 0
+            total = leaf.total if leaf is not None else 0
+        return PlaylistTreeSyncState(
+            node=node, state=state, synced=synced, total=total, children=children
+        )
 
     return tuple(_walk(node) for node in roots)
 
