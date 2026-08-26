@@ -148,6 +148,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-133 — Never-clobber regression test
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-26 |
+| Objective | `tests/test_never_clobber.py` — proves `write_geob` never disturbs a Mixed In Key or other foreign vendor GEOB frame |
+| Verification | ruff ✓ ruff format ✓ pytest 173 passed / 3 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

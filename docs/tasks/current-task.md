@@ -10,43 +10,45 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-132` |
-| Objective | Codify the index BPM rule (first beat's tempo) as a library-wide correction pass, not just something `sync_playlists` applies to tracks it happens to touch |
+| Task ID | `TASK-133` |
+| Objective | Prove, with a regression test, that writing our own GEOB frames never disturbs a frame belonging to another tool (Mixed In Key, Sound Forge) |
 | Completed | 2026-08-26 |
 
 ### Scope
 
 Files touched:
 
-- `app/services/sync_service.py` — new `IndexCorrectionResult` dataclass and
-  `correct_index_bpm()`: walks every Rekordbox content row with analysis data,
-  compares its first beat's tempo against the matching `location.sqlite` row,
-  and corrects the row when they disagree
-- `tests/test_sync_playlists.py` — five new tests: fixes a wrong row, leaves a
-  matching row alone, dry run writes nothing, a track with no existing index
-  row is never inserted, missing `location.sqlite` raises
+- `tests/test_never_clobber.py` (new) — builds a synthetic ID3v2.4 MP3
+  carrying Mixed In Key's real frame names (`Key`, `Energy`, `CuePoints`,
+  unprefixed `BeatGrid`) plus a placeholder for Sound Forge's undocumented
+  frame, alongside our own `Serato BeatGrid`/`Serato Markers2`. Four tests:
+  foreign frames survive a beatgrid write, survive a cue write, survive
+  removing one of our own frames, and a write with no room to grow is refused
+  rather than evicting a foreign frame to make space
 - `docs/HANDOFF.md`, `docs/tasks/backlog.md`, `docs/state/*.json`
 
 ### Design decisions
 
-- **Library-wide, not playlist-scoped.** `sync_playlists`'s analysis pass
-  (TASK-130) only touches tracks in the playlists being synced, so the ~70
-  constant-tempo rows and the `Drake - NOKIA` variants HANDOFF.md names as
-  still wrong would stay wrong forever if a track never happens to sit in a
-  synced playlist again. `correct_index_bpm()` iterates
-  `library.rekordbox.database.get_contents()` directly instead.
-- **Same rule as `sync_playlists`, reused rather than reimplemented**: the
-  correct BPM is the first beat's tempo from the ANLZ grid
-  (`_analysis_dat_path` and `read_beats`, both already in this module). A
-  constant-tempo track's first beat already equals its real tempo, so this one
-  rule naturally corrects both the half/double bug and Serato's
-  wrong-section picks on variable-tempo tracks, without a separate detection
-  heuristic for "half or double."
-- **Never touches audio.** Only the index. `update_track_analysis` already
-  refuses to insert a row for a path Serato has not indexed, which is exactly
-  the "never insert" rule HANDOFF.md called for — nothing new needed there.
-- **Not yet run against the real stick.** The ~70 known-wrong rows are still
-  wrong on `/mnt/usb` until someone runs this there — see HANDOFF.md §1.
+- **No production code changed.** `write_geob` already only rebuilds frame
+  descriptions named in `updates`/`remove_geob`/`remove_frames`; every other
+  frame passes through the rebuild loop unchanged by construction. This task
+  was specifically to prove that with a test, per HANDOFF.md ("nothing
+  enforces that"), not to add a new runtime guard for something that already
+  can't happen.
+- **A synthetic MP3, not the WAV fixture.** The existing `Techno1.BEFORE.wav`
+  fixture doesn't carry Mixed In Key or Sound Forge frames, and hand-building
+  raw ID3v2.4 bytes is straightforward (same approach as `test_anlz.py`'s and
+  `test_sync_playlists.py`'s synthetic-container builders). This incidentally
+  exercises the MP3 tag path too, which `docs/tasks/backlog.md` still lists as
+  untested (TASK-084) — not this task's goal, but free coverage.
+- **Sound Forge's real frame name is undocumented anywhere in this repo**, so
+  a placeholder (`"Unknown Vendor Tag"`) stands in for it. The guarantee has
+  to hold for any frame we don't recognise, not only ones we can name, so a
+  placeholder is the more honest test than guessing at a string.
+- **The "refused, not evicted" case reuses the existing `padding < 0` check**
+  in `write_geob` — confirms that safety net still holds with foreign frames
+  present, and that the file is completely untouched on disk when it fires
+  (the check runs before the temp file is ever written).
 
 ### Verification log
 
@@ -54,11 +56,15 @@ Files touched:
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 169 passed, 3 skipped (no stick mounted; skips are the two `/mnt/usb` integration tests and the PyInstaller build) |
-| `.venv/bin/python -m app.cli --help` | all commands listed (unchanged — no CLI entry point for this yet, same as `sync_playlists`) |
+| `.venv/bin/pytest` | 173 passed, 3 skipped (no stick mounted; skips are the two `/mnt/usb` integration tests and the PyInstaller build) |
+| `.venv/bin/python -m app.cli --help` | all commands listed (unchanged) |
 
 ## Next
 
-`TASK-133` (never-clobber regression test) — confirm nothing this tool writes
-touches the ~20% of the library carrying Mixed In Key frames or the one file
-with Sound Forge frames.
+Nothing left in the M10.5 "finish the analysis port" backlog block —
+TASK-130 through TASK-134 (TASK-134 folded into TASK-126) are all done. The
+next pending items are M11 TUI groundwork (TASK-201, 203, 204, 206) and the
+older M8/M10 items (TASK-075, 076, 090); see `docs/tasks/backlog.md`. The one
+thing HANDOFF.md still calls out as unfinished is re-validating
+`sync_playlists`/`correct_index_bpm` against the real stick at `/mnt/usb`,
+which needs the physical device rather than more code.

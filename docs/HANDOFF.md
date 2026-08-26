@@ -10,8 +10,8 @@ task, state files updated after each.
 
 | | |
 |---|---|
-| Tests | 169 passed, 3 skipped (`ruff` and `ruff format` clean) |
-| Size | app 5,257 lines, tests 3,064 |
+| Tests | 173 passed, 3 skipped (`ruff` and `ruff format` clean) |
+| Size | app 5,257 lines, tests 3,170 |
 | Branch | `main`, clean, **no remote** |
 | Stick | `/mnt/usb`, bind-mounted to `/mnt/wsl/usb` — see the mount trap below |
 
@@ -63,20 +63,20 @@ and hot cues into the audio tags and, when a grid was written, updates
 `sync_playlists()` now writes crates, `database V2` records, `neworder.pref`,
 grids, cues, and the index in one backup-gated pass. A track whose audio or
 ANLZ data cannot be read is skipped and recorded in `SyncReport.analysis_errors`
-rather than aborting the run. What it does **not** yet do:
+rather than aborting the run. `correct_index_bpm()` (TASK-132) does the same
+first-beat-tempo correction library-wide, not only for tracks in a playlist
+being synced. `write_geob` (TASK-131) verifies size, audio hash, and frame
+read-back before any byte reaches disk, and `tests/test_never_clobber.py`
+(TASK-133) proves that verification, and the writer generally, never disturbs
+a Mixed In Key or other foreign vendor frame. What none of this has done yet:
 
-- **Correct the index for tracks it does not touch.** Index BPM only updates
-  for a track that got a fresh grid in this pass; the ~70 already-wrong
-  constant-tempo rows from before this tool existed stay wrong until a
-  dedicated correction pass runs (TASK-132).
-- **Guard against clobbering Mixed In Key or Sound Forge frames.** Nothing
-  currently writes to those files, but nothing tests that either (TASK-133).
-- **Reach the CLI or TUI.** `sync_playlists()` is callable and tested; no
-  command invokes it yet, same as before this task.
-
-This has been exercised against synthetic fixtures (a real WAV carrying real
-Serato frames, and hand-built ANLZ containers), not yet re-run against the test
-stick end to end. Re-validate on `/mnt/usb` before trusting it there.
+- **Reach the CLI or TUI.** `sync_playlists()` and `correct_index_bpm()` are
+  callable and tested; no command invokes either yet.
+- **Run against the real stick.** Exercised against synthetic fixtures only —
+  a real WAV carrying real Serato frames, hand-built ANLZ containers, and a
+  hand-built MP3 carrying foreign vendor frames. The ~70 known-wrong index
+  rows on `/mnt/usb` are still wrong until `correct_index_bpm()` actually runs
+  there. Re-validate before trusting any of this on real hardware.
 
 ---
 
@@ -110,7 +110,7 @@ Backups on the stick, newest last:
 
 ## Do this next
 
-### 1. Re-validate `sync_playlists` and `correct_index_bpm` on the real stick
+### Re-validate `sync_playlists` and `correct_index_bpm` on the real stick
 
 TASK-130 wired grids, cues, and the index into `sync_playlists`; TASK-132
 added `correct_index_bpm()` for rows outside a synced playlist. Both have only
@@ -120,11 +120,13 @@ double tempo in the index** and re-check the four `Drake - NOKIA` variants
 (indexed at 106 when the track opens at 126 for its first hundred seconds),
 then confirm in Serato before trusting either path generally.
 
-### 2. A never-clobber regression test
-
-About a fifth of the library carries Mixed In Key frames (`Key`, `Energy`,
-`CuePoints`, and its own `BeatGrid`), and one file carries Sound Forge frames.
-Nothing we write touches them, and nothing enforces that.
+Everything else from the original post-porting punch list (write verification,
+codifying the BPM rules, the never-clobber regression test, correcting this
+document) is done — TASK-131, TASK-132, TASK-133, TASK-126. What remains
+before the analysis path can be called finished is validating it on real
+hardware, plus the pre-existing M9/M11 backlog (MP3 tag writes untested, no
+CLI/TUI entry point for either function) that was never specific to this
+handoff. See `docs/tasks/backlog.md`.
 
 ---
 
