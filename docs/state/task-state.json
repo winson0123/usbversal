@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-26T08:00:00Z",
+  "updated_at": "2026-08-26T09:00:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -9,7 +9,6 @@
     "blocked_reason": null
   },
   "pending_tasks": [
-    "TASK-131",
     "TASK-132",
     "TASK-133",
     "TASK-201",
@@ -225,6 +224,11 @@
     {
       "id": "TASK-130",
       "title": "Wire grids, cues and the library index into sync_playlists",
+      "completed_at": "2026-08-26T00:00:00Z"
+    },
+    {
+      "id": "TASK-131",
+      "title": "Move write verification into write_geob",
       "completed_at": "2026-08-26T00:00:00Z"
     }
   ],
@@ -472,6 +476,12 @@
     {
       "id": "TASK-130",
       "title": "Wire grids, cues and the library index into sync_playlists",
+      "completed_at": "2026-08-26T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-131",
+      "title": "Move write verification into write_geob",
       "completed_at": "2026-08-26T00:00:00Z",
       "status": "completed"
     }

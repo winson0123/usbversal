@@ -10,8 +10,8 @@ task, state files updated after each.
 
 | | |
 |---|---|
-| Tests | 157 passed, 3 skipped (`ruff` and `ruff format` clean) |
-| Size | app 5,053 lines, tests 2,905 |
+| Tests | 164 passed, 3 skipped (`ruff` and `ruff format` clean) |
+| Size | app 5,152 lines, tests 2,972 |
 | Branch | `main`, clean, **no remote** |
 | Stick | `/mnt/usb`, bind-mounted to `/mnt/wsl/usb` — see the mount trap below |
 
@@ -57,7 +57,7 @@ and hot cues into the audio tags and, when a grid was written, updates
 | `adapters/rekordbox/anlz.py` | reads hot cues (`PCO2`) and beats (`PQTZ`) |
 | `adapters/serato/beatgrid.py` | encodes `Serato BeatGrid` |
 | `adapters/serato/markers2.py` | encodes/decodes `Serato Markers2` |
-| `adapters/serato/tags.py` | reads/writes GEOB frames in MP3 and WAV |
+| `adapters/serato/tags.py` | reads/writes GEOB frames in MP3 and WAV, verifying size, audio hash, and frame read-back before any byte reaches disk |
 | `adapters/serato/library_db.py` | reads/updates `location.sqlite` |
 
 `sync_playlists()` now writes crates, `database V2` records, `neworder.pref`,
@@ -65,8 +65,6 @@ grids, cues, and the index in one backup-gated pass. A track whose audio or
 ANLZ data cannot be read is skipped and recorded in `SyncReport.analysis_errors`
 rather than aborting the run. What it does **not** yet do:
 
-- **Verify writes.** `write_geob` has no size/hash check or read-back; a hand-run
-  pass caught two real defects this way (TASK-131).
 - **Correct the index for tracks it does not touch.** Index BPM only updates
   for a track that got a fresh grid in this pass; the ~70 already-wrong
   constant-tempo rows from before this tool existed stay wrong until a
@@ -118,35 +116,25 @@ TASK-130 wired grids, cues, and the index into `sync_playlists`, but it has
 only run against synthetic fixtures so far. Run it against a real playlist on
 `/mnt/usb` and confirm in Serato before trusting the wiring generally.
 
-### 2. Move write verification into `write_geob`
-
-Every hand-run pass repeated the same checks: file size unchanged, audio stream
-hash unchanged, frames read back, **abort on the first anomaly**. It caught two
-real defects — a silent no-op when a frame did not already exist, and a false
-positive from hashing a WAV whole. It belongs in the writer.
-
-### 3. Codify the rules that currently live only in this document
+### 2. Codify the rules that currently live only in this document
 
 - **Index BPM for a variable-tempo track is the first beat's tempo**, not
   Rekordbox's headline average and not Serato's pick. Serato consistently
   chooses the wrong section: all four `Drake - NOKIA` variants were indexed at
-  106 when the track opens at 126 for its first hundred seconds.
+  106 when the track opens at 126 for its first hundred seconds. `sync_playlists`
+  now applies this rule for any track it writes a fresh grid for (TASK-130),
+  but does not correct rows outside that pass.
 - Roughly **70 constant-tempo tracks** are still at half or double tempo in the
   index and have not been corrected.
-- Skip index rows Serato does not know; never insert.
+- Skip index rows Serato does not know; never insert. (Already true —
+  `update_track_analysis` only updates existing rows.)
 - Marker threshold is 2.0 BPM (already in `beatgrid.py`).
 
-### 4. A never-clobber regression test
+### 3. A never-clobber regression test
 
 About a fifth of the library carries Mixed In Key frames (`Key`, `Energy`,
 `CuePoints`, and its own `BeatGrid`), and one file carries Sound Forge frames.
 Nothing we write touches them, and nothing enforces that.
-
-### 5. Correct the documentation
-
-Several claims in `docs/` are wrong and would mislead. See "Retracted" below.
-`serato-schema-notes.md` does not mention `location.sqlite` at all, so a reader
-would author `database V2` and wonder why Serato ignores it.
 
 ---
 

@@ -66,7 +66,8 @@
     "serato_markers2_write": true,
     "serato_beatgrid_write": true,
     "audio_tag_write_wav": true,
-    "audio_tag_write_mp3": false
+    "audio_tag_write_mp3": false,
+    "audio_tag_write_verified": true
   },
   "packaging": {
     "pyinstaller": true,
@@ -79,10 +80,10 @@
     "ruff_format": "pass",
     "pytest": "pass",
     "last_run": "2026-08-26T00:00:00Z",
-    "tests_passed": 157,
+    "tests_passed": 164,
     "tests_skipped": 3,
     "tests_failed": 0,
-    "note": "run with no stick mounted this pass; the 3 skips are integration tests gated on USBVERSAL_TEST_MOUNT plus the PyInstaller build"
+    "note": "run with no stick mounted; the 3 skips are integration tests gated on USBVERSAL_TEST_MOUNT plus the PyInstaller build"
   },
   "dependencies": {
     "rbox": "0.1.7",
@@ -141,7 +142,6 @@
     "MP3 tag write path untested; 36/40 sampled MP3s are ID3v2.3 while fixtures are v2.4",
     "variable-tempo beatgrids encoded but unvalidated in Serato (33/500 tracks)",
     "79 files carry the broken +120s beatgrid from the abandoned attempt; repair not run",
-    "write_geob has no size/hash verification or abort-on-first-anomaly (TASK-131)",
     "index BPM rule (first beat's tempo) only applies to tracks synced going forward; ~70 already-wrong constant-tempo rows are not corrected (TASK-132)",
     "no never-clobber regression test for Mixed In Key / Sound Forge frames (TASK-133)",
     "playlist tree is flattened by every consumer",

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-21T00:00:00Z",
+  "updated_at": "2026-08-26T00:00:00Z",
   "allowed_patterns": [
     "adapter_per_vendor",
     "thin_cli",
@@ -14,7 +14,8 @@
     "single_active_task_per_agent",
     "merge_never_regenerate_vendor_index",
     "audio_file_writes_require_explicit_optin",
-    "vendor_imports_confined_to_adapters"
+    "vendor_imports_confined_to_adapters",
+    "verify_rewrite_before_disk_commit"
   ],
   "forbidden_patterns": [
     "cli_business_logic",

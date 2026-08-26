@@ -8,7 +8,7 @@ import pytest
 
 from app.adapters.rekordbox.anlz import Beat
 from app.adapters.serato.beatgrid import encode_beatgrid
-from app.adapters.serato.tags import TagFormatError, read_geob, write_geob
+from app.adapters.serato.tags import TagFormatError, read_geob, verify_geob_rewrite, write_geob
 
 FIXTURES = Path(__file__).parent / "fixtures" / "serato"
 
@@ -21,17 +21,24 @@ def wav(tmp_path: Path) -> Path:
     return target
 
 
-def _audio_chunk(path: Path) -> bytes:
-    """Return the WAV's raw audio payload."""
-    data = path.read_bytes()
+def _audio_chunk_offset(data: bytes) -> int:
+    """Return the byte offset of the WAV's `data` chunk payload."""
     offset = 12
     while offset + 8 <= len(data):
         chunk = data[offset : offset + 4]
         size = struct.unpack("<I", data[offset + 4 : offset + 8])[0]
         if chunk == b"data":
-            return data[offset + 8 : offset + 8 + size]
+            return offset + 8
         offset += 8 + size + (size & 1)
     raise AssertionError("no data chunk")
+
+
+def _audio_chunk(path: Path) -> bytes:
+    """Return the WAV's raw audio payload."""
+    data = path.read_bytes()
+    offset = _audio_chunk_offset(data)
+    size = struct.unpack("<I", data[offset - 4 : offset])[0]
+    return data[offset : offset + size]
 
 
 def test_reads_the_serato_frames(wav: Path) -> None:
@@ -89,6 +96,66 @@ def test_non_riff_input_is_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(TagFormatError):
         read_geob(junk)
+
+
+def test_a_frame_the_file_never_carried_reads_back(wav: Path) -> None:
+    """A brand new GEOB frame is appended, not silently dropped.
+
+    A hand-run pass once found this path silently no-op'd when the frame did
+    not already exist in the tag.
+    """
+    write_geob(wav, {"Serato Analysis": b"\x02\x01"})
+
+    assert read_geob(wav)["Serato Analysis"] == b"\x02\x01"
+
+
+def test_removed_frames_do_not_read_back(wav: Path) -> None:
+    """A frame named for removal is gone, not merely unchanged."""
+    write_geob(wav, {}, remove_geob={"Serato Autotags"})
+
+    assert "Serato Autotags" not in read_geob(wav)
+
+
+def test_verify_accepts_an_unchanged_rewrite(wav: Path) -> None:
+    """A rewrite that changes nothing passes verification."""
+    original = wav.read_bytes()
+
+    verify_geob_rewrite(original, original, {})
+
+
+def test_verify_rejects_a_size_change(wav: Path) -> None:
+    """A rebuilt file that grew or shrank is never written."""
+    original = wav.read_bytes()
+
+    with pytest.raises(TagFormatError, match="file size"):
+        verify_geob_rewrite(original, original + b"\x00", {})
+
+
+def test_verify_rejects_a_moved_or_altered_audio_stream(wav: Path) -> None:
+    """Corrupting the audio payload is caught even if the tag looks fine."""
+    original = wav.read_bytes()
+    start = _audio_chunk_offset(original)
+    corrupted = bytearray(original)
+    corrupted[start] ^= 0xFF
+
+    with pytest.raises(TagFormatError, match="audio stream"):
+        verify_geob_rewrite(original, bytes(corrupted), {})
+
+
+def test_verify_rejects_a_frame_that_did_not_take(wav: Path) -> None:
+    """A frame that does not read back as requested is caught before it is written."""
+    original = wav.read_bytes()
+
+    with pytest.raises(TagFormatError, match="Serato BeatGrid"):
+        verify_geob_rewrite(original, original, {"Serato BeatGrid": b"not what is on disk"})
+
+
+def test_verify_rejects_a_frame_meant_for_removal_still_present(wav: Path) -> None:
+    """A removal that did not actually remove the frame is caught."""
+    original = wav.read_bytes()
+
+    with pytest.raises(TagFormatError, match="Serato BeatGrid"):
+        verify_geob_rewrite(original, original, {}, remove_geob={"Serato BeatGrid"})
 
 
 def _beat_times(payload: bytes) -> list[float]:

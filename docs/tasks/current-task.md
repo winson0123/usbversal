@@ -10,51 +10,47 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-130` |
-| Objective | Wire Rekordbox beatgrid/hot-cue writing and the `location.sqlite` index update into `sync_playlists`, so a normal sync run reproduces what was previously only demonstrated by hand |
+| Task ID | `TASK-131` |
+| Objective | Move write verification (size, audio-stream hash, frame read-back) into `write_geob` so every caller gets it, not just a hand-run checklist |
 | Completed | 2026-08-26 |
 
 ### Scope
 
 Files touched:
 
-- `app/services/sync_service.py` — `_sync_analysis`, `_write_track_tags`,
-  `_analysis_dat_path` helpers; `sync_playlists` now runs the analysis pass
-  after crate/database writes; `SyncReport` gained `grids_written`,
-  `cues_written`, `index_rows_updated`, `analysis_errors`
-- `app/services/backup_service.py` — `serato_files_on_mount` now includes
-  `location.sqlite` when present; `backup_mount_for_migration` gained
-  `extra_files` (mirrors the existing parameter on `backup_mount_libraries`)
-- `tests/test_sync_playlists.py` — ANLZ/asset-table fixture builders, four new
-  end-to-end tests (grid+cues+index written; no analysis data leaves the index
-  alone; a malformed ANLZ file is skipped, not fatal; the audio file about to
-  be tagged is captured in the run's backup)
-- `tests/test_backup.py` — direct coverage for the two backup_service changes
-- `docs/HANDOFF.md`, `docs/tasks/backlog.md`, `docs/state/*.json`
+- `app/adapters/serato/tags.py` — new `_audio_span` (locates the raw audio
+  payload outside the tag; WAV needs its `data` chunk specifically, not
+  "everything after the tag"), `_read_geob_bytes` (in-memory GEOB parse,
+  factored out of `read_geob`), public `verify_geob_rewrite` (size, audio-hash,
+  and frame read-back checks), called from `write_geob` before the temp file
+  is written
+- `tests/test_audio_tags.py` — a new-frame round-trip test, a `remove_geob`
+  round-trip test, and direct unit tests of `verify_geob_rewrite`'s four
+  failure modes plus its pass-through case
 
 ### Design decisions
 
-- **Index BPM comes from the first beat's tempo**, not Rekordbox's headline
-  average — this is the rule HANDOFF.md documents as correct (Rekordbox
-  consistently mis-picks the section for variable-tempo tracks). Full
-  correction of already-wrong rows outside this pass is TASK-132.
-- **The index is only updated for a track that got a fresh grid in this
-  pass.** A track with hot cues but no beatgrid, or with neither, leaves
-  Serato's existing index row untouched — the point is to keep the list in
-  step with what the deck now actually reads, not to guess at BPM from
-  Rekordbox metadata for a file this pass never wrote to.
-- **Per-track failures are caught and recorded, not fatal.** A missing audio
-  file, an unreadable ANLZ container, or a tag write that does not fit the
-  padding budget is appended to `SyncReport.analysis_errors` and the run
-  continues — consistent with the per-operation-failure model TASK-102
-  established for `apply`.
-- **Only files with Rekordbox analysis data are added to the run's backup**,
-  not every audio file in the synced playlists — `_analysis_dat_path` is
-  checked before the backup is taken, so untouched files are not copied.
-- Write verification (size/hash/read-back, abort on first anomaly) is
-  deliberately **not** in this pass — that is TASK-131, scoped separately per
-  AGENT.md ("do not batch unrelated changes"). `write_geob`'s existing
-  same-size-tag guard is the only safety net right now.
+- **Verification runs before the temp file is written, not after.** `write_geob`
+  already writes to `<path>.tmp` then atomically renames over the target; the
+  new check runs on the in-memory rebuilt bytes first, so a failure leaves
+  both the original file and the temp file untouched — `verify_geob_rewrite`
+  never sees or touches the filesystem itself.
+- **The audio-hash check is chunk-aware for WAV, not "hash everything after
+  the tag".** HANDOFF.md records this as a real prior defect: a WAV's `id3 `
+  chunk is not necessarily the last chunk, so hashing the tail of the file
+  produced a false positive (looked unchanged when it wasn't, or flagged a
+  change when there wasn't one) depending on chunk order. `_audio_span` finds
+  the actual `data` chunk for WAV and reuses the existing MP3 tag-relative
+  logic for MP3.
+- **`verify_geob_rewrite` is public**, not a private helper, so it is
+  independently testable against synthetic before/after byte strings the way
+  `encode_beatgrid` and the ANLZ reader already are, and so a future caller
+  that assembles bytes itself (rather than going through `write_geob`) can
+  reuse the same safety check.
+- Only GEOB frames are covered — `remove_frames` (arbitrary non-GEOB ID3
+  frame ids) is unchanged and unverified beyond the existing size guard,
+  since the incident this task responds to was specifically about Serato's
+  own GEOB frames failing to round-trip.
 
 ### Verification log
 
@@ -62,16 +58,11 @@ Files touched:
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 157 passed, 3 skipped (no stick mounted this session; skips are the two `/mnt/usb` integration tests and the PyInstaller build) |
-| `.venv/bin/python -m app.cli --help` | all commands listed (unchanged — `sync_playlists` still has no CLI entry point) |
-
-Exercised against synthetic fixtures only: `tests/fixtures/serato/Techno1.BEFORE.wav`
-(a real WAV carrying real Serato GEOB frames with realistic padding) plus
-hand-built ANLZ `.DAT`/`.EXT` containers. **Not yet re-run against the real
-test stick** — see "Do this next" §1 in HANDOFF.md.
+| `.venv/bin/pytest` | 164 passed, 3 skipped (no stick mounted; skips are the two `/mnt/usb` integration tests and the PyInstaller build) |
+| `.venv/bin/python -m app.cli --help` | all commands listed (unchanged) |
 
 ## Next
 
-`TASK-131` (write verification in `write_geob`) — the next HANDOFF.md
-priority, and the natural follow-on now that `write_geob` is on the path
-`sync_playlists` actually runs instead of only a hand-run script.
+`TASK-132` (codify the index BPM rules) — `sync_playlists` already applies the
+first-beat-tempo rule for tracks it writes a fresh grid for; TASK-132 is about
+the ~70 already-wrong constant-tempo rows this pass never touches.

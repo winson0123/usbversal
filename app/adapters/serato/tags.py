@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import struct
 from pathlib import Path
 
@@ -81,20 +82,44 @@ def _tag_span(data: bytes) -> tuple[int, int]:
     raise TagFormatError("Unrecognised audio container")
 
 
-def read_geob(path: str | Path) -> dict[str, bytes]:
+def _audio_span(data: bytes) -> tuple[int, int]:
     """
-    Read Serato GEOB payloads from an audio file.
+    Return the (start, size) of the raw audio payload, outside any tag.
+
+    MP3 carries audio as everything after the ID3 tag. WAV interleaves
+    chunks, so the audio lives in its own `data` chunk rather than simply
+    after the tag -- hashing "everything but the tag" for a WAV would count
+    other metadata chunks as audio and mask a real corruption.
 
     Args:
-        path: Path to a .wav file carrying an ID3 tag.
+        data: Whole file contents.
 
     Returns:
-        Mapping of GEOB description to payload bytes.
+        Offset and length of the audio payload.
 
     Raises:
-        TagFormatError: The container or tag cannot be parsed.
+        TagFormatError: The container is not recognised, or a WAV carries no
+            `data` chunk.
     """
-    data = Path(path).read_bytes()
+    if data[:3] == b"ID3":
+        start, size = _tag_span(data)
+        return start + size, len(data) - (start + size)
+
+    if data[:4] == b"RIFF":
+        offset = 12
+        while offset + 8 <= len(data):
+            chunk = data[offset : offset + 4]
+            size = struct.unpack("<I", data[offset + 4 : offset + 8])[0]
+            if chunk == b"data":
+                return offset + 8, size
+            offset += 8 + size + (size & 1)
+        raise TagFormatError("No data chunk in WAV")
+
+    raise TagFormatError("Unrecognised audio container")
+
+
+def _read_geob_bytes(data: bytes) -> dict[str, bytes]:
+    """Parse GEOB payloads out of whole file contents already in memory."""
     start, size = _tag_span(data)
     tag = data[start : start + size]
     if tag[:3] != b"ID3":
@@ -117,6 +142,74 @@ def read_geob(path: str | Path) -> dict[str, bytes]:
     return frames
 
 
+def read_geob(path: str | Path) -> dict[str, bytes]:
+    """
+    Read Serato GEOB payloads from an audio file.
+
+    Args:
+        path: Path to a .wav file carrying an ID3 tag.
+
+    Returns:
+        Mapping of GEOB description to payload bytes.
+
+    Raises:
+        TagFormatError: The container or tag cannot be parsed.
+    """
+    return _read_geob_bytes(Path(path).read_bytes())
+
+
+def verify_geob_rewrite(
+    original: bytes,
+    rebuilt: bytes,
+    updates: dict[str, bytes],
+    *,
+    remove_geob: set[str] | None = None,
+) -> None:
+    """
+    Confirm a rewritten file changed nothing but the requested GEOB frames.
+
+    Every hand-run analysis pass repeated these three checks before trusting a
+    write: the file's size, its audio stream, and the frames actually read
+    back. This is that check, made mandatory rather than remembered. It caught
+    two real defects during that work: a silent no-op when a frame did not
+    already exist, and a false positive from hashing a WAV file whole instead
+    of just its `data` chunk.
+
+    Args:
+        original: File contents before the rewrite.
+        rebuilt: File contents about to be written.
+        updates: GEOB description to the payload it was supposed to become.
+        remove_geob: GEOB descriptions that were supposed to be deleted.
+
+    Raises:
+        TagFormatError: The file size changed, the audio payload moved or its
+            content changed, a written frame does not read back as requested,
+            or a frame meant for removal is still present.
+    """
+    if len(rebuilt) != len(original):
+        raise TagFormatError(
+            f"Write would change the file size ({len(original)} -> {len(rebuilt)} bytes)"
+        )
+
+    original_span = _audio_span(original)
+    rebuilt_span = _audio_span(rebuilt)
+    if original_span != rebuilt_span:
+        raise TagFormatError("Write would move the audio stream")
+    start, size = original_span
+    original_hash = hashlib.sha256(original[start : start + size]).digest()
+    rebuilt_hash = hashlib.sha256(rebuilt[start : start + size]).digest()
+    if original_hash != rebuilt_hash:
+        raise TagFormatError("Write would alter the audio stream")
+
+    frames = _read_geob_bytes(rebuilt)
+    for description, payload in updates.items():
+        if frames.get(description) != payload:
+            raise TagFormatError(f"{description!r} did not read back as written")
+    for description in remove_geob or set():
+        if description in frames:
+            raise TagFormatError(f"{description!r} was supposed to be removed")
+
+
 def write_geob(
     path: str | Path,
     updates: dict[str, bytes],
@@ -128,7 +221,10 @@ def write_geob(
     Replace or remove frames in an audio file's ID3 tag, in place.
 
     Only the named frames are touched. Every other frame and all audio data are
-    preserved byte for byte, and the tag keeps its original size.
+    preserved byte for byte, and the tag keeps its original size. Before
+    anything reaches disk, the rebuilt file is verified against the original:
+    same size, same audio stream, and every requested frame reads back exactly
+    as written. The original file is untouched if verification fails.
 
     Args:
         path: Path to an .mp3 or .wav file carrying an ID3 tag.
@@ -137,8 +233,9 @@ def write_geob(
         remove_frames: Frame ids to delete entirely, such as ``b"TKEY"``.
 
     Raises:
-        TagFormatError: The container or tag cannot be parsed, or the new
-            frames no longer fit the original tag.
+        TagFormatError: The container or tag cannot be parsed, the new frames
+            no longer fit the original tag, or the rebuilt file fails
+            verification against the original.
     """
     dropped_geob = remove_geob or set()
     dropped_frames = remove_frames or set()
@@ -205,6 +302,8 @@ def write_geob(
             b"id3 " + struct.pack("<I", len(new_tag)) + new_tag + b"\x00" * (len(new_tag) & 1)
         )
         new_data[4:8] = struct.pack("<I", len(new_data) - 8)
+
+    verify_geob_rewrite(bytes(data), bytes(new_data), updates, remove_geob=dropped_geob)
 
     temporary = target.with_suffix(target.suffix + ".tmp")
     temporary.write_bytes(bytes(new_data))

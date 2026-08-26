@@ -128,6 +128,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-131 — Move write verification into `write_geob`
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-26 |
+| Objective | Size, audio-stream hash, and frame read-back checks run before any byte reaches disk; a failure raises `TagFormatError` and leaves the original file untouched |
+| Verification | ruff ✓ ruff format ✓ pytest 164 passed / 3 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown
