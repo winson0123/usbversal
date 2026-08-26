@@ -10,8 +10,8 @@ task, state files updated after each.
 
 | | |
 |---|---|
-| Tests | 164 passed, 3 skipped (`ruff` and `ruff format` clean) |
-| Size | app 5,152 lines, tests 2,972 |
+| Tests | 169 passed, 3 skipped (`ruff` and `ruff format` clean) |
+| Size | app 5,257 lines, tests 3,064 |
 | Branch | `main`, clean, **no remote** |
 | Stick | `/mnt/usb`, bind-mounted to `/mnt/wsl/usb` — see the mount trap below |
 
@@ -110,27 +110,17 @@ Backups on the stick, newest last:
 
 ## Do this next
 
-### 1. Re-validate `sync_playlists` on the real stick
+### 1. Re-validate `sync_playlists` and `correct_index_bpm` on the real stick
 
-TASK-130 wired grids, cues, and the index into `sync_playlists`, but it has
-only run against synthetic fixtures so far. Run it against a real playlist on
-`/mnt/usb` and confirm in Serato before trusting the wiring generally.
+TASK-130 wired grids, cues, and the index into `sync_playlists`; TASK-132
+added `correct_index_bpm()` for rows outside a synced playlist. Both have only
+run against synthetic fixtures so far. Run `correct_index_bpm()` against
+`/mnt/usb` to actually fix the **~70 constant-tempo tracks still at half or
+double tempo in the index** and re-check the four `Drake - NOKIA` variants
+(indexed at 106 when the track opens at 126 for its first hundred seconds),
+then confirm in Serato before trusting either path generally.
 
-### 2. Codify the rules that currently live only in this document
-
-- **Index BPM for a variable-tempo track is the first beat's tempo**, not
-  Rekordbox's headline average and not Serato's pick. Serato consistently
-  chooses the wrong section: all four `Drake - NOKIA` variants were indexed at
-  106 when the track opens at 126 for its first hundred seconds. `sync_playlists`
-  now applies this rule for any track it writes a fresh grid for (TASK-130),
-  but does not correct rows outside that pass.
-- Roughly **70 constant-tempo tracks** are still at half or double tempo in the
-  index and have not been corrected.
-- Skip index rows Serato does not know; never insert. (Already true —
-  `update_track_analysis` only updates existing rows.)
-- Marker threshold is 2.0 BPM (already in `beatgrid.py`).
-
-### 3. A never-clobber regression test
+### 2. A never-clobber regression test
 
 About a fifth of the library carries Mixed In Key frames (`Key`, `Energy`,
 `CuePoints`, and its own `BeatGrid`), and one file carries Sound Forge frames.

@@ -138,6 +138,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-132 — Codify the index BPM rules
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-26 |
+| Objective | `correct_index_bpm()` — library-wide `location.sqlite` correction to each track's first-beat tempo, independent of playlist membership |
+| Verification | ruff ✓ ruff format ✓ pytest 169 passed / 3 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

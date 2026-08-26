@@ -10,47 +10,43 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-131` |
-| Objective | Move write verification (size, audio-stream hash, frame read-back) into `write_geob` so every caller gets it, not just a hand-run checklist |
+| Task ID | `TASK-132` |
+| Objective | Codify the index BPM rule (first beat's tempo) as a library-wide correction pass, not just something `sync_playlists` applies to tracks it happens to touch |
 | Completed | 2026-08-26 |
 
 ### Scope
 
 Files touched:
 
-- `app/adapters/serato/tags.py` — new `_audio_span` (locates the raw audio
-  payload outside the tag; WAV needs its `data` chunk specifically, not
-  "everything after the tag"), `_read_geob_bytes` (in-memory GEOB parse,
-  factored out of `read_geob`), public `verify_geob_rewrite` (size, audio-hash,
-  and frame read-back checks), called from `write_geob` before the temp file
-  is written
-- `tests/test_audio_tags.py` — a new-frame round-trip test, a `remove_geob`
-  round-trip test, and direct unit tests of `verify_geob_rewrite`'s four
-  failure modes plus its pass-through case
+- `app/services/sync_service.py` — new `IndexCorrectionResult` dataclass and
+  `correct_index_bpm()`: walks every Rekordbox content row with analysis data,
+  compares its first beat's tempo against the matching `location.sqlite` row,
+  and corrects the row when they disagree
+- `tests/test_sync_playlists.py` — five new tests: fixes a wrong row, leaves a
+  matching row alone, dry run writes nothing, a track with no existing index
+  row is never inserted, missing `location.sqlite` raises
+- `docs/HANDOFF.md`, `docs/tasks/backlog.md`, `docs/state/*.json`
 
 ### Design decisions
 
-- **Verification runs before the temp file is written, not after.** `write_geob`
-  already writes to `<path>.tmp` then atomically renames over the target; the
-  new check runs on the in-memory rebuilt bytes first, so a failure leaves
-  both the original file and the temp file untouched — `verify_geob_rewrite`
-  never sees or touches the filesystem itself.
-- **The audio-hash check is chunk-aware for WAV, not "hash everything after
-  the tag".** HANDOFF.md records this as a real prior defect: a WAV's `id3 `
-  chunk is not necessarily the last chunk, so hashing the tail of the file
-  produced a false positive (looked unchanged when it wasn't, or flagged a
-  change when there wasn't one) depending on chunk order. `_audio_span` finds
-  the actual `data` chunk for WAV and reuses the existing MP3 tag-relative
-  logic for MP3.
-- **`verify_geob_rewrite` is public**, not a private helper, so it is
-  independently testable against synthetic before/after byte strings the way
-  `encode_beatgrid` and the ANLZ reader already are, and so a future caller
-  that assembles bytes itself (rather than going through `write_geob`) can
-  reuse the same safety check.
-- Only GEOB frames are covered — `remove_frames` (arbitrary non-GEOB ID3
-  frame ids) is unchanged and unverified beyond the existing size guard,
-  since the incident this task responds to was specifically about Serato's
-  own GEOB frames failing to round-trip.
+- **Library-wide, not playlist-scoped.** `sync_playlists`'s analysis pass
+  (TASK-130) only touches tracks in the playlists being synced, so the ~70
+  constant-tempo rows and the `Drake - NOKIA` variants HANDOFF.md names as
+  still wrong would stay wrong forever if a track never happens to sit in a
+  synced playlist again. `correct_index_bpm()` iterates
+  `library.rekordbox.database.get_contents()` directly instead.
+- **Same rule as `sync_playlists`, reused rather than reimplemented**: the
+  correct BPM is the first beat's tempo from the ANLZ grid
+  (`_analysis_dat_path` and `read_beats`, both already in this module). A
+  constant-tempo track's first beat already equals its real tempo, so this one
+  rule naturally corrects both the half/double bug and Serato's
+  wrong-section picks on variable-tempo tracks, without a separate detection
+  heuristic for "half or double."
+- **Never touches audio.** Only the index. `update_track_analysis` already
+  refuses to insert a row for a path Serato has not indexed, which is exactly
+  the "never insert" rule HANDOFF.md called for — nothing new needed there.
+- **Not yet run against the real stick.** The ~70 known-wrong rows are still
+  wrong on `/mnt/usb` until someone runs this there — see HANDOFF.md §1.
 
 ### Verification log
 
@@ -58,11 +54,11 @@ Files touched:
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 164 passed, 3 skipped (no stick mounted; skips are the two `/mnt/usb` integration tests and the PyInstaller build) |
-| `.venv/bin/python -m app.cli --help` | all commands listed (unchanged) |
+| `.venv/bin/pytest` | 169 passed, 3 skipped (no stick mounted; skips are the two `/mnt/usb` integration tests and the PyInstaller build) |
+| `.venv/bin/python -m app.cli --help` | all commands listed (unchanged — no CLI entry point for this yet, same as `sync_playlists`) |
 
 ## Next
 
-`TASK-132` (codify the index BPM rules) — `sync_playlists` already applies the
-first-beat-tempo rule for tracks it writes a fresh grid for; TASK-132 is about
-the ~70 already-wrong constant-tempo rows this pass never touches.
+`TASK-133` (never-clobber regression test) — confirm nothing this tool writes
+touches the ~20% of the library carrying Mixed In Key frames or the one file
+with Sound Forge frames.

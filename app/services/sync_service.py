@@ -24,7 +24,12 @@ from app.adapters.serato import (
     read_database_track_paths,
 )
 from app.adapters.serato.beatgrid import encode_beatgrid
-from app.adapters.serato.library_db import TrackAnalysis, library_db_path, update_track_analysis
+from app.adapters.serato.library_db import (
+    TrackAnalysis,
+    library_db_path,
+    read_track_analysis,
+    update_track_analysis,
+)
 from app.adapters.serato.markers2 import Cue, decode_markers, encode_markers, replace_cues
 from app.adapters.serato.neworder import merge_crate_order, write_crate_order
 from app.adapters.serato.paths import list_crate_files
@@ -559,4 +564,104 @@ def sync_playlists(
         cues_written=analysis.cues_written,
         index_rows_updated=analysis.index_rows_updated,
         analysis_errors=analysis.errors,
+    )
+
+
+@dataclass(frozen=True)
+class IndexCorrectionResult:
+    """
+    Outcome of correcting BPM values already wrong in the Serato library index.
+
+    Attributes:
+        candidates: Tracks with both a Rekordbox beatgrid and an existing
+            index row, i.e. tracks this pass could judge.
+        rows_updated: Rows whose stored BPM did not match the first beat's
+            tempo and were corrected. Zero on a dry run.
+        backup_id: Backup taken before writing, None on a dry run or when
+            nothing needed correcting.
+    """
+
+    candidates: int
+    rows_updated: int
+    backup_id: str | None
+
+
+def correct_index_bpm(
+    library: UsbLibrary,
+    *,
+    dry_run: bool = False,
+    backup_root: str | Path | None = None,
+) -> IndexCorrectionResult:
+    """
+    Correct Serato library index rows whose BPM disagrees with Rekordbox's grid.
+
+    Applies the same rule ``sync_playlists`` uses when it writes a fresh grid:
+    the index BPM is the track's first beat's tempo, not Rekordbox's headline
+    average and not whatever Serato originally analysed. Unlike
+    ``sync_playlists``, this looks at every track in the library with
+    Rekordbox analysis data and an existing index row, not only tracks in a
+    playlist being synced -- it is how the rows a partial sync never reached
+    get fixed: constant-tempo tracks sitting at half or double tempo, and any
+    variable-tempo track Serato anchored on the wrong section.
+
+    Never writes to the audio files themselves, and never inserts a row --
+    only tracks Serato has already indexed are eligible, matching
+    ``update_track_analysis``'s own behaviour.
+
+    Args:
+        library: Opened session handle.
+        dry_run: Plan only; take no backup and write nothing.
+        backup_root: Optional backups parent directory.
+
+    Returns:
+        IndexCorrectionResult describing what would be, or was, corrected.
+
+    Raises:
+        SeratoLibraryRequiredError: The mount has no Serato library, or no
+            ``location.sqlite`` index yet.
+    """
+    serato_root = library.serato_root
+    if serato_root is None:
+        raise SeratoLibraryRequiredError(f"No Serato library under {library.mount}")
+    index_path = library_db_path(serato_root)
+    if not index_path.is_file():
+        raise SeratoLibraryRequiredError(f"No location.sqlite under {serato_root}")
+
+    indexed = read_track_analysis(index_path)
+    updates: dict[str, TrackAnalysis] = {}
+    candidates = 0
+    for content in library.rekordbox.database.get_contents():
+        dat_path = _analysis_dat_path(library.mount, content)
+        if dat_path is None:
+            continue
+        path = serato_path(content.path)
+        stored = indexed.get(path)
+        if stored is None:
+            continue
+        beats = read_beats(dat_path)
+        if not beats:
+            continue
+        candidates += 1
+        correct_bpm = beats[0].bpm
+        if stored.bpm != correct_bpm:
+            updates[path] = TrackAnalysis(bpm=correct_bpm)
+
+    if dry_run or not updates:
+        return IndexCorrectionResult(
+            candidates=candidates, rows_updated=len(updates), backup_id=None
+        )
+
+    backup = backup_mount_for_migration(library.mount, backup_root=backup_root)
+    context = WriteContext(backup_path=backup.backup_dir)
+    _ = context  # validated in WriteContext.__post_init__
+    rows_updated = update_track_analysis(index_path, updates)
+
+    logger.info(
+        "index_bpm_corrected",
+        candidates=candidates,
+        rows_updated=rows_updated,
+        backup_id=backup.backup_id,
+    )
+    return IndexCorrectionResult(
+        candidates=candidates, rows_updated=rows_updated, backup_id=backup.backup_id
     )

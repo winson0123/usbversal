@@ -49,6 +49,7 @@
     "sync_playlists_writes_grids_and_cues": true,
     "sync_playlists_updates_library_index": true,
     "serato_library_index_backup": true,
+    "index_bpm_correction_pass": true,
     "rekordbox_export_pdb_read": false,
     "write_context_verifies_manifest": true,
     "mount_path_validation": true,
@@ -80,7 +81,7 @@
     "ruff_format": "pass",
     "pytest": "pass",
     "last_run": "2026-08-26T00:00:00Z",
-    "tests_passed": 164,
+    "tests_passed": 169,
     "tests_skipped": 3,
     "tests_failed": 0,
     "note": "run with no stick mounted; the 3 skips are integration tests gated on USBVERSAL_TEST_MOUNT plus the PyInstaller build"
@@ -142,7 +143,7 @@
     "MP3 tag write path untested; 36/40 sampled MP3s are ID3v2.3 while fixtures are v2.4",
     "variable-tempo beatgrids encoded but unvalidated in Serato (33/500 tracks)",
     "79 files carry the broken +120s beatgrid from the abandoned attempt; repair not run",
-    "index BPM rule (first beat's tempo) only applies to tracks synced going forward; ~70 already-wrong constant-tempo rows are not corrected (TASK-132)",
+    "correct_index_bpm() exists but has not been run against the real stick's ~70 known-wrong rows yet",
     "no never-clobber regression test for Mixed In Key / Sound Forge frames (TASK-133)",
     "playlist tree is flattened by every consumer",
     "nested playlist folders collide on leaf crate name"

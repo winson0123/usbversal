@@ -14,8 +14,8 @@ from app.adapters.serato.library_db import library_db_path, read_track_analysis
 from app.adapters.serato.neworder import read_crate_order, write_crate_order
 from app.adapters.serato.tags import read_geob
 from app.core.domain import Playlist
-from app.services.migration_service import PlaylistNotFoundError
-from app.services.sync_service import sync_playlists
+from app.services.migration_service import PlaylistNotFoundError, SeratoLibraryRequiredError
+from app.services.sync_service import correct_index_bpm, sync_playlists
 from tests.conftest import EMPTY_DATABASE_V2, make_library
 
 TRACKS = ["/Contents/a.mp3", "/Contents/b.mp3"]
@@ -381,3 +381,95 @@ def test_analysis_targets_are_backed_up(tmp_path: Path) -> None:
 
     backup_dir = mount / "backups" / report.backup_id
     assert (backup_dir / "Contents" / "track.wav").is_file()
+
+
+def test_correct_index_bpm_fixes_a_wrong_row(tmp_path: Path) -> None:
+    """A row that disagrees with the first beat's tempo is corrected."""
+    mount = _stick(
+        tmp_path,
+        indexed=["Contents/track.wav"],
+        asset_rows={"Contents/track.wav": (106.0, "")},
+    )
+    dat = mount / "PIONEER" / "USBANLZ" / "P001" / "ANLZ0000.DAT"
+    _write_analysis(dat, beats=[(1, 126.0, 0), (2, 126.0, 476)], cues=[])
+    content = _content(
+        "/Contents/track.wav", analysis_data_file_path="/PIONEER/USBANLZ/P001/ANLZ0000.DAT"
+    )
+    library = _library(mount, [], {}, [content])
+
+    result = correct_index_bpm(library)
+
+    assert result.candidates == 1
+    assert result.rows_updated == 1
+    assert result.backup_id is not None
+    analysis = read_track_analysis(library_db_path(mount / "_Serato_"))["Contents/track.wav"]
+    assert analysis.bpm == 126.0
+
+
+def test_correct_index_bpm_leaves_matching_rows_alone(tmp_path: Path) -> None:
+    """A row that already agrees with the grid is not rewritten."""
+    mount = _stick(
+        tmp_path,
+        indexed=["Contents/track.wav"],
+        asset_rows={"Contents/track.wav": (128.0, "")},
+    )
+    dat = mount / "PIONEER" / "USBANLZ" / "P001" / "ANLZ0000.DAT"
+    _write_analysis(dat, beats=[(1, 128.0, 0)], cues=[])
+    content = _content(
+        "/Contents/track.wav", analysis_data_file_path="/PIONEER/USBANLZ/P001/ANLZ0000.DAT"
+    )
+    library = _library(mount, [], {}, [content])
+
+    result = correct_index_bpm(library)
+
+    assert result.candidates == 1
+    assert result.rows_updated == 0
+    assert result.backup_id is None
+
+
+def test_correct_index_bpm_dry_run_writes_nothing(tmp_path: Path) -> None:
+    """A dry run previews the count and leaves the index untouched."""
+    mount = _stick(
+        tmp_path,
+        indexed=["Contents/track.wav"],
+        asset_rows={"Contents/track.wav": (106.0, "")},
+    )
+    index_path = library_db_path(mount / "_Serato_")
+    before = index_path.read_bytes()
+    dat = mount / "PIONEER" / "USBANLZ" / "P001" / "ANLZ0000.DAT"
+    _write_analysis(dat, beats=[(1, 126.0, 0)], cues=[])
+    content = _content(
+        "/Contents/track.wav", analysis_data_file_path="/PIONEER/USBANLZ/P001/ANLZ0000.DAT"
+    )
+    library = _library(mount, [], {}, [content])
+
+    result = correct_index_bpm(library, dry_run=True)
+
+    assert result.rows_updated == 1
+    assert result.backup_id is None
+    assert index_path.read_bytes() == before
+
+
+def test_correct_index_bpm_skips_tracks_serato_does_not_know(tmp_path: Path) -> None:
+    """A track with no existing index row is never inserted."""
+    mount = _stick(tmp_path, indexed=[], asset_rows={})
+    dat = mount / "PIONEER" / "USBANLZ" / "P001" / "ANLZ0000.DAT"
+    _write_analysis(dat, beats=[(1, 126.0, 0)], cues=[])
+    content = _content(
+        "/Contents/track.wav", analysis_data_file_path="/PIONEER/USBANLZ/P001/ANLZ0000.DAT"
+    )
+    library = _library(mount, [], {}, [content])
+
+    result = correct_index_bpm(library)
+
+    assert result.candidates == 0
+    assert result.rows_updated == 0
+
+
+def test_correct_index_bpm_requires_an_index_file(tmp_path: Path) -> None:
+    """A Serato library with no location.sqlite yet cannot be corrected."""
+    mount = _stick(tmp_path, indexed=[])
+    library = _library(mount, [], {}, [])
+
+    with pytest.raises(SeratoLibraryRequiredError):
+        correct_index_bpm(library)
