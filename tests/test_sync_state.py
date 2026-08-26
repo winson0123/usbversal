@@ -8,6 +8,7 @@ from app.core.domain import Playlist, SyncState
 from app.services.sync_service import (
     find_crate_name_collisions,
     playlist_sync_states,
+    playlist_tree_sync_states,
     sync_states_to_dict,
 )
 from tests.conftest import EMPTY_DATABASE_V2, make_library
@@ -158,6 +159,77 @@ def test_collision_detection_flags_shared_crate_names() -> None:
 
     assert list(collisions) == ["Techno_Trance"]
     assert len(collisions["Techno_Trance"]) == 2
+
+
+def test_tree_folder_is_green_only_when_every_child_is_synced(tmp_path: Path) -> None:
+    """A folder rolls up to synced only if all of its children are."""
+    mount = _stick(
+        tmp_path,
+        crates={"Techno": ["Contents/a.mp3"], "Trance": ["Contents/b.mp3"]},
+        indexed=["Contents/a.mp3", "Contents/b.mp3"],
+    )
+    folder = Playlist(id=9, name="Genres", parent_id=None, is_folder=True)
+    techno = Playlist(id=1, name="Techno", parent_id=9, is_folder=False)
+    trance = Playlist(id=2, name="Trance", parent_id=9, is_folder=False)
+    library = make_library(
+        mount,
+        _adapter([folder, techno, trance], {1: ["/Contents/a.mp3"], 2: ["/Contents/b.mp3"]}),
+    )
+
+    (root,) = playlist_tree_sync_states(library)
+
+    assert root.state is SyncState.SYNCED
+    assert [child.state for child in root.children] == [SyncState.SYNCED, SyncState.SYNCED]
+
+
+def test_tree_folder_is_yellow_when_children_disagree(tmp_path: Path) -> None:
+    """One synced child and one unsynced child rolls the folder up to partial."""
+    mount = _stick(
+        tmp_path,
+        crates={"Techno": ["Contents/a.mp3"]},
+        indexed=["Contents/a.mp3", "Contents/b.mp3"],
+    )
+    folder = Playlist(id=9, name="Genres", parent_id=None, is_folder=True)
+    techno = Playlist(id=1, name="Techno", parent_id=9, is_folder=False)
+    trance = Playlist(id=2, name="Trance", parent_id=9, is_folder=False)
+    library = make_library(
+        mount,
+        _adapter([folder, techno, trance], {1: ["/Contents/a.mp3"], 2: ["/Contents/b.mp3"]}),
+    )
+
+    (root,) = playlist_tree_sync_states(library)
+
+    assert root.state is SyncState.PARTIAL
+
+
+def test_tree_empty_folder_is_red_not_green(tmp_path: Path) -> None:
+    """A folder with nothing in it has nothing outstanding but is not 'synced'."""
+    mount = _stick(tmp_path, crates={}, indexed=[])
+    folder = Playlist(id=9, name="Empty", parent_id=None, is_folder=True)
+    library = make_library(mount, _adapter([folder], {}))
+
+    (root,) = playlist_tree_sync_states(library)
+
+    assert root.state is SyncState.NOT_SYNCED
+
+
+def test_tree_rollup_composes_through_nested_folders(tmp_path: Path) -> None:
+    """A folder of folders rolls up through both levels correctly."""
+    mount = _stick(
+        tmp_path,
+        crates={"Techno": ["Contents/a.mp3"]},
+        indexed=["Contents/a.mp3"],
+    )
+    outer = Playlist(id=8, name="Music", parent_id=None, is_folder=True)
+    inner = Playlist(id=9, name="Genres", parent_id=8, is_folder=True)
+    techno = Playlist(id=1, name="Techno", parent_id=9, is_folder=False)
+    library = make_library(mount, _adapter([outer, inner, techno], {1: ["/Contents/a.mp3"]}))
+
+    (outer_state,) = playlist_tree_sync_states(library)
+
+    assert outer_state.state is SyncState.SYNCED
+    assert outer_state.children[0].state is SyncState.SYNCED
+    assert outer_state.children[0].children[0].state is SyncState.SYNCED
 
 
 def test_summary_counts_states(tmp_path: Path) -> None:

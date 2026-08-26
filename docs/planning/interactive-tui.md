@@ -32,39 +32,40 @@ rather than retrofitted later.
 | Progress events with `current`/`total` | `core.events.JobProgress` |
 | Error taxonomy for rendering | `services.errors` |
 
-## Gaps this TUI needs — none of these exist yet
+## Gaps this TUI needs
 
-1. **Per-playlist sync state (red / yellow / green).** Nothing computes it.
-   Requires diffing each Rekordbox playlist's track set against the
-   corresponding Serato crate: none present → red, some → yellow, all → green.
-   This is the single largest missing piece and it gates screen 3.
-   → **TASK-110**
+> Task IDs below are as originally planned (110–115) and are stale — see the
+> note at the top of `docs/tasks/backlog.md` M11. Current IDs and status:
 
-2. **A playlist *tree*.** `Playlist` carries `parent_id`, but every consumer
-   flattens it. The TUI needs real parent/child nesting with per-node
-   aggregate sync state. → **TASK-111**
+1. ~~**Per-playlist sync state (red / yellow / green).**~~ Done — TASK-111
+   (`playlist_sync_states`), tracked as TASK-200 in the current backlog.
+
+2. ~~**A playlist *tree*.**~~ Done — TASK-201, `core.playlist_tree.build_playlist_tree`
+   nests the flat `parent_id`-linked list, and `services.sync_service.playlist_tree_sync_states`
+   adds the per-node aggregate state a folder needs (green only if every
+   descendant is synced, red only if none are, yellow otherwise — including an
+   empty folder, which reads as red rather than vacuously green).
 
 3. **"Is this a valid DJ USB?" as one call.** Screens 1–2 need a single
    readiness verdict, not a library list to interpret. Note that an
    **unmounted mount point still passes `resolve_mount_path`** — `/mnt/usb`
    persists as an empty directory when the stick is pulled, so emptiness must
-   read as *no USB*, not as a valid path. → **TASK-112**
+   read as *no USB*, not as a valid path. → Done, TASK-110 (`probe_mount`),
+   tracked as TASK-202.
 
 4. **Removable-media polling.** Detection today is a one-shot scan. Screen 2
    needs to observe mounts appearing and disappearing over time, cheaply
    enough to run in a UI loop. `LibraryDiscovery` walks up to 25,000 nodes,
-   which is far too heavy to poll. → **TASK-113**
+   which is far too heavy to poll. → **TASK-203**, still open.
 
 5. **ETA on progress.** `JobProgress` carries `current`/`total` but no rate or
    time estimate, and `CliProgressRenderer` throttles to 10/s and prints
    lines. A TUI needs rate tracking to render a bar with a completion
-   estimate. → **TASK-114**
+   estimate. → **TASK-204**, still open.
 
-6. **Batch sync over selected playlists.** `apply` runs a plan file and takes
-   **one backup per operation**. Selecting 40 playlists must take a single
-   backup up front and report per-playlist outcomes — the collect-and-report
-   shape added in TASK-102 is the right base, but backup handling needs to
-   hoist out of the per-operation loop. → **TASK-115**
+6. ~~**Batch sync over selected playlists.**~~ Done — TASK-114/TASK-205,
+   `sync_playlists()` takes one backup for the whole run and reports
+   per-playlist outcomes.
 
 ## Constraints carried over
 

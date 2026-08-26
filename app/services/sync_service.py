@@ -39,7 +39,8 @@ from app.adapters.serato.writer import (
     append_database_tracks,
     write_crate,
 )
-from app.core.domain import Playlist, PlaylistSyncState
+from app.core.domain import Playlist, PlaylistSyncState, SyncState
+from app.core.playlist_tree import PlaylistNode, build_playlist_tree
 from app.core.track_paths import normalize_track_path
 from app.services.backup_service import backup_mount_for_migration
 from app.services.library import UsbLibrary
@@ -125,6 +126,75 @@ def playlist_sync_states(library: UsbLibrary) -> tuple[PlaylistSyncState, ...]:
 
     logger.info("sync_states_computed", playlists=len(states))
     return tuple(states)
+
+
+@dataclass(frozen=True)
+class PlaylistTreeSyncState:
+    """
+    One node of the playlist tree, carrying its own or its rolled-up sync state.
+
+    Attributes:
+        node: Underlying tree node (the playlist/folder plus nested children).
+        state: This node's traffic-light state -- a leaf's own state, or a
+            folder's rolled up from its descendants.
+        children: Nested tree-sync-state nodes, mirroring ``node.children``.
+    """
+
+    node: PlaylistNode
+    state: SyncState
+    children: tuple[PlaylistTreeSyncState, ...] = ()
+
+
+def _rollup_state(states: list[SyncState]) -> SyncState:
+    """
+    Combine child sync states into one folder-level verdict.
+
+    Green only if every child is fully synced, red only if none of them are
+    -- including no children at all, which reads as nothing outstanding to
+    sync rather than vacuously "all synced" -- yellow otherwise.
+
+    Args:
+        states: Sync states of a folder's direct children.
+
+    Returns:
+        The folder's own traffic-light state.
+    """
+    if not states:
+        return SyncState.NOT_SYNCED
+    if all(state == SyncState.SYNCED for state in states):
+        return SyncState.SYNCED
+    if all(state == SyncState.NOT_SYNCED for state in states):
+        return SyncState.NOT_SYNCED
+    return SyncState.PARTIAL
+
+
+def playlist_tree_sync_states(library: UsbLibrary) -> tuple[PlaylistTreeSyncState, ...]:
+    """
+    Build the playlist tree with a red/yellow/green state at every node.
+
+    A leaf's state comes straight from ``playlist_sync_states``. A folder's
+    state is rolled up from its children -- which, for a nested folder, is
+    already itself a rollup, so the same three-way rule composes correctly at
+    every depth without re-walking descendants.
+
+    Args:
+        library: Opened session handle.
+
+    Returns:
+        Root-level tree-sync-state nodes, in Rekordbox order.
+    """
+    leaf_states = {state.playlist_id: state.state for state in playlist_sync_states(library)}
+    roots = build_playlist_tree(library.rekordbox.list_playlists())
+
+    def _walk(node: PlaylistNode) -> PlaylistTreeSyncState:
+        children = tuple(_walk(child) for child in node.children)
+        if node.playlist.is_folder:
+            state = _rollup_state([child.state for child in children])
+        else:
+            state = leaf_states.get(node.playlist.id, SyncState.NOT_SYNCED)
+        return PlaylistTreeSyncState(node=node, state=state, children=children)
+
+    return tuple(_walk(node) for node in roots)
 
 
 def find_crate_name_collisions(playlists: tuple[Playlist, ...]) -> dict[str, list[str]]:

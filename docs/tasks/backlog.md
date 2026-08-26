@@ -130,7 +130,7 @@ and none of them exist yet.
 | ID | Title | Notes |
 |----|-------|-------|
 | ~~`TASK-200`~~ | ~~Per-playlist sync state~~ | Done — TASK-111, `playlist_sync_states()` |
-| `TASK-201` | Playlist tree model | `Playlist.parent_id` exists but every consumer flattens it. Needs real nesting plus aggregate sync state per folder. |
+| ~~`TASK-201`~~ | ~~Playlist tree model~~ | Done — `core/playlist_tree.py` (`build_playlist_tree`) nests the flat list; `sync_service.playlist_tree_sync_states` adds the per-folder rollup (green only if every descendant is synced, red only if none are, yellow otherwise; an empty folder reads red, not vacuously green). |
 | ~~`TASK-202`~~ | ~~Single "valid DJ USB?" readiness verdict~~ | Done — TASK-110, `probe_mount()` returns None for an empty mount point |
 | `TASK-203` | Removable-media polling | Detection is one-shot today. `LibraryDiscovery` walks up to 25,000 nodes — far too heavy for a UI loop. Needs a cheap mount-appeared/disappeared watch. |
 | `TASK-204` | Progress rate + ETA | `JobProgress` has `current`/`total` but no rate or estimate. |

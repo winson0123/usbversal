@@ -158,6 +158,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-201 — Playlist tree model
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-26 |
+| Objective | `core/playlist_tree.py` nests the flat `parent_id`-linked list; `sync_service.playlist_tree_sync_states` adds the per-folder sync-state rollup the TUI's library screen needs |
+| Verification | ruff ✓ ruff format ✓ pytest 183 passed / 3 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

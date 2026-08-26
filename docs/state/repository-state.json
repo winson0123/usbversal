@@ -59,7 +59,8 @@
     "vendor_imports_confined_to_adapters": true,
     "interactive_tui": false,
     "playlist_sync_state": true,
-    "playlist_tree_model": false,
+    "playlist_tree_model": true,
+    "playlist_tree_sync_rollup": true,
     "json_output_stdout_only": true,
     "discovery_skips_backup_trees": true,
     "sync_playlists": true,
@@ -82,7 +83,7 @@
     "ruff_format": "pass",
     "pytest": "pass",
     "last_run": "2026-08-26T00:00:00Z",
-    "tests_passed": 173,
+    "tests_passed": 183,
     "tests_skipped": 3,
     "tests_failed": 0,
     "note": "run with no stick mounted; the 3 skips are integration tests gated on USBVERSAL_TEST_MOUNT plus the PyInstaller build"
@@ -145,7 +146,6 @@
     "variable-tempo beatgrids encoded but unvalidated in Serato (33/500 tracks)",
     "79 files carry the broken +120s beatgrid from the abandoned attempt; repair not run",
     "correct_index_bpm() exists but has not been run against the real stick's ~70 known-wrong rows yet",
-    "playlist tree is flattened by every consumer",
     "nested playlist folders collide on leaf crate name"
   ]
 }

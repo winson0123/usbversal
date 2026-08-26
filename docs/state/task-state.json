@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-26T11:00:00Z",
+  "updated_at": "2026-08-26T12:00:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -9,7 +9,6 @@
     "blocked_reason": null
   },
   "pending_tasks": [
-    "TASK-201",
     "TASK-203",
     "TASK-204",
     "TASK-206",
@@ -237,6 +236,11 @@
     {
       "id": "TASK-133",
       "title": "Never-clobber regression test",
+      "completed_at": "2026-08-26T00:00:00Z"
+    },
+    {
+      "id": "TASK-201",
+      "title": "Playlist tree model",
       "completed_at": "2026-08-26T00:00:00Z"
     }
   ],
@@ -502,6 +506,12 @@
     {
       "id": "TASK-133",
       "title": "Never-clobber regression test",
+      "completed_at": "2026-08-26T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-201",
+      "title": "Playlist tree model",
       "completed_at": "2026-08-26T00:00:00Z",
       "status": "completed"
     }
