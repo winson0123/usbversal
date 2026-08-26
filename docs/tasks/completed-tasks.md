@@ -258,6 +258,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-211 — Library screen: true column alignment, "All playlists" node
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | Fix genuinely jagged columns (Tree's guide/icon width varies per row; fixed-width padding alone can't compensate) and add a collapsible "All playlists" node that selects/collapses the whole library at once |
+| Verification | ruff ✓ ruff format ✓ pytest 248 passed / 4 skipped; **not yet re-confirmed on real hardware** |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

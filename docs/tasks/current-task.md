@@ -10,69 +10,77 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-210` |
-| Objective | Two real-hardware findings from the same run: a synced playlist stayed "not synced" until the app restarted, and the user wanted `x/x` counts visible, not just the state word |
+| Task ID | `TASK-211` |
+| Objective | Two more user-reported issues on the same Library screen: the count/state columns still looked jagged despite TASK-210's fixed-width padding, and a request for an "All" option |
 | Completed | 2026-08-27 |
 
 ### Scope
 
-The user's report, after TASK-209's crash fix held on real hardware and a
-sync actually completed: the "toilet" playlist still showed "not synced" on
-the Library screen — only a full app restart picked up the change. Separately,
-mid-fix, they asked for the sync/not-synced/partial indicator justified
-properly, with `x/x` counts visible, not just the word.
-
 Files touched:
 
-- `app/services/sync_service.py` — `PlaylistTreeSyncState` gained `synced`
-  and `total` fields: a leaf's own `in_crate`/`total` from
-  `playlist_sync_states`, a folder's the sum across its children (composing
-  through nesting depth the same way `state`'s rollup already did).
-  `playlist_tree_sync_states()`'s `leaf_states` map now keeps the whole
-  `PlaylistSyncState`, not just `.state`, so the counts are available to read.
-- `app/tui/screens/library.py` — `on_mount` replaced by `on_screen_resume`,
-  which (re)builds the entire tree from `playlist_tree_sync_states` every
-  time this screen becomes the active one, not just the first time. Verified
-  empirically that Textual fires `on_screen_resume` on a screen's first
-  activation too (not just later resumes), so there's no separate "first
-  load" path needed. `_label()` now renders `name / count / state` as
-  fixed-width columns (`Tree` has no column model, so this is the closest a
-  label string gets without giving up the folder hierarchy that's the whole
-  point of this screen).
-- `tests/test_sync_state.py` — two new tests: a leaf carries its own
-  synced/total, a folder's are the sum of its children's
-- `tests/test_tui_library.py` — `_write_crate()` helper extracted from
-  `_stick()`'s inline crate-writing so a test can write a crate mid-run; one
-  new test for the count columns; one new test that is the actual regression
-  test for the reported bug — write a crate file after the screen has
-  already loaded, simulate the Progress→Done→Library round trip (push a
-  screen, pop it), and assert the tree now shows the update
+- `app/services/sync_service.py` — `_rollup_state` renamed to
+  `combine_sync_states` and made public (was already exactly the logic the
+  new "All playlists" node's aggregate state needs; exporting it avoided
+  writing the same three-way rule a second time in the TUI)
+- `app/tui/screens/library.py` — the real fix and the real feature:
+  - `_prefix_width(depth, is_folder)`: computes exactly how many cells
+    Tree's own guide lines and expand icon consume before a label at a given
+    depth, derived by reading `Tree.render_line()`'s actual output at
+    several depths (`▼ `, `├── `, `│   └── `, etc.) rather than guessing —
+    `depth * tree.guide_depth + (icon_width if is_folder else 0)`. Padding
+    now accounts for this instead of assuming every row starts at the same
+    offset, which naive fixed-width padding (TASK-210) did not.
+  - Checkbox glyphs changed from unicode (✓/·/~) to plain ASCII (x/-/~):
+    ambiguous-width unicode characters render as 1 or 2 terminal cells
+    depending on font, which was throwing off exactly the rows that used
+    them -- a second, independent source of the same jaggedness complaint.
+  - Padding now measures cell width via `rich.cells.cell_len` instead of
+    `len()`, so a playlist name with wide characters won't reintroduce the
+    same class of bug.
+  - "All playlists" is now a real, collapsible `Tree` folder node
+    (`tree.root.add(..., expand=True)`) containing every top-level
+    playlist/folder as children, not a sibling leaf next to them --
+    collapsing it hides the whole library, and toggling it selects
+    everything, both using the exact same mechanics every other folder
+    already has.
+  - New binding: `e` expands/collapses the highlighted folder.
+    Tree's own default for this was space, which TASK-207 already
+    repurposed for selection, so expand/collapse needed a home of its own.
+- `tests/test_tui_library.py` — `_playlist_nodes()` helper (real playlists
+  now sit one level under the "All playlists" node, not as `tree.root`'s
+  direct children); existing tests updated for the new nesting and cursor
+  position; four new tests: "All playlists" contains and aggregates every
+  top-level node, it collapses on `e`, `e` on a leaf is a no-op, and the
+  count column lands on the identical character offset across folder /
+  nested-leaf / top-level-leaf rows (the direct regression test for the
+  reported jaggedness)
 - `docs/tasks/backlog.md`, `docs/state/*.json`
 
 ### Design decisions
 
-- **`on_screen_resume` replaces `on_mount` entirely, not alongside it.**
-  Confirmed with a standalone repro before touching real code: Textual fires
-  `on_screen_resume` on a screen's very first activation, not only when
-  something pushed above it is later popped. Keeping tree-building in both
-  `on_mount` and `on_screen_resume` would have fetched sync state twice on
-  every fresh load for no reason.
-- **Counts flow through `PlaylistTreeSyncState`, not computed in the TUI.**
-  The service layer already owns the state-rollup math (`_rollup_state`);
-  putting the count-rollup right next to it keeps one place responsible for
-  "what does this node's sync coverage actually mean," rather than the
-  screen re-deriving totals from a tree it doesn't otherwise reason about.
-- **Fixed-width label columns, not a `DataTable`.** A real table would align
-  perfectly regardless of name length, but `DataTable` has no built-in tree
-  nesting — the folder hierarchy is this screen's whole reason for existing.
-  Padding the label string to fixed widths gets consistent-enough alignment
-  without trading that away; a name long enough to overflow its column
-  degrades to a shifted (but complete, not truncated) row rather than losing
-  information.
-- **Selection is cleared on every refresh**, including the redundant
-  first-activation fire. A selection surviving a refresh triggered by an
-  actual sync having just run doesn't make sense — those playlists were just
-  acted on.
+- **Derived the padding formula empirically, not from documentation.**
+  Textual's guide-rendering internals aren't part of its public API surface
+  in a way that's simple to introspect directly; rendering known tree
+  shapes and reading `Tree.render_line()`'s actual character output at each
+  depth (0/1/2, folder/leaf) gave an exact, verifiable formula rather than
+  an assumption that happened to look right in one test case.
+- **"All playlists" restructured as the true container, not left as a
+  summary row.** The user asked for it to be collapsible "as well" --
+  meaning like other folders -- which only makes sense if it structurally
+  *is* one. A sibling leaf with the same label text couldn't collapse
+  anything, since it had no children of its own to hide.
+- **`combine_sync_states` exported rather than reimplemented.** The "All"
+  node's aggregate state needs exactly the rollup rule folders already use;
+  giving the private function a public name and one doc update was cheaper
+  and safer than a second, easy-to-drift copy of a three-way state rule in
+  the TUI layer.
+- **ASCII checkboxes, not merely `cell_len`-aware unicode ones.** Padding
+  math trusts `cell_len`'s Unicode East Asian Width heuristic, but that
+  heuristic doesn't universally match what every real terminal/font
+  actually renders for *ambiguous-width* glyphs specifically (checkmarks,
+  middle dots) -- switching to unambiguous ASCII sidesteps the whole
+  category rather than trusting a heuristic that was already once wrong
+  about how wide these exact glyphs render.
 
 ### Verification log
 
@@ -80,12 +88,14 @@ Files touched:
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 243 passed, 4 skipped (no stick mounted in this environment, no `dist/usbversal` built) |
+| `.venv/bin/pytest` | 248 passed, 4 skipped (no stick mounted in this environment, no `dist/usbversal` built) |
 | `.venv/bin/python -m app.cli --help` | unchanged |
-| Real hardware | **Not yet re-confirmed by the user.** TASK-209's crash fix is confirmed working (their sync completed); this task's two fixes (refresh-on-resume, count columns) were made in response to what they saw on that same run but haven't been re-run since. |
+| Manual `Tree.render_line()` inspection | Built a 4-row synthetic tree (top-level folder, nested leaf, a deliberately long nested leaf, top-level leaf) and confirmed the count column starts at the identical character column on all but the over-length row, which shifts right rather than truncating or misaligning silently |
+| Real hardware | **Not yet re-confirmed by the user.** Everything here was verified in this environment only, via direct `Tree.render_line()` inspection and `Pilot`-driven tests against synthetic fixtures. |
 
 ## Next
 
-Ask the user to re-run against `/mnt/usb`: sync a playlist, confirm the
-Library screen shows it as synced (with correct counts) immediately on
-return, without restarting the app.
+Ask the user to re-run against `/mnt/usb`: check that the count/state
+columns line up visually now, that "All playlists" shows at the top and can
+be collapsed with `e`, and that toggling it with space selects every
+playlist in the library.

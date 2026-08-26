@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-27T06:00:00Z",
+  "updated_at": "2026-08-27T07:00:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -281,6 +281,11 @@
     {
       "id": "TASK-210",
       "title": "Library screen: refresh on resume, show synced/total counts",
+      "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-211",
+      "title": "Library screen: true column alignment, \"All playlists\" node",
       "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
@@ -606,6 +611,12 @@
     {
       "id": "TASK-210",
       "title": "Library screen: refresh on resume, show synced/total counts",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-211",
+      "title": "Library screen: true column alignment, \"All playlists\" node",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

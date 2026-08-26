@@ -71,6 +71,11 @@ def _adapter(playlists: list[Playlist], tracks: dict[int, list[str]]) -> MagicMo
     return adapter
 
 
+def _playlist_nodes(tree: Tree):
+    """Real playlist/folder nodes, one level under the "All playlists" root."""
+    return tree.root.children[0].children
+
+
 class _Harness(RekordboxThreadMixin, App):
     """Minimal app that pushes a Library screen for one library.
 
@@ -112,10 +117,65 @@ async def test_tree_shows_every_playlist_with_its_state(tmp_path: Path) -> None:
         await pilot.pause()
 
         tree = app.screen.query_one(Tree)
-        labels = [str(node.label) for node in tree.root.children]
+        labels = [str(node.label) for node in _playlist_nodes(tree)]
 
         assert any("Techno" in label and "synced" in label for label in labels)
         assert any("Trance" in label and "not synced" in label for label in labels)
+
+
+@pytest.mark.asyncio
+async def test_all_playlists_row_contains_everything_and_aggregates_it(
+    tmp_path: Path,
+) -> None:
+    """ "All playlists" is a real folder holding every top-level node, and
+    rolls up state/counts across the whole library."""
+    library = _library_with_two_playlists(tmp_path)
+    app = _Harness(library)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        tree = app.screen.query_one(Tree)
+        all_node = tree.root.children[0]
+
+        assert all_node.data.name == "All playlists"
+        assert all_node.allow_expand
+        assert {child.data.name for child in all_node.children} == {"Techno", "Trance"}
+        # Techno is 1/1 synced, Trance is 0/1 -- mixed, so partial; counts sum.
+        assert "1/2" in str(all_node.label)
+        assert "partial" in str(all_node.label)
+
+
+@pytest.mark.asyncio
+async def test_all_playlists_is_collapsible(tmp_path: Path) -> None:
+    """Pressing "e" on "All playlists" collapses it, hiding every playlist."""
+    library = _library_with_two_playlists(tmp_path)
+    app = _Harness(library)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        all_node = app.screen.query_one(Tree).root.children[0]
+        assert all_node.is_expanded
+
+        await pilot.press("e")
+        await pilot.pause()
+
+        assert not all_node.is_expanded
+
+
+@pytest.mark.asyncio
+async def test_e_does_nothing_on_a_leaf(tmp_path: Path) -> None:
+    """Expand/collapse on a non-folder row is a no-op, not an error."""
+    library = _library_with_two_playlists(tmp_path)
+    app = _Harness(library)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("down")  # move off "All playlists" onto "Techno", a leaf
+
+        await pilot.press("e")
+        await pilot.pause()
+
+        # Still there, still showing everything -- nothing broke.
+        tree = app.screen.query_one(Tree)
+        assert {child.data.name for child in _playlist_nodes(tree)} == {"Techno", "Trance"}
 
 
 @pytest.mark.asyncio
@@ -127,7 +187,7 @@ async def test_tree_labels_show_synced_over_total_counts(tmp_path: Path) -> None
         await pilot.pause()
 
         tree = app.screen.query_one(Tree)
-        labels = {node.data.node.playlist.name: str(node.label) for node in tree.root.children}
+        labels = {node.data.name: str(node.label) for node in _playlist_nodes(tree)}
 
         assert "1/1" in labels["Techno"]
         assert "0/1" in labels["Trance"]
@@ -148,7 +208,7 @@ async def test_returning_to_the_screen_reflects_a_sync_that_just_happened(
     async with app.run_test() as pilot:
         await pilot.pause()
         tree = app.screen.query_one(Tree)
-        before = {node.data.node.playlist.name: str(node.label) for node in tree.root.children}
+        before = {node.data.name: str(node.label) for node in _playlist_nodes(tree)}
         assert "0/1" in before["Trance"]
 
         # Simulate what a completed sync writes: Trance now has a crate.
@@ -162,19 +222,34 @@ async def test_returning_to_the_screen_reflects_a_sync_that_just_happened(
         await pilot.pause()
 
         tree = app.screen.query_one(Tree)
-        after = {node.data.node.playlist.name: str(node.label) for node in tree.root.children}
+        after = {node.data.name: str(node.label) for node in _playlist_nodes(tree)}
         assert "1/1" in after["Trance"]
         assert "synced" in after["Trance"]
         assert "not" not in after["Trance"]
 
 
 @pytest.mark.asyncio
-async def test_space_selects_the_highlighted_playlist(tmp_path: Path) -> None:
-    """Pressing space on a leaf toggles it into the selection."""
+async def test_space_on_all_playlists_selects_everything(tmp_path: Path) -> None:
+    """The cursor starts on the synthetic "All playlists" row; space selects everything."""
     library = _library_with_two_playlists(tmp_path)
     app = _Harness(library)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.press("space")
+        await pilot.pause()
+
+        status = str(app.screen.query_one("#selection-status", Static).render())
+        assert "2 playlists selected" in status
+
+
+@pytest.mark.asyncio
+async def test_space_selects_the_highlighted_playlist(tmp_path: Path) -> None:
+    """Pressing space on a leaf (past the "All" row) toggles just that one."""
+    library = _library_with_two_playlists(tmp_path)
+    app = _Harness(library)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("down")  # move off "All playlists" onto "Techno"
         await pilot.press("space")
         await pilot.pause()
 
@@ -189,6 +264,7 @@ async def test_space_again_deselects(tmp_path: Path) -> None:
     app = _Harness(library)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.press("down")
         await pilot.press("space")
         await pilot.press("space")
         await pilot.pause()
@@ -211,11 +287,45 @@ async def test_space_on_a_folder_selects_every_descendant(tmp_path: Path) -> Non
     app = _Harness(library)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.press("down")  # move off "All playlists" onto "Genres"
         await pilot.press("space")
         await pilot.pause()
 
         status = str(app.screen.query_one("#selection-status", Static).render())
         assert "2 playlists selected" in status
+
+
+@pytest.mark.asyncio
+async def test_count_column_lines_up_regardless_of_depth_or_row_kind(tmp_path: Path) -> None:
+    """The bug the user reported: columns looked jagged across different rows.
+
+    Tree's own guide lines and expand icon eat a different amount of space
+    per row depending on nesting depth and whether the row is a folder or a
+    leaf, so naive fixed-width padding on the label text alone drifts out of
+    alignment. _prefix_width compensates for exactly that, so the count
+    column should start at the same character offset on "All playlists"
+    (depth 0, no icon), a folder (depth 0, with an icon), and a leaf nested
+    two levels deep (depth 2, no icon).
+    """
+    mount = _stick(tmp_path, crates={}, indexed=[])
+    playlists = [
+        Playlist(id=8, name="Music", parent_id=None, is_folder=True),
+        Playlist(id=9, name="Genres", parent_id=8, is_folder=True),
+        Playlist(id=1, name="Techno", parent_id=9, is_folder=False),
+    ]
+    library = make_library(mount, _adapter(playlists, {1: []}))
+    app = _Harness(library)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        tree = app.screen.query_one(Tree)
+        lines = ["".join(segment.text for segment in tree.render_line(y)) for y in range(3)]
+        # "All playlists" (depth 0, no icon), "Music" (depth 0, folder icon),
+        # "Genres" (depth 1, folder icon) -- covers every combination this
+        # fixture can reach without a third nesting level.
+        positions = {line.index("0/0") for line in lines}
+
+        assert len(positions) == 1, lines
 
 
 @pytest.mark.asyncio
@@ -242,6 +352,7 @@ async def test_enter_with_a_selection_starts_the_sync(tmp_path: Path) -> None:
     with patch("app.tui.screens.library.ProgressScreen", _DummyProgressScreen):
         async with app.run_test() as pilot:
             await pilot.pause()
+            await pilot.press("down")  # move off "All playlists" onto "Techno"
             await pilot.press("space")
             await pilot.press("enter")
             await pilot.pause()

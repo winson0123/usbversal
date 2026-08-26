@@ -153,19 +153,21 @@ class PlaylistTreeSyncState:
     children: tuple[PlaylistTreeSyncState, ...] = ()
 
 
-def _rollup_state(states: list[SyncState]) -> SyncState:
+def combine_sync_states(states: list[SyncState]) -> SyncState:
     """
-    Combine child sync states into one folder-level verdict.
+    Combine several sync states into one overall verdict.
 
-    Green only if every child is fully synced, red only if none of them are
-    -- including no children at all, which reads as nothing outstanding to
-    sync rather than vacuously "all synced" -- yellow otherwise.
+    Green only if every one is fully synced, red only if none of them are --
+    including no states at all, which reads as nothing outstanding to sync
+    rather than vacuously "all synced" -- yellow otherwise. Used both for a
+    folder's rollup from its children and, in the TUI, for a library-wide
+    "select all" node's rollup from every top-level playlist.
 
     Args:
-        states: Sync states of a folder's direct children.
+        states: Sync states to combine.
 
     Returns:
-        The folder's own traffic-light state.
+        The combined traffic-light state.
     """
     if not states:
         return SyncState.NOT_SYNCED
@@ -198,7 +200,7 @@ def playlist_tree_sync_states(library: UsbLibrary) -> tuple[PlaylistTreeSyncStat
     def _walk(node: PlaylistNode) -> PlaylistTreeSyncState:
         children = tuple(_walk(child) for child in node.children)
         if node.playlist.is_folder:
-            state = _rollup_state([child.state for child in children])
+            state = combine_sync_states([child.state for child in children])
             synced = sum(child.synced for child in children)
             total = sum(child.total for child in children)
         else:
