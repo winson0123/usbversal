@@ -62,6 +62,34 @@ tool.
 
 ---
 
+## State of the test stick
+
+It has been modified by hand, not by the tool. Anyone testing against it should
+know what is already there.
+
+| What | State |
+|------|-------|
+| Pocket crate, 80 tracks | `Serato BeatGrid` and `Serato Markers2` written from Rekordbox |
+| `Apt X Blue` | 4-marker ramped grid (the only multi-marker track written) |
+| `location.sqlite` | ~22 rows corrected by hand: 7 Pocket BPMs, 14 variable-tempo tracks set to their first beat's tempo, plus `Apt X Blue` |
+| Everything else (~717 tracks) | untouched by us; Serato's own analysis only |
+| 5 files | restored from a pre-wipe backup, so they still carry old Serato and Mixed In Key frames while the other 75 do not |
+| `FOUND.000`, `FOUND.001` | 120 MB of clusters `chkdsk` salvaged during the corruption. Nothing needed came from them; safe to delete. |
+
+Because only Pocket has had tags written, the 14 index rows corrected outside it
+now show Rekordbox BPM in the list while the deck still reads Serato's analysis
+from untouched files. Those two views disagree until a full tag sync runs.
+
+Backups on the stick, newest last:
+
+```
+20260823T094303Z   Pocket, 80 files, before grids and cues
+20260825T064623Z   location.sqlite, before the first index edit
+20260826T031325Z   Apt X Blue, before the ramped grid
+20260826T034357Z   Apt X Blue + index
+20260826T034834Z   index, before the variable-tempo pass
+```
+
 ## Do this next
 
 ### 1. Wire analysis sync into `sync_playlists`

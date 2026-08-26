@@ -230,7 +230,25 @@ track encoding as the single marker Serato was verified to accept.
 
 ### Recommendation
 
-Sync beatgrids for **constant-tempo tracks only**, which is 93% of the library.
-For variable-tempo tracks, skip the grid and leave Serato to analyse: an error
-of 100 ms is a third of a beat and audible, and the format cannot carry the
-truth without changing the shape that was validated.
+> **Corrected 2026-08-26.** This section previously advised syncing beatgrids
+> for constant-tempo tracks only, on the grounds that a single marker cannot
+> represent a ramp and 100 ms of drift is audible. Both halves were wrong.
+> Serato writes a single marker for variable-tempo tracks too — of 60 untouched
+> tracks carrying both a Serato grid and Rekordbox beats, every one has exactly
+> one marker, including two the analysis reports as variable. And the drift
+> came from anchoring on every per-bar tempo reading, which is mostly jitter.
+
+Sync beatgrids for **every track**. Open a marker only where the tempo has moved
+more than 2 BPM from the last anchor. That collapses the three cases into one
+rule:
+
+| Track | Markers |
+|-------|---------|
+| Steady tempo | 1 — the 14-byte terminal marker Serato writes itself |
+| Two-section transition | 2 |
+| Ramped transition | ~4 |
+
+Rekordbox measures tempo once per bar and those readings wobble ±0.1 BPM, so
+counting distinct tempos badly overstates movement: `Apt X Blue` reports 28
+distinct tempos across 93 runs, but is steady at 149 until 84 s, ramps for about
+seven seconds, then holds 140 — exactly its title of 149→140.

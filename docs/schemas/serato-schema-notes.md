@@ -123,6 +123,55 @@ sharing a name in different folders collide.
 
 ---
 
+## `location.sqlite` — the library Serato actually reads [confirmed]
+
+`_Serato_/Library/location.sqlite`. **`database V2` is legacy.** This SQLite
+database is what Serato reads for its library list, and it tracks the old file
+explicitly: `last_seen_dbv2_library` holds `database V2`'s name, size and MD5,
+and `dbv2_status` records import and export revisions. Serato imports the flat
+file, then works from here.
+
+The split that matters:
+
+| Shown | Read from |
+|-------|-----------|
+| Beatgrid, hot cues, deck BPM | the audio file's GEOB frames |
+| Library list BPM and key | `location.sqlite` |
+
+So a track can load on the deck with a correct Rekordbox grid while the list
+still shows Serato's own BPM. Both are right; they are different sources.
+
+### The `asset` table
+
+One row per track, 797 on the test stick. Columns that matter:
+
+| Column | Meaning |
+|--------|---------|
+| `portable_id` | drive-relative path, matching the `pfil` form |
+| `bpm`, `key` | what the library list displays |
+| `revision` | per-row counter; `space.revision` follows the maximum |
+| `is_stale` | set when Serato should re-read the file |
+| `analysis_flags` | bitmap; 31 on analysed tracks |
+| `file_size`, `time_modified` | how Serato decides a file changed |
+| `type_specific_data` | **empty** — the beatgrid is not stored here |
+
+Global counters live in `serato.revision` and `master.revision`, both above the
+per-row maximum. There are no triggers on `asset`.
+
+### Why our writes go unnoticed
+
+Tag writes are size-preserving, because moving the audio stream invalidates
+`Serato Offsets_` and the waveform preview renders wrong. But that means
+`asset.file_size` never changes, `is_stale` stays 0, and Serato never re-reads
+the file. **Updating this index is required, not cosmetic.**
+
+`app/adapters/serato/library_db.py` reads and updates it: changed rows take new
+revisions above the current maximum, `space.revision` follows, and rows are
+marked stale. Rows Serato does not know are skipped rather than inserted.
+
+The revision semantics are inferred from observing the schema, not documented.
+Back the file up before writing to it.
+
 ## `database V2` [verified]
 
 `_Serato_/database V2`:
