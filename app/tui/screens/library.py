@@ -60,9 +60,13 @@ class LibraryScreen(Screen):
         yield Static("", id=_STATUS_ID)
         yield Footer()
 
-    def on_mount(self) -> None:
+    async def on_mount(self) -> None:
         tree = self.query_one(Tree)
-        for state in playlist_tree_sync_states(self._library):
+        # playlist_tree_sync_states reads through library.rekordbox, which
+        # must stay on the app's one dedicated thread -- see
+        # UsbversalApp.run_rekordbox.
+        states = await self.app.run_rekordbox(playlist_tree_sync_states, self._library)
+        for state in states:
             self._add_node(tree.root, state)
         tree.root.expand()
         tree.cursor_line = 0

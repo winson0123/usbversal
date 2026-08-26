@@ -238,6 +238,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-209 — Fix rbox thread-affinity crash on real hardware
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | `RekordboxThreadMixin` pins every `UsbLibrary.rekordbox` call to one dedicated thread, fixing a pyo3 process abort the TUI hit on its first real-hardware run |
+| Verification | ruff ✓ ruff format ✓ pytest 239 passed / 4 skipped; **not yet re-confirmed against real hardware by this agent** — awaiting the user's re-run |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

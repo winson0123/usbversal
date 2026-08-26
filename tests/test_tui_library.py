@@ -10,6 +10,7 @@ from textual.screen import Screen
 from textual.widgets import Static, Tree
 
 from app.core.domain import Playlist
+from app.tui.app import RekordboxThreadMixin
 from app.tui.screens.library import LibraryScreen
 from tests.conftest import EMPTY_DATABASE_V2, make_library
 
@@ -67,8 +68,14 @@ def _adapter(playlists: list[Playlist], tracks: dict[int, list[str]]) -> MagicMo
     return adapter
 
 
-class _Harness(App):
-    """Minimal app that pushes a Library screen for one library."""
+class _Harness(RekordboxThreadMixin, App):
+    """Minimal app that pushes a Library screen for one library.
+
+    Mixes in RekordboxThreadMixin directly rather than subclassing
+    UsbversalApp: Textual dispatches on_mount to every class in the MRO that
+    defines one, so subclassing UsbversalApp (which has its own on_mount
+    pushing HomeScreen) would push both screens.
+    """
 
     def __init__(self, library) -> None:
         super().__init__()

@@ -10,75 +10,72 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-076` |
-| Objective | Stop a plain rekordbox stick (no `_Serato_` at all) from being a dead end — `sync_playlists` and friends currently just raise `SeratoLibraryRequiredError` and stop |
+| Task ID | `TASK-209` |
+| Objective | Fix a real process-abort the TUI hit on its first run against actual hardware — a crash no test in this codebase could have caught |
 | Completed | 2026-08-27 |
 
 ### Scope
 
+The user ran `usbversal tui` against a real `/mnt/usb` stick and hit:
+
+```
+thread '<unnamed>' panicked: assertion 'left == right' failed:
+_rbox::one_library::PyOneLibrary is unsendable, but sent to another thread
+```
+
+`rbox`'s `PyOneLibrary` (the pyo3-wrapped Rust type backing
+`UsbLibrary.rekordbox`) is not `Send` — pyo3 aborts the whole process, not
+just raises a Python exception, the moment it is touched from any thread but
+the one that created it. Every TUI screen from TASK-206 onward wrapped
+blocking Rekordbox reads in `asyncio.to_thread`, whose shared default
+executor does not guarantee the same worker thread across separate calls —
+`HomeScreen._open` alone crossed threads twice (`open_library` on one
+executor thread, then `list_playlists()` back on the main thread the instant
+the `await` returned).
+
 Files touched:
 
-- `app/adapters/serato/paths.py` — `serato_root_for()` and `database_v2_path()`
-  added, computing where `_Serato_`/`database V2` belong even when neither
-  exists yet; `resolve_serato_library` refactored to use them
-- `app/adapters/serato/writer.py` — `create_empty_database_v2()`: writes just
-  the `vrsn` header (`"2.0/Serato Scratch LIVE Database"`, [verified] in the
-  schema notes) — what a fresh Serato install has before anything is
-  imported. Explicitly documented as **never** to be called when a database
-  V2 already exists (merge, never regenerate, is non-negotiable for a real
-  vendor index).
-- `app/services/bootstrap_service.py` (new) — `bootstrap_serato_library()`:
-  a no-op (reports `created=False`) when a Serato library already exists;
-  otherwise backs up the Rekordbox files, then creates `_Serato_/`,
-  `Subcrates/`, an empty `database V2`, and an empty `neworder.pref`
-- `app/storage/backup.py` — `create_backup` now disambiguates an auto-generated
-  `backup_id` collision (its timestamp has one-second resolution) with a
-  counter suffix instead of raising `FileExistsError`; an explicitly-passed
-  `backup_id` still raises on collision, since that's caller intent. Found
-  because chaining bootstrap straight into `sync_playlists` in the same test
-  process hit exactly this collision — not a hypothetical.
-- `app/tui/screens/home.py` — `_open()` now calls `bootstrap_serato_library`
-  before `open_library`, so a rekordbox-only stick reaches the Library screen
-  (and can actually sync) through the TUI, not just through direct calls
-- `tests/test_bootstrap.py` (new) — six tests: creates a valid empty library,
-  `PIONEER/` is byte-identical after (hashed, not just "should be"), the
-  backup actually contains the Rekordbox files, an existing Serato library is
-  left completely alone, no Rekordbox files means no backup means
-  `FileNotFoundError`, and — the actual point — `sync_playlists` succeeds on
-  a stick that had no Serato library five lines earlier
-- `tests/test_backup.py` — two new tests for the collision fix: a forced
-  same-second collision gets a `-2` suffix, an explicit `backup_id` collision
-  still raises
-- `tests/test_tui_home.py` — three existing tests patch
-  `bootstrap_serato_library` alongside `probe_mount`/`open_library` (it runs
-  unconditionally now); one new test lets bootstrap run for real against a
-  rekordbox-only stick and checks the files land on disk
-- `docs/planning/serato-index-bootstrap.md`, `docs/tasks/backlog.md`,
-  `docs/state/*.json`
+- `app/tui/app.py` — `RekordboxThreadMixin`: a single-worker `ThreadPoolExecutor`
+  kept for the app's whole lifetime, with `run_rekordbox(func, *args, **kwargs)`
+  marshalling any blocking call onto it via `functools.partial` +
+  `loop.run_in_executor`. `UsbversalApp` mixes it in (`RekordboxThreadMixin, App`)
+  rather than defining its own executor inline.
+- `app/tui/screens/home.py` — `open_library` and the `list_playlists()` count
+  both now go through `self.app.run_rekordbox(...)`; `bootstrap_serato_library`
+  stays on plain `asyncio.to_thread` since it never touches `library.rekordbox`
+- `app/tui/screens/library.py` — `on_mount` is now `async def` and awaits
+  `self.app.run_rekordbox(playlist_tree_sync_states, self._library)`
+- `app/tui/screens/progress.py` — `_run` awaits
+  `self.app.run_rekordbox(sync_playlists, ...)` instead of `asyncio.to_thread`
+- `tests/test_tui_app.py` (new) — four tests: two `run_rekordbox` calls land
+  on the identical OS thread, that thread is not the event-loop thread,
+  positional/keyword arguments reach the wrapped callable intact, and
+  `UsbversalApp` pushes exactly one Home screen (guards the MRO gotcha below)
+- `tests/test_tui_home.py`, `tests/test_tui_library.py`, `tests/test_tui_progress.py`
+  — their throwaway test harnesses (`_Harness`, `_LibraryHarness`) now mix
+  `RekordboxThreadMixin` into a bare `App` instead of subclassing `UsbversalApp`
 
-### Design decisions
+### A second bug found getting the fix right
 
-- **Bootstrap is a strict no-op on an existing library, not a merge point.**
-  `merge_never_regenerate_vendor_index` is a hard rule for a *real* index;
-  bootstrap's whole job is filling the gap when there is no index at all, so
-  the moment one exists — even a nearly-empty one — it backs off entirely
-  rather than trying to reconcile anything.
-- **Backs up Rekordbox files, not Serato files, before writing.** There is
-  nothing under `_Serato_` to back up yet (that's the premise), and the
-  safety property this task calls for is proving `PIONEER/` stays untouched
-  — the backup is *of* the thing that must not change, which also gives
-  `WriteContext` something non-empty to validate against.
-- **Wired into the TUI immediately, not left as a standalone function.**
-  Consistent with this whole session: `HomeScreen` already treats a
-  rekordbox-only stick as valid (it never required `probe.has_serato`), so
-  without this wiring the Library screen would render fine and then Progress
-  would fail on `SeratoLibraryRequiredError` the moment someone pressed enter
-  — a gap that would only be found by someone actually trying to use it.
-- **The backup-id collision fix is in scope, not deferred.** It surfaced
-  directly from testing this task's own integration path (bootstrap's backup
-  and `sync_playlists`'s backup landing in the same second) rather than being
-  speculative, and AGENT.md's non-negotiable backup-before-write rule means a
-  spurious `FileExistsError` there is a real correctness bug, not cosmetic.
+Subclassing `UsbversalApp` in a test harness and overriding `on_mount` to
+push a different starting screen seemed like the obvious way to reuse
+`run_rekordbox` in tests. It silently pushed **both** screens — `HomeScreen`
+ended up on top regardless of what the harness intended. Textual dispatches
+lifecycle messages like `on_mount` to *every* class in the MRO that defines
+one, not just the most-derived override (confirmed with a minimal two-class
+repro outside this codebase before touching anything real). Fixed by giving
+`RekordboxThreadMixin` no `on_mount` of its own and mixing it directly into a
+bare `App` in every test harness, so only one class in each hierarchy ever
+defines the handler.
+
+### Why no test caught the original crash
+
+Every existing TUI test drives `library.rekordbox` through a `MagicMock` or
+a real-but-synthetic `UsbLibrary` built from test fixtures — neither has any
+thread affinity to violate, so the whole test suite passed while the real
+thing aborted the process on first contact with actual hardware. Recorded
+explicitly in `known_gaps`: this class of bug is only found by running
+against a real stick, which is exactly what happened here.
 
 ### Verification log
 
@@ -86,17 +83,14 @@ Files touched:
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 235 passed, 4 skipped (no stick mounted, no `dist/usbversal` built; skips are 2 `/mnt/usb` integration tests, the opt-in full PyInstaller build, and the binary-help smoke test) |
+| `.venv/bin/pytest` | 239 passed, 4 skipped (no stick mounted in this environment, no `dist/usbversal` built) |
 | `.venv/bin/python -m app.cli --help` | unchanged |
+| Real hardware | **Not re-verified by this agent** — no stick is mounted in this environment. The fix is reasoned from the exact panic message and the pyo3/rbox thread-affinity contract, and covered by `test_tui_app.py`'s thread-identity tests, but the user's own re-run against `/mnt/usb` is the check that actually closes the loop. |
 
 ## Next
 
-`TASK-090` (`export.pdb` DeviceSQL reader) is the only item left in
-`docs/tasks/backlog.md`'s active queue, and it's explicitly marked deferred:
-"Not needed while `exportLibrary.db` is present — only for older sticks that
-ship `export.pdb` alone." Its own verification step ("dump the playlist tree
-and check names are readable") needs a real classic-format stick, which
-isn't available this session. Everything else queued at the start of this
-session — the analysis-port finish line (TASK-130-134), all of M11's
-interactive TUI (TASK-200-208), and the remaining M8 items (TASK-075,
-TASK-076) — is done.
+Ask the user to re-run `usbversal tui` (or `python -m app.tui`) against the
+real stick and confirm the crash is gone. If it opens cleanly and the
+Library screen renders, the fix holds; if anything else surfaces, it's
+almost certainly another real-hardware-only issue this session's mocked
+tests structurally cannot see coming.

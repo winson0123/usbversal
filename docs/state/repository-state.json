@@ -74,6 +74,7 @@
     "serato_library_bootstrap": true,
     "tui_bootstraps_serato_on_open": true,
     "backup_id_collision_safe": true,
+    "tui_rekordbox_thread_affinity_fixed": true,
     "json_output_stdout_only": true,
     "discovery_skips_backup_trees": true,
     "sync_playlists": true,
@@ -97,7 +98,7 @@
     "ruff_format": "pass",
     "pytest": "pass",
     "last_run": "2026-08-27T00:00:00Z",
-    "tests_passed": 235,
+    "tests_passed": 239,
     "tests_skipped": 4,
     "tests_failed": 0,
     "note": "run with no stick mounted and no dist/usbversal built; the 4 skips are 2 integration tests gated on USBVERSAL_TEST_MOUNT, the opt-in full PyInstaller build (USBVERSAL_PACKAGING_BUILD=1), and the binary-help smoke test that needs a prior ./scripts/build-release.sh -- a real build was run and verified during TASK-206, then cleaned up"
@@ -161,6 +162,7 @@
     "variable-tempo beatgrids encoded but unvalidated in Serato (33/500 tracks)",
     "79 files carry the broken +120s beatgrid from the abandoned attempt; repair not run",
     "correct_index_bpm() exists but has not been run against the real stick's ~70 known-wrong rows yet",
-    "nested playlist folder crate naming (Parent%%Child) is implemented but its convention is still unverified against real Serato"
+    "nested playlist folder crate naming (Parent%%Child) is implemented but its convention is still unverified against real Serato",
+    "the whole TUI test suite mocks/fakes the rekordbox adapter, so it cannot catch pyo3-level issues like the thread-affinity crash TASK-209 fixed -- that class of bug is only found by running against a real stick"
   ]
 }

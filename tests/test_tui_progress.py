@@ -10,6 +10,7 @@ from textual.screen import Screen
 from textual.widgets import ProgressBar, Static
 
 from app.services.sync_service import SyncReport
+from app.tui.app import RekordboxThreadMixin
 from app.tui.screens.progress import DoneScreen, ProgressScreen
 
 
@@ -45,8 +46,14 @@ def _fake_sync(*, calls=((1, 2), (2, 2)), report=None, error=None, delay_s=0.0):
     return _sync
 
 
-class _Harness(App):
-    """Minimal app that pushes a Progress screen for one sync run."""
+class _Harness(RekordboxThreadMixin, App):
+    """Minimal app that pushes a Progress screen for one sync run.
+
+    Mixes in RekordboxThreadMixin directly rather than subclassing
+    UsbversalApp: Textual dispatches on_mount to every class in the MRO that
+    defines one, so subclassing UsbversalApp (which has its own on_mount
+    pushing HomeScreen) would push both screens.
+    """
 
     def __init__(self, library, playlist_ids) -> None:
         super().__init__()
@@ -120,7 +127,7 @@ class _MarkerScreen(Screen):
         yield Static("library placeholder")
 
 
-class _LibraryHarness(App):
+class _LibraryHarness(RekordboxThreadMixin, App):
     """Pushes a marker screen (standing in for Library), then Progress on top."""
 
     def __init__(self, library, playlist_ids) -> None:

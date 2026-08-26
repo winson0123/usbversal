@@ -83,13 +83,15 @@ class HomeScreen(Screen):
         """Bootstrap a Serato library if needed, open it, then report readiness."""
         try:
             await asyncio.to_thread(bootstrap_serato_library, mount)
-            library = await asyncio.to_thread(open_library, mount)
+            # open_library, and every later touch of library.rekordbox, must
+            # run on the app's one dedicated thread -- see UsbversalApp.run_rekordbox.
+            library = await self.app.run_rekordbox(open_library, mount)
+            count = await self.app.run_rekordbox(lambda: len(library.rekordbox.list_playlists()))
         except (OSError, DatabaseNotFoundError, UnsupportedDatabaseError) as exc:
             self._seen_invalid = True
             self._show(f"{_NONE_FOUND} ({exc})")
             return
         self.library = library
-        count = len(library.rekordbox.list_playlists())
         self._show(f"Ready: {mount.name} — {count} playlists")
         self.app.push_screen(LibraryScreen(library))
 

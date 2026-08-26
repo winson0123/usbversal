@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-27T04:00:00Z",
+  "updated_at": "2026-08-27T05:00:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -271,6 +271,11 @@
     {
       "id": "TASK-076",
       "title": "Bootstrap _Serato_ on a rekordbox-only stick",
+      "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-209",
+      "title": "Fix rbox thread-affinity crash on real hardware",
       "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
@@ -584,6 +589,12 @@
     {
       "id": "TASK-076",
       "title": "Bootstrap _Serato_ on a rekordbox-only stick",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-209",
+      "title": "Fix rbox thread-affinity crash on real hardware",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

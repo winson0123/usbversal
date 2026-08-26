@@ -7,7 +7,6 @@ per-track progress; Done shows what happened. This is the first place
 
 from __future__ import annotations
 
-import asyncio
 import time
 from collections.abc import Sequence
 
@@ -51,7 +50,9 @@ class ProgressScreen(Screen):
 
     async def _run(self) -> None:
         try:
-            report = await asyncio.to_thread(
+            # sync_playlists reads through library.rekordbox, which must stay
+            # on the app's one dedicated thread -- see UsbversalApp.run_rekordbox.
+            report = await self.app.run_rekordbox(
                 sync_playlists,
                 self._library,
                 self._playlist_ids,
