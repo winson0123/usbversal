@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-26T00:00:00Z",
+  "updated_at": "2026-08-26T08:00:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -13,7 +13,6 @@
     "TASK-131",
     "TASK-132",
     "TASK-133",
-    "TASK-134",
     "TASK-201",
     "TASK-203",
     "TASK-204",
@@ -212,6 +211,16 @@
     {
       "id": "TASK-125",
       "title": "Refresh the handoff after the analysis-porting work",
+      "completed_at": "2026-08-26T00:00:00Z"
+    },
+    {
+      "id": "TASK-126",
+      "title": "Correct the stale guidance and document location.sqlite",
+      "completed_at": "2026-08-26T00:00:00Z"
+    },
+    {
+      "id": "TASK-127",
+      "title": "Cover the ANLZ reader with tests",
       "completed_at": "2026-08-26T00:00:00Z"
     }
   ],
@@ -441,6 +450,18 @@
     {
       "id": "TASK-125",
       "title": "Refresh the handoff after the analysis-porting work",
+      "completed_at": "2026-08-26T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-126",
+      "title": "Correct the stale guidance and document location.sqlite",
+      "completed_at": "2026-08-26T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-127",
+      "title": "Cover the ANLZ reader with tests",
       "completed_at": "2026-08-26T00:00:00Z",
       "status": "completed"
     }

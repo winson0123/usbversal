@@ -115,7 +115,8 @@ them. See [HANDOFF.md](../HANDOFF.md).
 | `TASK-131` | Move write verification into `write_geob` | Size, audio hash, frame read-back, abort on first anomaly. Caught two real defects when run by hand; five files were lost without it. |
 | `TASK-132` | Codify the index BPM rules | Variable tempo takes the first beat's tempo, not Rekordbox's headline or Serato's pick. ~70 constant-tempo rows are still at half or double. |
 | `TASK-133` | Never-clobber regression test | ~20% of the library carries Mixed In Key frames; one file carries Sound Forge frames. |
-| `TASK-134` | Correct the retracted claims in `docs/` | Five wrong claims listed in HANDOFF.md, and `location.sqlite` is undocumented in the schema notes. |
+| ~~`TASK-134`~~ | ~~Correct the retracted claims in `docs/`~~ | Done — TASK-126, `analysis-data-study.md` and `serato-schema-notes.md` |
+| ~~`TASK-127`~~ | ~~Cover the ANLZ reader with tests~~ | Done — not originally backlogged; the reader had no direct test coverage until this pass, `tests/test_anlz.py` |
 
 ## M11 — Interactive TUI (the shipped product)
 
