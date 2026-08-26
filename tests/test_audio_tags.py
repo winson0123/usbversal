@@ -138,17 +138,60 @@ def test_marker_anchors_on_the_first_downbeat() -> None:
     assert position == 2.0
 
 
-def test_varying_tempo_is_left_to_serato() -> None:
-    """A single marker cannot describe a changing tempo, so none is written."""
-    beats = [
-        Beat(number=1, bpm=120.0, time_ms=0),
-        Beat(number=2, bpm=120.0, time_ms=500),
-        Beat(number=3, bpm=140.0, time_ms=1000),
-    ]
-
-    assert encode_beatgrid(beats) is None
-
-
 def test_no_beats_yields_no_grid() -> None:
     """A track with no analysis produces no payload."""
     assert encode_beatgrid([]) is None
+
+
+def _bars(tempos: list[float], start_ms: int = 0) -> list[Beat]:
+    """Build beats laying out one bar per tempo, four beats each."""
+    beats: list[Beat] = []
+    time = float(start_ms)
+    for bpm in tempos:
+        step = 60000.0 / bpm
+        for number in range(1, 5):
+            beats.append(Beat(number=number, bpm=bpm, time_ms=int(time)))
+            time += step
+    return beats
+
+
+def test_tempo_jitter_does_not_open_markers() -> None:
+    """Rekordbox measures per bar and those readings wobble; that is not a change."""
+    beats = _bars([128.0, 128.1, 127.95, 128.05] * 4)
+
+    payload = encode_beatgrid(beats)
+
+    assert struct.unpack(">I", payload[2:6])[0] == 1
+
+
+def test_a_real_tempo_change_opens_a_marker() -> None:
+    """A transition between two tempos is anchored at the change."""
+    beats = _bars([128.0] * 4 + [94.0] * 4)
+
+    payload = encode_beatgrid(beats)
+    count = struct.unpack(">I", payload[2:6])[0]
+    _, terminal_bpm = struct.unpack(">ff", payload[6 + (count - 1) * 8 : 14 + (count - 1) * 8])
+
+    assert count == 2
+    assert round(terminal_bpm, 1) == 94.0
+
+
+def test_a_ramp_is_anchored_at_each_step() -> None:
+    """A gliding tempo gains a marker per meaningful step, not per bar."""
+    beats = _bars([148.0] * 8 + [146.0, 144.0, 142.0, 140.0] + [140.0] * 8)
+
+    count = struct.unpack(">I", encode_beatgrid(beats)[2:6])[0]
+
+    assert 3 <= count <= 6, count
+
+
+def test_non_terminal_markers_count_beats_to_the_next() -> None:
+    """Every marker but the last says how many beats reach the next one."""
+    beats = _bars([128.0] * 4 + [94.0] * 4)
+
+    payload = encode_beatgrid(beats)
+    position, beats_to_next = struct.unpack(">fI", payload[6:14])
+
+    assert position == 0.0
+    assert beats_to_next % 4 == 0
+    assert beats_to_next > 0
