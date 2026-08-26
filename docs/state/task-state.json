@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-21T00:00:00Z",
+  "updated_at": "2026-08-26T00:00:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -9,9 +9,11 @@
     "blocked_reason": null
   },
   "pending_tasks": [
-    "TASK-VALIDATE-GRID",
-    "TASK-085",
-    "TASK-084",
+    "TASK-130",
+    "TASK-131",
+    "TASK-132",
+    "TASK-133",
+    "TASK-134",
     "TASK-201",
     "TASK-203",
     "TASK-204",
@@ -191,6 +193,26 @@
       "id": "TASK-120",
       "title": "Add a handoff covering state, next steps, and traps",
       "completed_at": "2026-08-21T00:00:00Z"
+    },
+    {
+      "id": "TASK-122",
+      "title": "Write Rekordbox beatgrids and cues into audio tags",
+      "completed_at": "2026-08-26T00:00:00Z"
+    },
+    {
+      "id": "TASK-123",
+      "title": "Update Serato's library index so the list shows our analysis",
+      "completed_at": "2026-08-26T00:00:00Z"
+    },
+    {
+      "id": "TASK-124",
+      "title": "Anchor beatgrid markers at real tempo changes",
+      "completed_at": "2026-08-26T00:00:00Z"
+    },
+    {
+      "id": "TASK-125",
+      "title": "Refresh the handoff after the analysis-porting work",
+      "completed_at": "2026-08-26T00:00:00Z"
     }
   ],
   "history": [
@@ -396,6 +418,30 @@
       "id": "TASK-120",
       "title": "Add a handoff covering state, next steps, and traps",
       "completed_at": "2026-08-21T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-122",
+      "title": "Write Rekordbox beatgrids and cues into audio tags",
+      "completed_at": "2026-08-26T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-123",
+      "title": "Update Serato's library index so the list shows our analysis",
+      "completed_at": "2026-08-26T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-124",
+      "title": "Anchor beatgrid markers at real tempo changes",
+      "completed_at": "2026-08-26T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-125",
+      "title": "Refresh the handoff after the analysis-porting work",
+      "completed_at": "2026-08-26T00:00:00Z",
       "status": "completed"
     }
   ]

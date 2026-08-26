@@ -104,6 +104,19 @@ plus per-file backup required.** Sequenced strictly after M8.
 | `TASK-090` | `export.pdb` DeviceSQL reader | Spec captured in [rekordbox-schema-notes.md](../schemas/rekordbox-schema-notes.md) but **never parsed**. Not needed while `exportLibrary.db` is present — only for older sticks that ship `export.pdb` alone. Validate by dumping the playlist tree and checking names are readable. |
 | ~~`TASK-091`~~ | ~~Reconcile `ruff format` drift~~ | Done |
 
+## M10.5 — Finish the analysis port
+
+The adapters work and are confirmed in Serato, but no service or command calls
+them. See [HANDOFF.md](../HANDOFF.md).
+
+| ID | Title | Notes |
+|----|-------|-------|
+| `TASK-130` | Wire grids, cues and the library index into `sync_playlists` | The whole analysis path is unreachable from the tool; everything demonstrated was hand-run. |
+| `TASK-131` | Move write verification into `write_geob` | Size, audio hash, frame read-back, abort on first anomaly. Caught two real defects when run by hand; five files were lost without it. |
+| `TASK-132` | Codify the index BPM rules | Variable tempo takes the first beat's tempo, not Rekordbox's headline or Serato's pick. ~70 constant-tempo rows are still at half or double. |
+| `TASK-133` | Never-clobber regression test | ~20% of the library carries Mixed In Key frames; one file carries Sound Forge frames. |
+| `TASK-134` | Correct the retracted claims in `docs/` | Five wrong claims listed in HANDOFF.md, and `location.sqlite` is undocumented in the schema notes. |
+
 ## M11 — Interactive TUI (the shipped product)
 
 > IDs renumbered to the 200s on 2026-08-21: 110-116 had been reused by the
