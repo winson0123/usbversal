@@ -10,7 +10,10 @@ VENDOR_MODULES = {"rbox", "serato_tools"}
 
 # Layer -> packages it is allowed to import from (plus itself and stdlib/3rd-party).
 ALLOWED_LAYER_IMPORTS = {
-    "cli": {"jobs", "services", "core"},
+    # cli's dependency on tui is a single thin delegation (`usbversal tui`
+    # launches the TUI app) -- not a general license to reach into it.
+    "cli": {"jobs", "services", "core", "tui"},
+    "tui": {"jobs", "services", "core"},
     "jobs": {"services", "core", "storage", "adapters"},
     "services": {"core", "adapters", "storage"},
     "adapters": {"core", "storage"},

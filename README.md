@@ -42,8 +42,16 @@ Use this mount only for integration validation tasks explicitly scoped in `docs/
 
 The `usbversal` binary and `python -m app.cli` accept the same commands. The
 current argparse interface is a **harness for testing the underlying services**;
-the shipped tool will be an interactive terminal UI (see
-[docs/planning/interactive-tui.md](docs/planning/interactive-tui.md)).
+the shipped tool is an interactive terminal UI, built on `textual`
+([ADR 0009](docs/decisions/0009-use-textual-for-the-tui.md)) and still in
+progress (see
+[docs/planning/interactive-tui.md](docs/planning/interactive-tui.md)):
+
+```bash
+usbversal tui
+# or
+python -m app.tui
+```
 
 ### Read-only
 
@@ -103,7 +111,8 @@ See [docs/workflows/release-workflow.md](docs/workflows/release-workflow.md) and
 | Path | Role |
 |------|------|
 | `app/` | Python package root |
-| `app/cli/` | Thin CLI entrypoints (`python -m app.cli`) |
+| `app/cli/` | Thin CLI entrypoints (`python -m app.cli`) — test harness for the service layer |
+| `app/tui/` | The shipped product: interactive terminal UI (`python -m app.tui`) |
 | `app/core/` | Domain models and events |
 | `app/adapters/` | Rekordbox / Serato adapters |
 | `app/services/` | Scan, backup, playlist/crate orchestration |

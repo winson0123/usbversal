@@ -2,7 +2,7 @@
 
 **Status:** `idle`
 **Task ID:** none
-**Last updated:** 2026-08-26
+**Last updated:** 2026-08-27
 
 ---
 
@@ -10,52 +10,81 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-204` |
-| Objective | A rate and ETA for job progress, and wire it into the one progress renderer that exists so it's reachable now, not just a tested utility waiting for the TUI |
-| Completed | 2026-08-26 |
+| Task ID | `TASK-206` |
+| Objective | Decide and record the TUI framework, then scaffold a real, working app shell — not just an ADR, a shell that actually launches and does step 1-2 of the target flow |
+| Completed | 2026-08-27 |
 
 ### Scope
 
 Files touched:
 
-- `app/jobs/progress_rate.py` (new) — `ProgressEstimate`, `ProgressRateTracker`:
-  `observe()` takes a `current`/`total`/timestamp sample and returns the
-  whole-run rate and ETA so far
-- `app/cli/progress.py` — `CliProgressRenderer` now keeps one
-  `ProgressRateTracker` per `job_id` and appends `(N.N/s, eta Xs)` to a
-  progress line once that job has two samples
-- `tests/test_progress_rate.py` (new) — single-sample yields no estimate,
-  rate is units-over-elapsed, ETA is remaining-over-rate, the rate averages
-  over the whole run rather than just the latest step, no total yields a rate
-  but no ETA, no progress yet (only elapsed time) yields no estimate rather
-  than a false zero, reaching the total gives a zero ETA rather than a
-  division by zero, and a second tracker starts with no memory of the first
-- `tests/test_cli_progress.py` — three new tests: rate/ETA appear on a
-  second sample, are absent on the first, and two interleaved job ids don't
-  pollute each other's estimate
-- `docs/planning/interactive-tui.md`, `docs/tasks/backlog.md`, `docs/state/*.json`
+- `docs/decisions/0009-use-textual-for-the-tui.md` (new) — the framework
+  decision, with a real comparison table and measured (not guessed) packaging
+  cost
+- `pyproject.toml` — `textual>=8.0.0` added as a runtime dependency
+- `app/tui/` (new package) — `app.py` (`UsbversalApp`), `__main__.py`
+  (`python -m app.tui`), `screens/home.py` (`HomeScreen`: steps 1-2, Waiting
+  and Detect, polling via `MountWatcher` and probing via `probe_mount`,
+  opening the library off the event loop thread via `asyncio.to_thread`
+  inside a Textual worker)
+- `app/services/library.py` — re-exports `MountWatcher`/`MountChange`/
+  `MountChangeKind` from `app.storage.mount_watch`, so `app/tui/` (like
+  `app/cli/`) never imports `storage` directly
+- `app/cli/main.py` — new `tui` subcommand, a one-line delegation to
+  `app.tui.app.run()`
+- `tests/test_architecture.py`, `docs/state/architecture-state.json` — `tui`
+  registered as a layer permitted `{jobs, services, core}`, same as `cli`;
+  `cli`'s dependency on `tui` is the one explicit exception (a single
+  delegation, not general access)
+- `packaging/usbversal.spec` — `collect_submodules("textual")` and
+  `collect_data_files("textual")` (its `.tcss` stylesheets are package
+  resources PyInstaller's static analysis does not see on its own)
+- `tests/test_tui_home.py` (new) — five tests via Textual's `Pilot`/
+  `run_test()`: searching state with nothing mounted, "did not detect" for an
+  invalid mount, a valid mount opens the library and reports readiness, an
+  open failure (a race between probe and open) is reported rather than
+  crashing the app, and a second poll after opening does not re-probe
+- `tests/test_packaging_smoke.py` — fixed a stale assertion (`"apply" in
+  result.stdout`) discovered while validating the real build; `apply` was
+  removed from the CLI back in TASK-109 and this test had been silently
+  skip-passing ever since because `dist/usbversal` is gitignored and not
+  normally present
+- `ARCHITECTURE.md`, `README.md`, `docs/planning/interactive-tui.md`,
+  `docs/tasks/backlog.md`, `docs/state/repository-state.json`
 
 ### Design decisions
 
-- **Averages over the whole run, not the most recent interval.** A sync
-  job's per-track cost varies (a large MP3's tag rewrite next to a small
-  WAV's), so a most-recent-interval rate would swing on every step; anchoring
-  on the first sample and dividing by total elapsed time is steadier. Has a
-  test proving a slow first step doesn't get erased by comparing against
-  what a most-recent-interval computation would have shown.
-- **"No progress yet" is `None`, not a zero rate.** Time passing with
-  `current` unchanged is a stalled or not-yet-started job, not a
-  mathematically valid zero-rate estimate — reporting `None` lets a renderer
-  distinguish "still figuring out the rate" from "the rate is genuinely
-  zero," which the type never actually returns.
-- **Lives in `app/jobs/`, not `core`.** It's a rate/ETA concept tied to
-  `JobProgress`, consumed by the CLI/TUI layers per the layer rule
-  (`cli: [jobs, services, core]`), not a core domain type.
-- **Wired into `CliProgressRenderer` immediately**, per this session's
-  running lesson (TASK-130's handoff: adapters existed and were tested but
-  nothing called them) — a tracker sitting untested-in-production would
-  repeat that mistake at a smaller scale. A future TUI progress bar would use
-  `ProgressRateTracker` directly rather than parsing the CLI's text lines.
+- **Decomposed the original one-line backlog item.** "TUI framework ADR +
+  shell" was too large for one commit per AGENT.md's decomposition rule.
+  Split into TASK-206 (this: decision + working shell + Home screen),
+  TASK-207 (Library screen), TASK-208 (Progress/Done screens) — added to
+  `backlog.md` in the same pass so the remaining scope isn't lost.
+- **Verified the packaging risk for real, not assumed it.** Ran an actual
+  `pyinstaller` build with the spec changes, then executed the resulting
+  binary's `tui` subcommand headless and confirmed it emits real ANSI screen
+  output ("Searching for valid DJ USBs…"). Binary grew from ~16 MB to 43 MB —
+  measured, not estimated — recorded in the ADR and `repository-state.json`.
+  Build artifacts were cleaned up afterward (gitignored, not committed).
+- **`tui` gets the same layer discipline as `cli`.** Home screen imports
+  `MountWatcher` through `app.services.library`, not
+  `app.storage.mount_watch` directly — `services` re-exports it, mirroring
+  how `services.errors` already re-exports adapter/storage error types for
+  frontend consumption. `cli`'s one new edge to `tui` is registered as a
+  named exception in `test_architecture.py`'s comments, not a general
+  broadening of what CLI may import.
+- **`open_library` runs off the event loop thread.** It opens the Rekordbox
+  database, which HANDOFF.md and TASK-110 both note "dominates load time" —
+  calling it directly from a Textual timer callback would freeze the UI.
+  `self.run_worker(self._open(...), exclusive=True)` wraps an
+  `asyncio.to_thread(open_library, mount)` call instead.
+- **The CLI's default entry point is unchanged.** `usbversal` with no
+  subcommand still shows CLI help; `tui` is additive. Making the TUI the
+  packaged binary's default action is a separate, later decision once more
+  of the target flow exists (noted as "Neutral" in ADR 0009).
+- **A pre-existing bug, fixed on discovery, not left for later.**
+  `test_packaging_smoke.py` asserted on a CLI subcommand (`apply`) removed
+  three tasks ago; it was invisible because the binary it needs isn't built
+  by default. Building the binary for real to validate textual surfaced it.
 
 ### Verification log
 
@@ -63,14 +92,12 @@ Files touched:
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 200 passed, 3 skipped (no stick mounted; skips are the two `/mnt/usb` integration tests and the PyInstaller build) |
-| `.venv/bin/python -m app.cli --help` | all commands listed (unchanged) |
+| `.venv/bin/pytest` | 204 passed, 4 skipped (no stick mounted, no `dist/usbversal` built after cleanup; a real build was run and verified during this task) |
+| `.venv/bin/python -m app.cli --help` | lists `tui` alongside the existing subcommands |
+| Real PyInstaller build | `43M dist/usbversal`; `--help` lists `tui`; `dist/usbversal tui < /dev/null` (headless) rendered the Home screen's real ANSI output |
 
 ## Next
 
-Every M11 groundwork item (TASK-200 through TASK-205) is now done. The one
-item left in that block is `TASK-206` (TUI framework ADR + shell) — a choice
-among `textual`, `prompt_toolkit`, `rich` + manual key handling, or `curses`,
-constrained by PyInstaller one-file packaging (ADR 0003). That's a framework
-decision flagged as needing the user's sign-off, not something to pick
-unilaterally.
+`TASK-207` (TUI Library screen) — screen 3 of the target flow: the playlist
+folder tree from `app.core.playlist_tree` with per-node red/yellow/green
+state from `sync_service.playlist_tree_sync_states`, using `textual.widgets.Tree`.

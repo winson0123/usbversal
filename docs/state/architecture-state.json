@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-26T00:00:00Z",
+  "updated_at": "2026-08-27T00:00:00Z",
   "allowed_patterns": [
     "adapter_per_vendor",
     "thin_cli",
@@ -15,7 +15,8 @@
     "merge_never_regenerate_vendor_index",
     "audio_file_writes_require_explicit_optin",
     "vendor_imports_confined_to_adapters",
-    "verify_rewrite_before_disk_commit"
+    "verify_rewrite_before_disk_commit",
+    "tui_thin_same_as_cli"
   ],
   "forbidden_patterns": [
     "cli_business_logic",
@@ -48,6 +49,12 @@
   },
   "layer_dependencies": {
     "cli": [
+      "jobs",
+      "services",
+      "core",
+      "tui"
+    ],
+    "tui": [
       "jobs",
       "services",
       "core"

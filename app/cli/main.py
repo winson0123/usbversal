@@ -25,6 +25,7 @@ from app.services.migration_service import migrate_playlist_to_crate
 from app.services.playlist_service import list_rekordbox_playlists
 from app.services.rollback_service import rollback_mount_libraries, rollback_result_to_dict
 from app.services.sync_service import playlist_sync_states, sync_states_to_dict
+from app.tui.app import run as run_tui
 
 structlog.configure(
     processors=[
@@ -184,7 +185,26 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Output machine-readable JSON",
     )
 
+    sub.add_parser(
+        "tui",
+        help="Launch the interactive terminal UI",
+    )
+
     return parser
+
+
+def _cmd_tui(_args: argparse.Namespace) -> int:
+    """
+    Launch the interactive TUI.
+
+    Args:
+        _args: Parsed namespace; the ``tui`` subcommand takes no options.
+
+    Returns:
+        0 once the TUI exits.
+    """
+    run_tui()
+    return 0
 
 
 def _cmd_probe(args: argparse.Namespace) -> int:
@@ -495,6 +515,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_list_crates(args)
     if args.command == "migrate-playlist":
         return _cmd_migrate_playlist(args)
+    if args.command == "tui":
+        return _cmd_tui(args)
 
     parser.print_help()
     return 1

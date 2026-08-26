@@ -13,7 +13,18 @@ from app.adapters.rekordbox import open_rekordbox_library
 from app.adapters.rekordbox.paths import resolve_rekordbox_database
 from app.adapters.serato.paths import resolve_serato_library
 from app.core.domain import RekordboxDbFormat
+from app.storage.mount_watch import MountChange, MountChangeKind, MountWatcher
 from app.storage.mounts import resolve_mount_path
+
+__all__ = [
+    "MountChange",
+    "MountChangeKind",
+    "MountProbe",
+    "MountWatcher",
+    "UsbLibrary",
+    "open_library",
+    "probe_mount",
+]
 
 logger = structlog.get_logger(__name__)
 

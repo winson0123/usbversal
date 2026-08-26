@@ -3,7 +3,7 @@
 
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_dynamic_libs, collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs, collect_submodules
 
 block_cipher = None
 
@@ -23,6 +23,15 @@ hiddenimports = [
     "structlog.dev",
     "structlog.processors",
     "structlog.stdlib",
+    *collect_submodules("textual"),
+]
+
+# ADR 0009: textual loads its .tcss stylesheets as package resources, which
+# PyInstaller's static import analysis does not see -- must be collected
+# explicitly or a themed screen silently falls back to defaults in the
+# packaged binary even though it works from source.
+datas = [
+    *collect_data_files("textual"),
 ]
 
 excludes = [
@@ -40,7 +49,7 @@ a = Analysis(
     [str(ENTRY)],
     pathex=[str(ROOT)],
     binaries=collect_dynamic_libs("rbox"),
-    datas=[],
+    datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},

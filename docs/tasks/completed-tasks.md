@@ -188,6 +188,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-206 — TUI framework ADR + shell
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | ADR 0009 picks `textual`; `app/tui/` scaffolded with `UsbversalApp` and the Home screen (steps 1-2, Waiting/Detect); verified with a real PyInstaller build |
+| Verification | ruff ✓ ruff format ✓ pytest 204 passed / 4 skipped; real `pyinstaller` build's `tui` subcommand confirmed rendering headless |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

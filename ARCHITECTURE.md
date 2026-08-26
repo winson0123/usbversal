@@ -44,13 +44,19 @@ High-level architecture for the Python DJ database CLI. Implementation details l
 | Layer | Responsibility | Must not |
 |-------|----------------|----------|
 | CLI | Args, dispatch, output | Parse DB formats, run backups |
+| TUI | Screens, rendering, key handling | Parse DB formats, run backups |
 | Core | Domain models, validation, plans | Touch vendor-specific bytes |
 | Adapters | Vendor read/write, schema mapping | Manage mount detection |
 | Jobs | Long-running work, cancellation | Embed vendor SQL in CLI |
 | Storage | Paths, backup, rollback, USB | Interpret playlist semantics |
 
-Dependencies flow **inward**: CLI → Jobs → Services → Adapters → Storage → Core.
-`core` holds domain types and imports nothing from the other layers.
+Dependencies flow **inward**: CLI/TUI → Jobs → Services → Adapters → Storage → Core.
+`core` holds domain types and imports nothing from the other layers. TUI is
+the same kind of thin presentation layer as CLI, permitted the same imports
+(`jobs`, `services`, `core`) and enforced by the same `test_architecture.py`
+check — see [ADR 0009](docs/decisions/0009-use-textual-for-the-tui.md). CLI's
+one exception is a single thin delegation to `tui` (`usbversal tui` launches
+it), not a general license to reach into its internals.
 
 **Vendor libraries (`rbox`, `serato-tools`) may only be imported inside `app/adapters/`.**
 Services that need vendor data call an adapter function instead, which keeps schema
@@ -120,6 +126,7 @@ Details: `docs/storage/backup-strategy.md`, `docs/storage/rollback-flow.md`.
 | Python CLI | [0001-use-python-cli.md](docs/decisions/0001-use-python-cli.md) |
 | asyncio jobs | [0002-use-asyncio.md](docs/decisions/0002-use-asyncio.md) |
 | PyInstaller packaging | [0003-use-pyinstaller.md](docs/decisions/0003-use-pyinstaller.md) |
+| Textual for the TUI | [0009-use-textual-for-the-tui.md](docs/decisions/0009-use-textual-for-the-tui.md) |
 
 ## Machine-Readable Architecture State
 

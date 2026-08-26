@@ -38,7 +38,7 @@ def test_usbversal_binary_help() -> None:
     )
     assert result.returncode == 0
     assert "migrate-playlist" in result.stdout
-    assert "apply" in result.stdout
+    assert "tui" in result.stdout
 
 
 @pytest.mark.skipif(

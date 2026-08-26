@@ -135,7 +135,9 @@ and none of them exist yet.
 | ~~`TASK-203`~~ | ~~Removable-media polling~~ | Done — `storage/mount_watch.py`'s `MountWatcher.poll()` diffs `MountScanner.list_mounts()` against the previous poll's set; one directory listing per poll, no library detection or database opens. Callers run `services.library.probe_mount` (also stat-only) on an appeared mount to check DJ USB validity. |
 | ~~`TASK-204`~~ | ~~Progress rate + ETA~~ | Done — `jobs/progress_rate.py`'s `ProgressRateTracker` averages rate over the whole run (steadier than a most-recent-interval rate for variable-cost steps like tag writes) and derives an ETA when `total` is known. Wired into `CliProgressRenderer`, which now appends `(N.N/s, eta Xs)` once a job has two samples, tracked per `job_id`. |
 | ~~`TASK-205`~~ | ~~Batch sync over selected playlists~~ | Done — TASK-114, `sync_playlists()` takes one backup per run |
-| `TASK-206` | TUI framework ADR + shell | textual / prompt_toolkit / rich / curses. Must survive PyInstaller one-file packaging (ADR 0003). |
+| ~~`TASK-206`~~ | ~~TUI framework ADR + shell~~ | Done — [ADR 0009](../decisions/0009-use-textual-for-the-tui.md) picked `textual`. `app/tui/` scaffolded with `UsbversalApp` and the Home screen (steps 1-2, Waiting/Detect), reachable via `usbversal tui` / `python -m app.tui`. Verified with a real PyInstaller build whose `tui` subcommand renders headless. Decomposed from the original one-line item — see TASK-207/208 below, added at the same time so the remaining screens aren't lost to scope creep. |
+| `TASK-207` | TUI Library screen | Screen 3: the playlist folder tree (`app.core.playlist_tree`) with per-node red/yellow/green state (`sync_service.playlist_tree_sync_states`), using `textual.widgets.Tree`. Arrow keys move, space toggles selection, enter confirms. |
+| `TASK-208` | TUI Progress + Done screens | Screens 4-5: run `sync_playlists` as a job through `JobRunner`, render its progress with `textual.widgets.ProgressBar` and `jobs.progress_rate.ProgressRateTracker`, then a completion summary (Enter returns to Library, Esc exits). |
 
 ---
 

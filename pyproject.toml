@@ -8,6 +8,7 @@ dependencies = [
     "rbox>=0.1.7",
     "serato-tools>=4.0.0",
     "structlog>=24.0.0",
+    "textual>=8.0.0",
 ]
 
 [project.scripts]

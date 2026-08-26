@@ -1,8 +1,10 @@
 # Interactive TUI (Planning)
 
-**Status:** planned — M11, not started
+**Status:** in progress — M11. Framework decided and scaffolded (TASK-206);
+Home screen (steps 1-2) built; Library and Progress/Done (steps 3-5) open.
 **Related:** [serato-index-bootstrap.md](serato-index-bootstrap.md),
-[ADR 0007](../decisions/0007-revive-analysis-sync-on-verified-formats.md)
+[ADR 0007](../decisions/0007-revive-analysis-sync-on-verified-formats.md),
+[ADR 0009](../decisions/0009-use-textual-for-the-tui.md)
 
 The argparse CLI in `app/cli/` is a **test harness for the service layer**, not
 the shipped product. The distributed binary is an interactive terminal UI.
@@ -78,7 +80,8 @@ rather than retrofitted later.
 
 ## Library choice
 
-Not decided. Requirements: arrow/space/enter/esc key handling, coloured text,
-a progress bar, and no dependency that breaks PyInstaller one-file packaging
-(see [ADR 0003](../decisions/0003-use-pyinstaller.md)). Candidates worth an ADR:
-`textual`, `prompt_toolkit`, `rich` + manual key handling, or plain `curses`.
+**Decided: `textual`.** See [ADR 0009](../decisions/0009-use-textual-for-the-tui.md)
+for the full comparison against `prompt_toolkit`, `rich` + manual key
+handling, and `curses`. `app/tui/` has the app shell and the Home screen
+(steps 1-2); Library (step 3, TASK-207) and Progress/Done (steps 4-5,
+TASK-208) are next.
