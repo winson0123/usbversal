@@ -228,6 +228,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-076 — Bootstrap `_Serato_` on a rekordbox-only stick
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | `services/bootstrap_service.py`'s `bootstrap_serato_library()` creates an empty, valid Serato library when none exists; wired into the TUI's Home screen |
+| Verification | ruff ✓ ruff format ✓ pytest 235 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

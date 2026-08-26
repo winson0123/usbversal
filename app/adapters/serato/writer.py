@@ -15,9 +15,35 @@ from app.adapters.serato.paths import subcrates_dir
 
 logger = structlog.get_logger(__name__)
 
+# The version string a fresh Serato install writes into an empty database V2,
+# before anything has been analysed or imported. [verified] in
+# docs/schemas/serato-schema-notes.md.
+_DATABASE_V2_VERSION = "2.0/Serato Scratch LIVE Database".encode("utf-16-be")
+
 
 class CrateExistsError(Exception):
     """Raised when a target crate file already exists and overwrite is disabled."""
+
+
+def create_empty_database_v2(database_path: Path) -> None:
+    """
+    Write a fresh, empty, structurally valid database V2 file.
+
+    Just the ``vrsn`` header -- what a fresh Serato install has before
+    anything is imported or analysed. Never call this when a database V2
+    already exists at the target path: **merge, never regenerate**
+    (`merge_never_regenerate_vendor_index`) is a hard rule for a real
+    vendor index, and this function does not check for one.
+
+    Args:
+        database_path: Where to write the new database V2 file.
+    """
+    payload = b"vrsn" + len(_DATABASE_V2_VERSION).to_bytes(4, "big") + _DATABASE_V2_VERSION
+    database_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = database_path.with_suffix(database_path.suffix + ".tmp")
+    temporary.write_bytes(payload)
+    temporary.replace(database_path)
+    logger.info("serato_database_v2_created", path=str(database_path))
 
 
 def write_crate(

@@ -196,10 +196,28 @@ def create_backup(
 
     mount = source_mount.resolve()
     created_at = datetime.now(UTC)
-    backup_id = backup_id or created_at.strftime("%Y%m%dT%H%M%SZ")
     root = (backup_root or (mount / "backups")).resolve()
-    backup_dir = root / backup_id
-    backup_dir.mkdir(parents=True, exist_ok=False)
+
+    if backup_id is not None:
+        backup_dir = root / backup_id
+        backup_dir.mkdir(parents=True, exist_ok=False)
+    else:
+        # The id has one-second resolution, so two backups requested within
+        # the same second (e.g. one operation gating straight into another)
+        # would otherwise collide on mkdir. Suffix with a counter rather than
+        # switching to a finer clock, so the common case keeps its plain,
+        # readable timestamp.
+        stem = created_at.strftime("%Y%m%dT%H%M%SZ")
+        backup_id = stem
+        suffix = 1
+        while True:
+            backup_dir = root / backup_id
+            try:
+                backup_dir.mkdir(parents=True, exist_ok=False)
+                break
+            except FileExistsError:
+                suffix += 1
+                backup_id = f"{stem}-{suffix}"
 
     entries: list[BackupFileEntry] = []
     for file_path in files:

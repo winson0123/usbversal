@@ -15,6 +15,7 @@ from textual.containers import Container
 from textual.screen import Screen
 from textual.widgets import Static
 
+from app.services.bootstrap_service import bootstrap_serato_library
 from app.services.errors import DatabaseNotFoundError, UnsupportedDatabaseError
 from app.services.library import (
     MountChangeKind,
@@ -35,8 +36,9 @@ class HomeScreen(Screen):
     Poll for a mount to appear, check it, then push the Library screen.
 
     A mount is "valid" when it has a supported Rekordbox export
-    (``MountProbe.is_dj_usb and MountProbe.is_supported``) -- Serato need not
-    exist yet (bootstrapping one is TASK-076, not this screen's job).
+    (``MountProbe.is_dj_usb and MountProbe.is_supported``). Serato need not
+    exist yet -- ``bootstrap_serato_library`` creates an empty one first when
+    it doesn't, so a plain rekordbox stick is never a dead end.
     """
 
     POLL_INTERVAL_S = 1.0
@@ -78,8 +80,9 @@ class HomeScreen(Screen):
         self._show(_NONE_FOUND if self._seen_invalid else _SEARCHING)
 
     async def _open(self, mount: Path) -> None:
-        """Open the library off the event loop thread, then report readiness."""
+        """Bootstrap a Serato library if needed, open it, then report readiness."""
         try:
+            await asyncio.to_thread(bootstrap_serato_library, mount)
             library = await asyncio.to_thread(open_library, mount)
         except (OSError, DatabaseNotFoundError, UnsupportedDatabaseError) as exc:
             self._seen_invalid = True

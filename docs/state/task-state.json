@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-27T03:00:00Z",
+  "updated_at": "2026-08-27T04:00:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -9,7 +9,6 @@
     "blocked_reason": null
   },
   "pending_tasks": [
-    "TASK-076",
     "TASK-090"
   ],
   "blocked_tasks": [],
@@ -267,6 +266,11 @@
     {
       "id": "TASK-075",
       "title": "Nested playlist folders → Parent%%Child.crate",
+      "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-076",
+      "title": "Bootstrap _Serato_ on a rekordbox-only stick",
       "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
@@ -574,6 +578,12 @@
     {
       "id": "TASK-075",
       "title": "Nested playlist folders → Parent%%Child.crate",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-076",
+      "title": "Bootstrap _Serato_ on a rekordbox-only stick",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

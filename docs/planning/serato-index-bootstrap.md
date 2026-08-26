@@ -1,6 +1,11 @@
 # Serato Index Bootstrap (Stage 1 — Planning)
 
-**Status:** planned — TASK-071 … TASK-076
+**Status:** done. All of TASK-071 … TASK-076 landed, under renumbered task
+IDs in places (see `docs/tasks/backlog.md`'s M8 table for the mapping) --
+`app.services.bootstrap_service.bootstrap_serato_library` creates
+`_Serato_/`, `Subcrates/`, an empty `database V2`, and `neworder.pref` when
+absent, wired into the TUI's Home screen (TASK-076) so a plain rekordbox
+stick is never a dead end.
 **Related:** [ADR 0007](../decisions/0007-revive-analysis-sync-on-verified-formats.md),
 [serato-schema-notes.md](../schemas/serato-schema-notes.md),
 [playlist migration](rekordbox-to-serato-playlist-migration.md)

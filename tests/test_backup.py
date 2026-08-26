@@ -1,6 +1,7 @@
 """Tests for backup copy and manifest."""
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -124,6 +125,41 @@ def test_backup_mount_for_migration_includes_extra_files(tmp_path: Path) -> None
     result = backup_mount_for_migration(mount, extra_files=[audio])
 
     assert any(f.relative_path == "Contents/track.wav" for f in result.manifest.files)
+
+
+def test_create_backup_disambiguates_a_same_second_collision(tmp_path: Path) -> None:
+    """Two auto-id backups within the same second get distinct directories."""
+    mount = tmp_path / "usb"
+    rb = mount / "PIONEER/rekordbox"
+    rb.mkdir(parents=True)
+    db = rb / "exportLibrary.db"
+    db.write_bytes(b"content")
+    backups_root = tmp_path / "backups"
+    # Pre-occupy the id this second would generate, forcing the collision
+    # deterministically rather than relying on two real calls landing in the
+    # same wall-clock second.
+    stem = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    (backups_root / stem).mkdir(parents=True)
+
+    result = create_backup(source_mount=mount, files=[db], backup_root=backups_root)
+
+    assert result.backup_id == f"{stem}-2"
+    assert result.backup_dir == backups_root / f"{stem}-2"
+
+
+def test_create_backup_with_an_explicit_id_still_raises_on_collision(tmp_path: Path) -> None:
+    """An explicit backup_id is caller intent -- a collision there is a real error."""
+    mount = tmp_path / "usb"
+    rb = mount / "PIONEER/rekordbox"
+    rb.mkdir(parents=True)
+    db = rb / "exportLibrary.db"
+    db.write_bytes(b"content")
+    backups_root = tmp_path / "backups"
+
+    create_backup(source_mount=mount, files=[db], backup_root=backups_root, backup_id="fixed")
+
+    with pytest.raises(FileExistsError):
+        create_backup(source_mount=mount, files=[db], backup_root=backups_root, backup_id="fixed")
 
 
 def test_backup_mount_for_migration_ignores_missing_extra_files(tmp_path: Path) -> None:

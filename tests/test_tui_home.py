@@ -88,6 +88,7 @@ async def test_a_valid_mount_opens_the_library_and_hands_off(tmp_path: Path) -> 
 
     with (
         patch("app.tui.screens.home.probe_mount", return_value=fake_probe),
+        patch("app.tui.screens.home.bootstrap_serato_library"),
         patch("app.tui.screens.home.open_library", return_value=fake_library),
         patch("app.tui.screens.home.LibraryScreen", _DummyLibraryScreen),
     ):
@@ -117,6 +118,7 @@ async def test_an_open_failure_is_reported_not_raised(tmp_path: Path) -> None:
 
     with (
         patch("app.tui.screens.home.probe_mount", return_value=fake_probe),
+        patch("app.tui.screens.home.bootstrap_serato_library"),
         patch("app.tui.screens.home.open_library", side_effect=_raise),
     ):
         async with app.run_test() as pilot:
@@ -145,6 +147,7 @@ async def test_stops_polling_once_a_library_is_open(tmp_path: Path) -> None:
 
     with (
         patch("app.tui.screens.home.probe_mount", return_value=fake_probe) as probe,
+        patch("app.tui.screens.home.bootstrap_serato_library"),
         patch("app.tui.screens.home.open_library", return_value=fake_library),
         patch("app.tui.screens.home.LibraryScreen", _DummyLibraryScreen),
     ):
@@ -160,3 +163,35 @@ async def test_stops_polling_once_a_library_is_open(tmp_path: Path) -> None:
             await pilot.pause()
 
             assert probe.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_a_rekordbox_only_stick_gets_a_serato_library_bootstrapped(tmp_path: Path) -> None:
+    """A real, unpatched bootstrap runs -- the point of wiring it in here at all."""
+    rb = tmp_path / "PIONEER" / "rekordbox"
+    rb.mkdir(parents=True)
+    (rb / "exportLibrary.db").write_bytes(b"stub")
+    assert not (tmp_path / "_Serato_").exists()
+
+    watcher = MountWatcher(_FakeScanner([_point(tmp_path)]))
+    app = UsbversalApp(watcher)
+    fake_probe = type("P", (), {"is_dj_usb": True, "is_supported": True, "has_serato": False})()
+    fake_library = type(
+        "L", (), {"rekordbox": type("R", (), {"list_playlists": lambda self: []})()}
+    )()
+
+    with (
+        patch("app.tui.screens.home.probe_mount", return_value=fake_probe),
+        patch("app.tui.screens.home.open_library", return_value=fake_library),
+        patch("app.tui.screens.home.LibraryScreen", _DummyLibraryScreen),
+    ):
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            home = app.screen
+            home.poll_mounts()
+            await pilot.pause()
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+
+    assert (tmp_path / "_Serato_" / "database V2").is_file()
+    assert (tmp_path / "_Serato_" / "Subcrates").is_dir()
