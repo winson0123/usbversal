@@ -103,15 +103,17 @@ def playlist_sync_states(library: UsbLibrary) -> tuple[PlaylistSyncState, ...]:
     """
     crates = _crate_contents(library.serato_root)
     indexed = _database_index(library.serato_database)
+    playlists = library.rekordbox.list_playlists()
+    by_id = {p.id: p for p in playlists}
 
     states: list[PlaylistSyncState] = []
-    for playlist in library.rekordbox.list_playlists():
+    for playlist in playlists:
         if playlist.is_folder:
             continue
         tracks = [
             normalize_track_path(t) for t in library.rekordbox.get_playlist_track_paths(playlist.id)
         ]
-        crate_name = crate_name_for(playlist)
+        crate_name = crate_name_for(playlist, by_id)
         in_crate = crates.get(crate_name, set())
         states.append(
             PlaylistSyncState(
@@ -201,8 +203,11 @@ def find_crate_name_collisions(playlists: tuple[Playlist, ...]) -> dict[str, lis
     """
     Find playlists that would write to the same crate file.
 
-    Serato crates are flat, so two playlists in different folders can collide
-    on a single filename and silently overwrite one another.
+    ``crate_name_for`` encodes each ancestor folder into the filename, so two
+    playlists sharing a name in different folders no longer collide. What
+    still can: two playlists in the *same* folder, or two whose names differ
+    only in characters ``sanitize_crate_name`` strips (``"Trance/2024"`` and
+    ``"Trance:2024"`` both become ``"Trance_2024"``).
 
     Args:
         playlists: Playlist nodes to check.
@@ -210,11 +215,12 @@ def find_crate_name_collisions(playlists: tuple[Playlist, ...]) -> dict[str, lis
     Returns:
         Dict of crate stem -> colliding playlist names, for collisions only.
     """
+    by_id = {p.id: p for p in playlists}
     by_name: dict[str, list[str]] = {}
     for playlist in playlists:
         if playlist.is_folder:
             continue
-        by_name.setdefault(crate_name_for(playlist), []).append(playlist.name)
+        by_name.setdefault(crate_name_for(playlist, by_id), []).append(playlist.name)
     return {name: owners for name, owners in by_name.items() if len(owners) > 1}
 
 
@@ -556,7 +562,7 @@ def sync_playlists(
                 PlaylistSyncResult(
                     playlist_id=p.id,
                     playlist_name=p.name,
-                    crate_name=crate_name_for(p),
+                    crate_name=crate_name_for(p, by_id),
                     tracks=len(tracks_by_playlist[p.id]),
                 )
                 for p in selected
@@ -596,7 +602,7 @@ def sync_playlists(
 
     results: list[PlaylistSyncResult] = []
     for playlist in selected:
-        crate_name = crate_name_for(playlist)
+        crate_name = crate_name_for(playlist, by_id)
         paths = [serato_path(raw) for raw in tracks_by_playlist[playlist.id]]
         try:
             write_crate(

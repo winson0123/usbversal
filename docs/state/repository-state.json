@@ -70,6 +70,7 @@
     "tui_progress_done_screens": true,
     "sync_playlists_reachable_from_tui": true,
     "sync_playlists_progress_callback": true,
+    "nested_playlist_folder_crate_naming": true,
     "json_output_stdout_only": true,
     "discovery_skips_backup_trees": true,
     "sync_playlists": true,
@@ -93,7 +94,7 @@
     "ruff_format": "pass",
     "pytest": "pass",
     "last_run": "2026-08-27T00:00:00Z",
-    "tests_passed": 219,
+    "tests_passed": 226,
     "tests_skipped": 4,
     "tests_failed": 0,
     "note": "run with no stick mounted and no dist/usbversal built; the 4 skips are 2 integration tests gated on USBVERSAL_TEST_MOUNT, the opt-in full PyInstaller build (USBVERSAL_PACKAGING_BUILD=1), and the binary-help smoke test that needs a prior ./scripts/build-release.sh -- a real build was run and verified during TASK-206, then cleaned up"
@@ -157,6 +158,6 @@
     "variable-tempo beatgrids encoded but unvalidated in Serato (33/500 tracks)",
     "79 files carry the broken +120s beatgrid from the abandoned attempt; repair not run",
     "correct_index_bpm() exists but has not been run against the real stick's ~70 known-wrong rows yet",
-    "nested playlist folders collide on leaf crate name"
+    "nested playlist folder crate naming (Parent%%Child) is implemented but its convention is still unverified against real Serato"
   ]
 }

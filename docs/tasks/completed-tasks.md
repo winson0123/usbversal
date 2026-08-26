@@ -218,6 +218,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-075 — Nested playlist folders → `Parent%%Child.crate`
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | `crate_name_for()` encodes ancestor folders with `%%`, so same-named playlists in different folders stop colliding on one crate file |
+| Verification | ruff ✓ ruff format ✓ pytest 226 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

@@ -108,7 +108,7 @@ usbversal via `serato-tools` use a different column set
 (`song`/`playCount`/`artist`/`bpm`/`key`/`album`/`length`/`comment`/`added`)
 and are structurally valid.
 
-### Nested playlist folders [assumed]
+### Nested playlist folders [assumed convention, implemented, not yet verified in Serato]
 
 Serato's crate list is flat. Convention is to encode hierarchy in the filename
 with `%%` as separator:
@@ -117,9 +117,12 @@ with `%%` as separator:
 rekordbox  Techno / Peak Time   ->   Subcrates/Techno%%Peak Time.crate
 ```
 
-Not exercised in the experiment (the test playlist was top-level). **usbversal
-does not currently do this** — it flattens to the leaf name, so two playlists
-sharing a name in different folders collide.
+Not exercised in the original experiment (the test playlist was top-level).
+**As of TASK-075, `crate_name_for()` implements this** — each ancestor folder's
+sanitized name, then the playlist's own, joined with `%%`, so two playlists
+sharing a name in different folders no longer collide. The convention itself
+is still unverified against real Serato; no stick with a nested-folder
+playlist has been synced and checked.
 
 ---
 

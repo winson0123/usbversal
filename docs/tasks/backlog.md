@@ -78,7 +78,7 @@ Formats: [serato-schema-notes.md](../schemas/serato-schema-notes.md).
 | ~~`TASK-073`~~ | ~~`database V2` append writer~~ | Done — TASK-112. A Rekordbox-to-`otrk` field mapper is still outstanding and moves to TASK-113. |
 | ~~`TASK-113`~~ | ~~Rekordbox metadata → `otrk` fields~~ | Done — TASK-113, formats derived by diffing 793 records Lexicon wrote |
 | ~~`TASK-074`~~ | ~~`neworder.pref` merge/write~~ | Done — TASK-114, `adapters/serato/neworder.py` |
-| `TASK-075` | Nested playlist folders → `Parent%%Child.crate` | Current code flattens to the leaf name, so same-named playlists in different folders collide. Convention is [assumed], not verified — validate in Serato. |
+| ~~`TASK-075`~~ | ~~Nested playlist folders → `Parent%%Child.crate`~~ | Done — `adapters/serato/naming.py`'s `crate_name_for()` now takes a `by_id` map and walks `parent_id` to encode every ancestor folder, joined with `%%`. Same-named playlists in different folders no longer collide (`find_crate_name_collisions`'s docstring updated to reflect what it still catches: same-folder collisions and sanitize-collapsed names). Convention is still `[assumed]` — validate in Serato once a stick with a nested-folder playlist is available. |
 | `TASK-076` | Bootstrap `_Serato_` on a rekordbox-only stick | Create `_Serato_/`, `Subcrates/`, `database V2`, `neworder.pref` where absent. Removes `SeratoLibraryRequiredError` as a dead end. Backup-gated; verify `PIONEER/` hash is unchanged. |
 
 ## M9 — Analysis Tag Sync (Stage 2)

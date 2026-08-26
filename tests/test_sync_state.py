@@ -165,7 +165,7 @@ def test_tree_folder_is_green_only_when_every_child_is_synced(tmp_path: Path) ->
     """A folder rolls up to synced only if all of its children are."""
     mount = _stick(
         tmp_path,
-        crates={"Techno": ["Contents/a.mp3"], "Trance": ["Contents/b.mp3"]},
+        crates={"Genres%%Techno": ["Contents/a.mp3"], "Genres%%Trance": ["Contents/b.mp3"]},
         indexed=["Contents/a.mp3", "Contents/b.mp3"],
     )
     folder = Playlist(id=9, name="Genres", parent_id=None, is_folder=True)
@@ -186,7 +186,7 @@ def test_tree_folder_is_yellow_when_children_disagree(tmp_path: Path) -> None:
     """One synced child and one unsynced child rolls the folder up to partial."""
     mount = _stick(
         tmp_path,
-        crates={"Techno": ["Contents/a.mp3"]},
+        crates={"Genres%%Techno": ["Contents/a.mp3"]},
         indexed=["Contents/a.mp3", "Contents/b.mp3"],
     )
     folder = Playlist(id=9, name="Genres", parent_id=None, is_folder=True)
@@ -217,7 +217,7 @@ def test_tree_rollup_composes_through_nested_folders(tmp_path: Path) -> None:
     """A folder of folders rolls up through both levels correctly."""
     mount = _stick(
         tmp_path,
-        crates={"Techno": ["Contents/a.mp3"]},
+        crates={"Music%%Genres%%Techno": ["Contents/a.mp3"]},
         indexed=["Contents/a.mp3"],
     )
     outer = Playlist(id=8, name="Music", parent_id=None, is_folder=True)
