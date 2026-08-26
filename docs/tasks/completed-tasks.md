@@ -168,6 +168,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-203 — Removable-media polling
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-26 |
+| Objective | `storage/mount_watch.py`'s `MountWatcher.poll()` — cheap mount-appeared/disappeared diffing for a UI loop, without `LibraryDiscovery`'s heavy walk |
+| Verification | ruff ✓ ruff format ✓ pytest 189 passed / 3 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

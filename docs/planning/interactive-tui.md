@@ -53,10 +53,11 @@ rather than retrofitted later.
    read as *no USB*, not as a valid path. → Done, TASK-110 (`probe_mount`),
    tracked as TASK-202.
 
-4. **Removable-media polling.** Detection today is a one-shot scan. Screen 2
-   needs to observe mounts appearing and disappearing over time, cheaply
-   enough to run in a UI loop. `LibraryDiscovery` walks up to 25,000 nodes,
-   which is far too heavy to poll. → **TASK-203**, still open.
+4. ~~**Removable-media polling.**~~ Done — TASK-203, `storage.mount_watch.MountWatcher`.
+   Each `poll()` costs one `MountScanner.list_mounts()` call, diffed against
+   the previous poll; no `LibraryDiscovery` walk. It only reports mount
+   presence, not DJ USB validity — the caller runs `probe_mount` (also
+   stat-only) on whatever appears.
 
 5. **ETA on progress.** `JobProgress` carries `current`/`total` but no rate or
    time estimate, and `CliProgressRenderer` throttles to 10/s and prints
