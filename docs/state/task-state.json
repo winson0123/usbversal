@@ -357,6 +357,11 @@
       "id": "TASK-225",
       "title": "Home screen: fix truncated placeholder, real Tab-cycling through directories",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-226",
+      "title": "Move TUI session-open into prepare_library",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -771,6 +776,12 @@
     {
       "id": "TASK-225",
       "title": "Home screen: fix truncated placeholder, real Tab-cycling through directories",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-226",
+      "title": "Move TUI session-open into prepare_library",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

@@ -87,6 +87,7 @@
     "tui_home_manual_path_entry_and_retry": true,
     "tui_home_manual_entry_only_shown_on_failure": true,
     "tui_home_scan_timeout": true,
+    "tui_prepare_library": true,
     "tui_progress_verbose_per_track_log": true,
     "sync_progress_callback_reports_track_and_error": true,
     "tui_home_shows_scanning_caption": true,

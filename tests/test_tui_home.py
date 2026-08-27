@@ -136,8 +136,7 @@ async def test_a_valid_mount_opens_the_library_and_hands_off(tmp_path: Path) -> 
 
     with (
         patch("app.tui.screens.home.probe_mount", return_value=fake_probe),
-        patch("app.tui.screens.home.bootstrap_serato_library"),
-        patch("app.tui.screens.home.open_library", return_value=fake_library),
+        patch("app.tui.screens.home.prepare_library", return_value=fake_library),
         patch("app.tui.screens.home.LibraryScreen", _DummyLibraryScreen),
     ):
         async with app.run_test() as pilot:
@@ -166,8 +165,7 @@ async def test_an_open_failure_is_reported_not_raised(tmp_path: Path) -> None:
 
     with (
         patch("app.tui.screens.home.probe_mount", return_value=fake_probe),
-        patch("app.tui.screens.home.bootstrap_serato_library"),
-        patch("app.tui.screens.home.open_library", side_effect=_raise),
+        patch("app.tui.screens.home.prepare_library", side_effect=_raise),
     ):
         async with app.run_test() as pilot:
             await pilot.pause()
@@ -195,8 +193,7 @@ async def test_stops_polling_once_a_library_is_open(tmp_path: Path) -> None:
 
     with (
         patch("app.tui.screens.home.probe_mount", return_value=fake_probe) as probe,
-        patch("app.tui.screens.home.bootstrap_serato_library"),
-        patch("app.tui.screens.home.open_library", return_value=fake_library),
+        patch("app.tui.screens.home.prepare_library", return_value=fake_library),
         patch("app.tui.screens.home.LibraryScreen", _DummyLibraryScreen),
     ):
         async with app.run_test() as pilot:
@@ -230,7 +227,7 @@ async def test_a_rekordbox_only_stick_gets_a_serato_library_bootstrapped(tmp_pat
 
     with (
         patch("app.tui.screens.home.probe_mount", return_value=fake_probe),
-        patch("app.tui.screens.home.open_library", return_value=fake_library),
+        patch("app.services.library.open_library", return_value=fake_library),
         patch("app.tui.screens.home.LibraryScreen", _DummyLibraryScreen),
     ):
         async with app.run_test() as pilot:
@@ -415,8 +412,7 @@ async def test_enter_with_a_typed_path_opens_that_library(tmp_path: Path) -> Non
     )()
 
     with (
-        patch("app.tui.screens.home.bootstrap_serato_library"),
-        patch("app.tui.screens.home.open_library", return_value=fake_library) as open_library,
+        patch("app.tui.screens.home.prepare_library", return_value=fake_library) as prepare,
         patch("app.tui.screens.home.LibraryScreen", _DummyLibraryScreen),
     ):
         async with app.run_test() as pilot:
@@ -432,7 +428,7 @@ async def test_enter_with_a_typed_path_opens_that_library(tmp_path: Path) -> Non
             await app.workers.wait_for_complete()
             await pilot.pause()
 
-            open_library.assert_called_once_with(tmp_path)
+            prepare.assert_called_once_with(tmp_path)
             assert home.library is fake_library
             assert isinstance(app.screen, _DummyLibraryScreen)
 
@@ -447,7 +443,7 @@ async def test_a_typed_path_that_fails_to_open_re_enables_the_input(tmp_path: Pa
     def _raise(_mount: Path):
         raise FileNotFoundError("gone")
 
-    with patch("app.tui.screens.home.bootstrap_serato_library", side_effect=_raise):
+    with patch("app.tui.screens.home.prepare_library", side_effect=_raise):
         async with app.run_test() as pilot:
             await pilot.pause()
             home = app.screen

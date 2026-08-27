@@ -408,6 +408,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-226 — Move TUI session-open into prepare_library
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | Home no longer orchestrates bootstrap + open + a discarded list_playlists; `prepare_library` is the session-open path |
+| Verification | ruff ✓ ruff format ✓ pytest 278 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

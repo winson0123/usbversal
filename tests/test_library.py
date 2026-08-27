@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from app.core.domain import RekordboxDbFormat
-from app.services.library import open_library, probe_mount
+from app.services.library import open_library, prepare_library, probe_mount
 from tests.conftest import EMPTY_DATABASE_V2
 
 
@@ -80,6 +80,26 @@ def test_open_library_rejects_non_dj_mount(tmp_path: Path) -> None:
     (tmp_path / "holiday.jpg").write_bytes(b"x")
     with pytest.raises(FileNotFoundError):
         open_library(tmp_path)
+
+
+def test_prepare_library_bootstraps_then_opens(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Session open creates a missing Serato library, then opens Rekordbox."""
+    mount = _rekordbox_stick(tmp_path)
+    opened = type("L", (), {"rekordbox": type("R", (), {"list_playlists": lambda self: []})()})()
+
+    def _open(path: Path):
+        """Stand-in open that only proceeds after bootstrap has written _Serato_."""
+        assert (mount / "_Serato_" / "database V2").is_file()
+        return opened
+
+    monkeypatch.setattr("app.services.library.open_library", _open)
+
+    result = prepare_library(mount)
+
+    assert result is opened
+    assert (mount / "_Serato_" / "Subcrates").is_dir()
 
 
 def test_probe_serialises_for_json_output(tmp_path: Path) -> None:

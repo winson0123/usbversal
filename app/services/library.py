@@ -13,6 +13,7 @@ from app.adapters.rekordbox import open_rekordbox_library
 from app.adapters.rekordbox.paths import resolve_rekordbox_database
 from app.adapters.serato.paths import resolve_serato_library
 from app.core.domain import RekordboxDbFormat
+from app.services.bootstrap_service import bootstrap_serato_library
 from app.storage.mount_watch import MountChange, MountChangeKind, MountWatcher
 from app.storage.mounts import resolve_mount_path
 
@@ -23,6 +24,7 @@ __all__ = [
     "MountWatcher",
     "UsbLibrary",
     "open_library",
+    "prepare_library",
     "probe_mount",
 ]
 
@@ -172,3 +174,34 @@ def open_library(mount: str | Path) -> UsbLibrary:
         )
     logger.info("opening_library", mount=str(path), serato=probe.has_serato)
     return UsbLibrary(probe=probe, rekordbox=open_rekordbox_library(path))
+
+
+def prepare_library(mount: str | Path) -> UsbLibrary:
+    """
+    Bootstrap Serato if needed, open the session handle, and prove it reads.
+
+    This is the TUI session-open path: a rekordbox-only stick must get an
+    empty Serato library before sync can write anywhere, and a database that
+    opens but cannot list playlists must fail here rather than after the
+    Library screen has already taken over. CLI callers that only need a
+    read stay on ``open_library`` -- they must not create ``_Serato_``.
+
+    Args:
+        mount: Mount path containing a Rekordbox export.
+
+    Returns:
+        UsbLibrary holding an opened Rekordbox adapter, with playlists
+        already listed once so a later read is not the first one.
+
+    Raises:
+        FileNotFoundError: Mount path does not exist, or no Rekordbox
+            database is present to back up / open.
+        NotADirectoryError: Mount path is not a directory.
+        DatabaseNotFoundError: No Rekordbox database on the mount.
+        UnsupportedDatabaseError: Rekordbox format cannot be read.
+        OSError: The mount or database could not be read.
+    """
+    bootstrap_serato_library(mount)
+    library = open_library(mount)
+    library.rekordbox.list_playlists()
+    return library

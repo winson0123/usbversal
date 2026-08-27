@@ -7,7 +7,6 @@ no ``LibraryDiscovery`` walk runs on this screen.
 
 from __future__ import annotations
 
-import asyncio
 import time
 from pathlib import Path
 
@@ -18,19 +17,18 @@ from textual.containers import Center, CenterMiddle
 from textual.screen import Screen
 from textual.widgets import Input, Static
 
-from app.services.bootstrap_service import bootstrap_serato_library
 from app.services.errors import DatabaseNotFoundError, UnsupportedDatabaseError
 from app.services.library import (
     MountChangeKind,
     MountWatcher,
     UsbLibrary,
-    open_library,
+    prepare_library,
     probe_mount,
 )
 from app.tui.screens.library import LibraryScreen
 
-_NONE_FOUND = "Did not detect a valid DJ USB"
-_RETRY_HINT = "Press enter to retry auto-scan."
+_NONE_FOUND = "Did not detect a valid DJ USB."
+_RETRY_HINT = "Press 'Enter' to retry auto-scan…"
 _SCANNING = "Automatically detecting for a DJ USB…"
 _BANNER_ID = "banner"
 _SPINNER_ID = "spinner"
@@ -159,7 +157,7 @@ class HomeScreen(Screen):
 
     A mount is "valid" when it has a supported Rekordbox export
     (``MountProbe.is_dj_usb and MountProbe.is_supported``). Serato need not
-    exist yet -- ``bootstrap_serato_library`` creates an empty one first when
+    exist yet -- ``prepare_library`` creates an empty one first when
     it doesn't, so a plain rekordbox stick is never a dead end.
 
     Nothing plugged in at all still gets a way out: once ``SCAN_TIMEOUT_S``
@@ -263,14 +261,12 @@ class HomeScreen(Screen):
             self._show_spinner()
 
     async def _open(self, mount: Path) -> None:
-        """Bootstrap a Serato library if needed, open it, then hand off."""
+        """Prepare the session handle, then hand off to the Library screen."""
         self.query_one(_PathInput).disabled = True
         try:
-            await asyncio.to_thread(bootstrap_serato_library, mount)
-            # open_library, and every later touch of library.rekordbox, must
-            # run on the app's one dedicated thread -- see UsbversalApp.run_rekordbox.
-            library = await self.app.run_rekordbox(open_library, mount)
-            await self.app.run_rekordbox(lambda: len(library.rekordbox.list_playlists()))
+            # prepare_library opens Rekordbox, so it must stay on the app's
+            # one dedicated thread -- see UsbversalApp.run_rekordbox.
+            library = await self.app.run_rekordbox(prepare_library, mount)
         except (OSError, DatabaseNotFoundError, UnsupportedDatabaseError) as exc:
             self._seen_invalid = True
             self._show_error(f"{_NONE_FOUND} ({exc})")
