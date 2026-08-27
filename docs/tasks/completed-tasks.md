@@ -588,6 +588,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-244 — Drop TASK-090; `/mnt/usb` out of operator docs
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | DeviceSQL reader dropped; operators use auto-detect, not a hardcoded mount |
+| Verification | ruff ✓ ruff format ✓ pytest 276 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

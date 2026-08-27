@@ -15,7 +15,7 @@ Rekordbox stores library metadata primarily in **SQLite** databases on USB/expor
 | Track metadata keyed by internal ID | high | |
 | Schema changes between minor versions | high risk | Must detect, not hardcode |
 
-**Do not treat this table as authoritative** until validated against real exports on `/mnt/usb`.
+**Do not treat this table as authoritative** until validated against real USB exports.
 
 ## Unknown Fields Tracking
 
@@ -47,8 +47,6 @@ Rekordbox stores library metadata primarily in **SQLite** databases on USB/expor
 |------|--------|--------|
 | `PIONEER/rekordbox/exportLibrary.db` | SQLCipher One Library | `rbox` (ADR 0004) |
 | `PIONEER/rekordbox/export.pdb` | DeviceSQL | **unsupported** — clear error |
-
-CLI: `python -m app.cli list-playlists --mount /mnt/usb`
 
 ### Smart playlists (out of scope on USB)
 

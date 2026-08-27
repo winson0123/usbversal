@@ -119,7 +119,7 @@ Human-readable mirrors:
 
 - Implementing Rekordbox/Serato parsing beyond documented placeholders
 - Implementing job runner business logic without a scoped task
-- Writing to real DJ databases on `/mnt/usb` without backup task approval
+- Writing to real DJ databases without backup task approval
 - Adding dependencies not justified in an ADR or task scope
 
 ---

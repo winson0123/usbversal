@@ -1,13 +1,13 @@
 # Rollback Flow
 
-**Status:** implemented (manual CLI rollback; automatic job rollback deferred).
+**Status:** implemented (storage API; automatic job rollback deferred).
 
 ## When Rollback Runs
 
 | Trigger | Action |
 |---------|--------|
 | Adapter write failure | Automatic rollback from job |
-| User `usbversal rollback` | Manual restore |
+| Caller asks storage to restore | Manual restore |
 | Cancel during write step | Rollback if backup exists |
 
 ## Procedure
@@ -19,12 +19,8 @@
 5. Verify integrity (Rekordbox adapter)
 6. Emit `storage.rollback_done`
 
-## CLI
-
-```bash
-python -m app.cli rollback --mount /mnt/usb --backup-id <id>
-python -m app.cli rollback --mount /mnt/usb --backup-id <id> --no-pre-rollback
-```
+Rollback is invoked from services after a failed write. There is no operator
+command for it.
 
 ## Safety
 

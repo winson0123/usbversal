@@ -1,50 +1,52 @@
 # System Overview
 
-**Status:** scaffolding — no runtime implementation yet.
+**Status:** TUI product; Waiting → Detect → Library → Progress → Done.
 
 ## Purpose
 
-Usbversal provides a unified Python interface to read and safely modify DJ library metadata on removable USB storage, without coupling CLI commands to vendor-specific database formats.
+Usbversal provides a unified Python interface to read and safely modify DJ
+library metadata on removable USB storage, without coupling the TUI to
+vendor-specific database formats.
 
 ## Layers
 
-| Layer | Package (planned) | Role |
-|-------|-------------------|------|
-| CLI | `usbversal.cli` | User-facing commands; argument parsing only |
-| Jobs | `usbversal.jobs` | Async orchestration, progress, cancel/resume |
-| Core | `usbversal.core` | Domain models, plans, adapter protocols |
-| Adapters | `usbversal.adapters` | Rekordbox (SQLite), Serato (binary) |
-| Storage | `usbversal.storage` | Mount scan, backup, atomic write, rollback |
+| Layer | Package | Role |
+|-------|---------|------|
+| TUI | `app.tui` | Screens and keys; dispatch only |
+| Jobs | `app.jobs` | Progress rate tracking (JobRunner unused by the TUI) |
+| Core | `app.core` | Domain models, plans, adapter protocols |
+| Adapters | `app.adapters` | Rekordbox (SQLite), Serato (binary) |
+| Storage | `app.storage` | Mount scan, backup, atomic write, rollback |
+| Services | `app.services` | Scan, backup, playlist/crate orchestration |
 
 ## Data Flow (Read)
 
 ```text
-CLI command
-  → JobRunner.start(scan_job)
-    → Storage.discover_libraries(/mnt/usb)
-      → Adapter.detect + Adapter.read_metadata
-        → Core.normalize → events → CLI output
+TUI Detect
+  → Storage auto-detect (/media/$USER, /Volumes, drive letters)
+    → Adapter.detect + Adapter.read_metadata
+      → Library screen
 ```
 
 ## Data Flow (Write)
 
 ```text
-CLI apply
-  → JobRunner.start(apply_job)
-    → Storage.backup(target_paths)
-    → Adapter.apply_plan(plan, WriteContext)
-      → on error: Storage.rollback
+TUI Progress
+  → Storage.backup(target_paths)
+  → sync_playlists (index, analysis, crates)
+    → on error: Storage.rollback
 ```
+
+`USBVERSAL_MOUNT` is a silent escape hatch when auto-detect misses a path.
 
 ## Boundaries
 
 - **Core** never imports SQLite or Serato-specific parsers directly.
 - **Adapters** never perform mount enumeration (Storage responsibility).
-- **Jobs** never format CLI tables (CLI responsibility).
+- **TUI** never owns vendor parsers or backup internals.
 
 ## Related
 
 - [async-model.md](async-model.md)
 - [event-system.md](event-system.md)
-- [cli-flow.md](cli-flow.md)
 - [../../ARCHITECTURE.md](../../ARCHITECTURE.md)

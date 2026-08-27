@@ -19,12 +19,16 @@ def integration_mount() -> Path:
     """
     Return the mount integration tests run against.
 
-    Override with ``USBVERSAL_TEST_MOUNT`` when the stick is not at /mnt/usb.
+    Set ``USBVERSAL_TEST_MOUNT`` to the stick root. There is no default path.
 
     Returns:
-        Path to the mount root.
+        Path to the mount root, or a nonexistent path if the env var is unset
+        so the integration tests skip instead of probing a hardcoded location.
     """
-    return Path(os.environ.get(INTEGRATION_MOUNT_ENV, "/mnt/usb"))
+    raw = os.environ.get(INTEGRATION_MOUNT_ENV)
+    if raw:
+        return Path(raw)
+    return Path("/var/empty/usbversal-no-test-mount")
 
 
 @pytest.fixture

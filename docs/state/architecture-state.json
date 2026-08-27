@@ -38,7 +38,7 @@
     "test": "pytest",
     "async": "asyncio",
     "packaging": "pyinstaller",
-    "primary_test_mount": "/mnt/usb",
+    "primary_test_mount": "USBVERSAL_TEST_MOUNT",
     "vendors": [
       "rekordbox",
       "serato"

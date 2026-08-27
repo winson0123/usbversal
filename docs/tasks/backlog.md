@@ -101,7 +101,7 @@ plus per-file backup required.** Sequenced strictly after M8.
 
 | ID | Title | Notes |
 |----|-------|-------|
-| `TASK-090` | `export.pdb` DeviceSQL reader | Spec captured in [rekordbox-schema-notes.md](../schemas/rekordbox-schema-notes.md) but **never parsed**. Not needed while `exportLibrary.db` is present — only for older sticks that ship `export.pdb` alone. Validate by dumping the playlist tree and checking names are readable. |
+| ~~`TASK-090`~~ | ~~`export.pdb` DeviceSQL reader~~ | Dropped — Pioneer CDJ-era DeviceSQL exports only. We ship against One Library (`exportLibrary.db`). Not maintaining a second Rekordbox parser. |
 | ~~`TASK-091`~~ | ~~Reconcile `ruff format` drift~~ | Done |
 
 ## M10.5 — Finish the analysis port

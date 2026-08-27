@@ -2,22 +2,28 @@
 
 **Status:** implemented (read-only discovery).
 
-## Test Environment
+## Auto-detect
 
-Primary validation mount for WSL development:
+The TUI scans for a DJ USB on the platform's usual removable-media roots:
 
-```text
-/mnt/usb
-```
+| OS | Roots |
+|----|-------|
+| Linux | `/media/$USER` |
+| macOS | `/Volumes` |
+| Windows | Drive letters |
 
-Use only when a task explicitly requires real USB validation. Do not assume the mount exists in CI.
+`USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path
+(WSL, unusual mounts). Integration tests use `USBVERSAL_TEST_MOUNT` the same
+way — there is no hardcoded default.
 
-## Target Behavior (Planned)
+Use a real stick only when a task explicitly requires it. Do not assume a
+stick exists in CI.
+
+## Target Behavior
 
 | Step | Detail |
 |------|--------|
-| Accept `--mount` | User-supplied root (required for explicit operations) |
-| Optional auto-detect | Enumerate removable mounts (OS-specific, future) |
+| Auto-detect | Enumerate removable mounts (OS-specific, above) |
 | Library scan | Walk for Rekordbox and Serato signatures |
 | Emit warnings | DJ software running, lock files present |
 
@@ -44,7 +50,7 @@ Use only when a task explicitly requires real USB validation. Do not assume the 
 
 ## Validation Requirement
 
-When `/mnt/usb` is available:
+When a DJ USB is available:
 
 - Record discovered paths in `docs/schemas/` notes
 - Do not replace integration tests with mocks only

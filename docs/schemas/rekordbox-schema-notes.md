@@ -99,7 +99,8 @@ Usbversal treats exported nodes as **folder** vs **playlist (list)** only. Rule-
 Sourced from public format documentation (Deep Symmetry's `crate-digger`, the
 `rekordbox_pdb.ksy` Kaitai Struct spec), **not** from a real file on `/mnt/usb`.
 usbversal currently rejects this format with `UnsupportedDatabaseError` and
-requires One Library instead — see TASK-090 before relying on any of the below.
+requires One Library instead. TASK-090 (a DeviceSQL reader for older sticks)
+was dropped — we are not maintaining a second Rekordbox parser.
 
 **File header**: `u32 0`, `u32 page_size` (usually 4096), `u32 num_tables`,
 `u32 next_unused_page`, `u32 unknown`, `u32 sequence`, `u32 gap`. Then
@@ -187,4 +188,5 @@ These are the source data for Stage 2 analysis sync — see
 
 Both `exportLibrary.db` and `export.pdb` are present on the test stick.
 usbversal reads the former and does not need a DeviceSQL parser for rb7-class
-exports. TASK-090 covers older sticks that ship `export.pdb` only.
+exports. Older sticks that ship `export.pdb` only are out of scope (TASK-090
+dropped).

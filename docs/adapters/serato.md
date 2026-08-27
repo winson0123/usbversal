@@ -56,7 +56,7 @@ See [../schemas/serato-schema-notes.md](../schemas/serato-schema-notes.md) and [
 | Operation | Status | CLI |
 |-----------|--------|-----|
 | Resolve `_Serato_` | implemented | |
-| List crates + track counts | implemented | `list-crates --mount /mnt/usb` |
+| List crates + track counts | implemented | |
 | List database track index size | implemented | included in `list-crates` output |
 | Write crate from Rekordbox playlist | implemented | `migrate-playlist --mount …` |
 

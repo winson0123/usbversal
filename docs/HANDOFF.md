@@ -6,17 +6,16 @@ below — that's what a session picking this up should do next.
 
 | | |
 |---|---|
-| Tests | 273 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-219` — Progress screen verbose per-track log, green/red colour |
+| Tests | 276 passed, 4 skipped (`ruff` and `ruff format` clean) |
+| Last done | `TASK-244` — Dropped TASK-090; `/mnt/usb` out of operator docs |
 | Branch | `main`, clean, **no remote** |
-| Stick (this dev sandbox) | `USBVERSAL_MOUNT=/mnt/usb` — TASK-217 removed the automatic `/mnt` scan; see the mount trap below, it's unchanged |
+| Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
-The interactive TUI (M11, TASK-200–219) is the actual deliverable now — the
-whole Waiting → Detect → Library → Progress → Done flow is reachable, and the
-CLI is a thin test harness underneath it. Everything below the pending-task
-section is the pre-TUI Rekordbox → Serato analysis-porting handoff; it's still
-accurate and worth reading before touching that code, just no longer the
-first thing to work on.
+The interactive TUI is the product — Waiting → Detect → Library → Progress →
+Done. There is no argparse CLI. Everything below the pending-task section is
+the pre-TUI Rekordbox → Serato analysis-porting handoff; it's still accurate
+and worth reading before touching that code, just no longer the first thing
+to work on.
 
 ---
 
@@ -187,15 +186,15 @@ read-back before any byte reaches disk, and `tests/test_never_clobber.py`
 (TASK-133) proves that verification, and the writer generally, never disturbs
 a Mixed In Key or other foreign vendor frame. What none of this has done yet:
 
-- ~~**Reach the CLI or TUI.**~~ Done since this was written: `sync_playlists()`
-  is reachable end to end from the TUI's Progress screen (TASK-208,
-  verbose per-track output added in TASK-219). `correct_index_bpm()` is
-  still not wired into either the CLI or the TUI.
+- ~~**Reach the TUI.**~~ Done: `sync_playlists()` is reachable end to end
+  from the Progress screen (TASK-208, verbose per-track output in TASK-219,
+  index/crate phases in TASK-243). `correct_index_bpm()` is still not wired
+  into the TUI.
 - **Run against the real stick.** Exercised against synthetic fixtures only —
   a real WAV carrying real Serato frames, hand-built ANLZ containers, and a
   hand-built MP3 carrying foreign vendor frames. The ~70 known-wrong index
-  rows on `/mnt/usb` are still wrong until `correct_index_bpm()` actually runs
-  there. Re-validate before trusting any of this on real hardware.
+  rows on the test stick are still wrong until `correct_index_bpm()` actually
+  runs there. Re-validate before trusting any of this on real hardware.
 
 ---
 
@@ -233,9 +232,9 @@ Backups on the stick, newest last:
 
 TASK-130 wired grids, cues, and the index into `sync_playlists`; TASK-132
 added `correct_index_bpm()` for rows outside a synced playlist. Both have only
-run against synthetic fixtures so far. Run `correct_index_bpm()` against
-`/mnt/usb` to actually fix the **~70 constant-tempo tracks still at half or
-double tempo in the index** and re-check the four `Drake - NOKIA` variants
+run against synthetic fixtures so far. Run `correct_index_bpm()` against an
+auto-detected stick to actually fix the **~70 constant-tempo tracks still at
+half or double tempo in the index** and re-check the four `Drake - NOKIA` variants
 (indexed at 106 when the track opens at 126 for its first hundred seconds),
 then confirm in Serato before trusting either path generally.
 
@@ -243,9 +242,8 @@ Everything else from the original post-porting punch list (write verification,
 codifying the BPM rules, the never-clobber regression test, correcting this
 document) is done — TASK-131, TASK-132, TASK-133, TASK-126. What remains
 before the analysis path can be called finished is validating it on real
-hardware, plus the pre-existing M9/M11 backlog (MP3 tag writes untested, no
-CLI/TUI entry point for either function) that was never specific to this
-handoff. See `docs/tasks/backlog.md`.
+hardware. `sync_playlists` is reachable from the TUI; `correct_index_bpm()`
+is still not. See `docs/tasks/backlog.md`.
 
 ---
 
@@ -281,16 +279,10 @@ Consequences that should shape the code:
 ### The WSL mount trap
 
 This shell runs in a private mount namespace, so a stick mounted afterwards in
-the host namespace is invisible — `/mnt/usb` looks like an empty directory.
-Bind-mount under `/mnt/wsl`, a shared peer group:
+the host namespace is invisible. Auto-detect will not see it. Set
+`USBVERSAL_MOUNT` to the path that is actually visible in this namespace.
 
-```bash
-sudo mount -t vfat /dev/sde1 /mnt/usb -o uid=1000,gid=1000,utf8
-sudo mkdir -p /mnt/wsl/usb && sudo mount --bind /mnt/usb /mnt/wsl/usb
-```
-
-Both are lost on reboot, and the device letter changes between replugs. An empty
-mount point means *no stick*, not a valid path.
+An empty mount point means *no stick*, not a valid path.
 
 ---
 

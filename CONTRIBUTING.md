@@ -52,7 +52,7 @@ All tests must pass before marking a task complete. Record commands in `current-
 - Message format: `[TASK-XXX] Short imperative summary`
 - Include task ID in body when helpful.
 - Do not mix refactors with feature work in the same commit.
-- Do not commit secrets, real DJ databases, or `/mnt/usb` snapshots.
+- Do not commit secrets or real DJ databases.
 
 ## TUI Thin-Layer Requirement
 

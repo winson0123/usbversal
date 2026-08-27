@@ -10,14 +10,16 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-243` |
-| Objective | Progress callback covers index appends and crate writes, not only analysis |
+| Task ID | `TASK-244` |
+| Objective | Drop TASK-090; take `/mnt/usb` out of operator docs |
 | Completed | 2026-08-27 |
 
 ### Scope
 
-- `SyncProgress` record with `phase` (`index` / `analysis` / `crates`).
-- Progress screen status: Indexing tracks / Writing analysis / Writing crates. Opens on "Taking backup…".
+- `TASK-090` removed from `pending_tasks`; marked dropped in the backlog.
+- Operator docs teach auto-detect (`/media/$USER`, `/Volumes`, drive letters).
+  `USBVERSAL_MOUNT` stays as a one-line WSL escape hatch.
+- `USBVERSAL_TEST_MOUNT` has no hardcoded default.
 
 ### Verification log
 
@@ -29,4 +31,4 @@
 
 ## Next
 
-Ask the user.
+Library two-pane redesign (see [docs/HANDOFF.md](../HANDOFF.md)).
