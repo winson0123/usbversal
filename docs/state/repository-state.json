@@ -81,6 +81,7 @@
     "tui_library_select_all_node": true,
     "tui_library_all_node_collapsible": true,
     "tui_rekordbox_thread_affinity_fixed_on_exit": true,
+    "tui_home_screen_ascii_banner_and_spinner": true,
     "json_output_stdout_only": true,
     "discovery_skips_backup_trees": true,
     "sync_playlists": true,
@@ -169,6 +170,7 @@
     "79 files carry the broken +120s beatgrid from the abandoned attempt; repair not run",
     "correct_index_bpm() exists but has not been run against the real stick's ~70 known-wrong rows yet",
     "nested playlist folder crate naming (Parent%%Child) is implemented but its convention is still unverified against real Serato",
-    "the whole TUI test suite mocks/fakes the rekordbox adapter, so it cannot catch pyo3-level issues like the thread-affinity crash TASK-209 fixed -- that class of bug is only found by running against a real stick. TASK-209's fix is confirmed working on real hardware (user ran a real sync end to end after it); TASK-210, TASK-211, and TASK-212's fixes (refresh-on-resume, synced/total counts, true column alignment, the collapsible \"All playlists\" node, and the exit-time drop-on-wrong-thread crash) are not yet re-confirmed there -- verified in this environment only via Tree.render_line() output and Pilot tests, both against synthetic fixtures/fakes, never a real PyOneLibrary."
+    "the whole TUI test suite mocks/fakes the rekordbox adapter, so it cannot catch pyo3-level issues like the thread-affinity crash TASK-209 fixed -- that class of bug is only found by running against a real stick. TASK-209's fix is confirmed working on real hardware (user ran a real sync end to end after it); TASK-210, TASK-211, and TASK-212's fixes (refresh-on-resume, synced/total counts, true column alignment, the collapsible \"All playlists\" node, and the exit-time drop-on-wrong-thread crash) are not yet re-confirmed there -- verified in this environment only via Tree.render_line() output and Pilot tests, both against synthetic fixtures/fakes, never a real PyOneLibrary.",
+    "TASK-213's Home screen banner/spinner/error layout was verified via direct widget.render_line() inspection in this environment (region/x-position checks proving each element is independently centered) but not yet seen by the user in a real terminal."
   ]
 }

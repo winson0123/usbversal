@@ -292,6 +292,11 @@
       "id": "TASK-212",
       "title": "Fix rbox thread-affinity crash on TUI exit",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-213",
+      "title": "Home screen: centered ASCII banner, spinner, error state",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -628,6 +633,12 @@
     {
       "id": "TASK-212",
       "title": "Fix rbox thread-affinity crash on TUI exit",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-213",
+      "title": "Home screen: centered ASCII banner, spinner, error state",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

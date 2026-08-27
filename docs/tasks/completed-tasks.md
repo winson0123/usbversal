@@ -278,6 +278,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-213 — Home screen: centered ASCII banner, spinner, error state
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | Redesign the Home (Waiting/Detect) screen per the user's request: a centered ASCII "usbversal" wordmark, a spinning glyph underneath while detecting, and an error message that replaces the spinner (not the banner) on scan failure -- native terminal colours only, no custom theme, Rich colour markup for the one place it's useful |
+| Verification | ruff ✓ ruff format ✓ pytest 249 passed / 4 skipped; layout verified via direct `widget.render_line()`/`.region` inspection (each element independently centered); **not yet seen by the user in a real terminal** |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

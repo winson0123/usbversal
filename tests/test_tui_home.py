@@ -48,7 +48,8 @@ def _status_text(screen: HomeScreen) -> str:
 
 @pytest.mark.asyncio
 async def test_shows_searching_with_nothing_mounted() -> None:
-    """Nothing plugged in yet is the initial, and steady, state."""
+    """Nothing plugged in yet is the initial, and steady, state: the spinner
+    runs under the banner, and no error message is showing."""
     watcher = MountWatcher(_FakeScanner([]))
     app = UsbversalApp(watcher)
     async with app.run_test() as pilot:
@@ -57,7 +58,8 @@ async def test_shows_searching_with_nothing_mounted() -> None:
         home.poll_mounts()
         await pilot.pause()
 
-        assert "Searching for valid DJ USBs" in _status_text(home)
+        assert home.query_one("#spinner").display is True
+        assert home.query_one("#status").display is False
 
 
 @pytest.mark.asyncio
@@ -73,6 +75,8 @@ async def test_shows_none_found_for_a_mount_that_is_not_a_dj_usb(tmp_path: Path)
             await pilot.pause()
 
             assert "Did not detect a valid DJ USB" in _status_text(home)
+            assert home.query_one("#spinner").display is False
+            assert home.query_one("#status").display is True
 
 
 @pytest.mark.asyncio
