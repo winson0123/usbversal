@@ -348,6 +348,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-220 — Home screen: scanning caption + a more noticeable pulsing-dot spinner
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | User: "well i dont see the verbose message of scanning usbs when the first screen shows. only the spinning circle" -- refined mid-implementation to a fixed caption ("Automatically detecting for a DJ USB…") and a bigger, pulsing-dot spinner ("its quite small") |
+| Verification | ruff ✓ ruff format ✓ pytest 273 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

@@ -327,6 +327,11 @@
       "id": "TASK-219",
       "title": "Progress screen: verbose per-track log, green/red colour instead of theme",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-220",
+      "title": "Home screen: show what/where is being scanned, not just a bare spinner",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -705,6 +710,12 @@
     {
       "id": "TASK-219",
       "title": "Progress screen: verbose per-track log, green/red colour instead of theme",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-220",
+      "title": "Home screen: show what/where is being scanned, not just a bare spinner",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

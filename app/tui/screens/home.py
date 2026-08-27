@@ -30,12 +30,16 @@ from app.services.library import (
 from app.tui.screens.library import LibraryScreen
 
 _NONE_FOUND = "Did not detect a valid DJ USB"
+_SCANNING = "Automatically detecting for a DJ USB…"
 _BANNER_ID = "banner"
 _SPINNER_ID = "spinner"
 _STATUS_ID = "status"
 _INPUT_ID = "path-input"
-_SPINNER_INTERVAL_S = 0.1
-_SPINNER_FRAMES = ("◐", "◓", "◑", "◒")
+_SPINNER_INTERVAL_S = 0.15
+# A dot pulsing from small to large and back, rather than a rotating
+# quarter-circle -- easier to notice at a glance, per the user's own
+# "pulsing dot" description of what they wanted.
+_SPINNER_FRAMES = ("·", "•", "●", "•")
 
 _BANNER = """\
 ░█░█░█▀▀░█▀▄░█░█░█▀▀░█▀▄░█▀▀░█▀█░█░░
@@ -162,8 +166,7 @@ class HomeScreen(Screen):
                 )
 
     def on_mount(self) -> None:
-        self.query_one(f"#{_STATUS_ID}", Static).display = False
-        self._hide_input()
+        self._show_spinner()
         self.set_interval(self.POLL_INTERVAL_S, self.poll_mounts)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
@@ -213,7 +216,11 @@ class HomeScreen(Screen):
 
     def _show_spinner(self) -> None:
         self.query_one(f"#{_SPINNER_ID}", _Spinner).display = True
-        self.query_one(f"#{_STATUS_ID}", Static).display = False
+        status = self.query_one(f"#{_STATUS_ID}", Static)
+        status.display = True
+        # Dim, not red -- this is routine "still looking" information, not
+        # a problem.
+        status.update(Text(_SCANNING, style="dim"))
         self._hide_input()
 
     def _show_error(self, message: str) -> None:

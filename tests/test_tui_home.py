@@ -49,7 +49,8 @@ def _status_text(screen: HomeScreen) -> str:
 @pytest.mark.asyncio
 async def test_shows_searching_with_nothing_mounted() -> None:
     """Nothing plugged in yet is the initial, and steady, state: the spinner
-    runs under the banner, and no error message is showing."""
+    runs under the banner, alongside a caption saying it's looking -- not
+    silence, and not the red not-found error."""
     watcher = MountWatcher(_FakeScanner([]))
     app = UsbversalApp(watcher)
     async with app.run_test() as pilot:
@@ -59,7 +60,9 @@ async def test_shows_searching_with_nothing_mounted() -> None:
         await pilot.pause()
 
         assert home.query_one("#spinner").display is True
-        assert home.query_one("#status").display is False
+        status = home.query_one("#status", Static)
+        assert status.display is True
+        assert "Automatically detecting" in _status_text(home)
 
 
 @pytest.mark.asyncio

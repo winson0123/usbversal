@@ -88,6 +88,7 @@
     "tui_home_manual_entry_only_shown_on_failure": true,
     "tui_progress_verbose_per_track_log": true,
     "sync_progress_callback_reports_track_and_error": true,
+    "tui_home_shows_scanning_caption": true,
     "library_screen_shows_mount_path": true,
     "mount_scanner_wsl_mnt_removed": true,
     "json_output_stdout_only": true,
