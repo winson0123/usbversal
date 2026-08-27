@@ -10,65 +10,58 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-213` |
-| Objective | Home screen redesign: centered ASCII banner, a spinning glyph while detecting, an error message that replaces the spinner (not the banner) on scan failure -- no custom theme colours, just the terminal's own foreground plus Rich markup where it adds information |
+| Task ID | `TASK-214` |
+| Objective | User reported the TUI "turned black" -- turn off Textual's built-in dark theme and use the terminal's own native colours everywhere, per the explicit ask that started TASK-213 |
 | Completed | 2026-08-27 |
 
 ### Scope
 
 Files touched:
 
-- `app/tui/screens/home.py`:
-  - `_BANNER` -- a fixed "usbversal" wordmark (shade/block-drawing
-    characters, user-supplied), always visible.
-  - `_Spinner` (new `Static` subclass) -- ticks through four quarter-circle
-    frames (`◐◓◑◒`) on a 0.1s interval; no colour set on it, so it renders
-    in whatever the terminal's default foreground is.
-  - `compose()` nests banner/spinner/status each in their own `Center`
-    (full-width, centers its one child) inside an outer `CenterMiddle`
-    (centers that whole group vertically in the screen). Each item needed
-    its own `Center` wrapper, not just `width: auto` under the shared
-    `CenterMiddle` -- Textual's `align: center middle` centers the *group's
-    bounding box* (sized to the widest child) as one block, left-anchoring
-    narrower children inside it, not each child independently. Confirmed
-    empirically by reading each widget's `.region` before and after adding
-    the wrappers.
-  - `_show_spinner()` / `_show_error()` replace the old free-text `_show()`:
-    the spinner and the status `Static` occupy the same slot under the
-    banner and are mutually exclusive (`display` toggled), matching the
-    request that the error message *replace* the spinner rather than sit
-    alongside it. The error text is wrapped in `[red]...[/red]` -- the one
-    place colour is used at all, and it degrades to a colourless terminal
-    automatically since it's Rich markup, not a hardcoded ANSI code.
-  - Dropped the old "Ready: mount -- N playlists" flash message; the
-    screen is replaced by `LibraryScreen` immediately on success, so there
-    was nothing for a viewer to actually read there.
-- `tests/test_tui_home.py` -- the "searching" test now asserts the spinner
-  is visible and `#status` is hidden (previously asserted status text);
-  the "none found" test additionally asserts the reverse. Behavioural
-  assertions (which library gets opened, that Serato gets bootstrapped,
-  that polling stops once a library is open) are unchanged.
+- `app/tui/app.py`:
+  - `UsbversalApp.__init__` now passes `ansi_color=True` to `App.__init__`.
+    This flips on Textual's `:ansi` CSS mode app-wide: `App`/`Screen`'s
+    `background`/`color` (which normally resolve to fixed hex values from
+    Textual's default theme -- `#121212`, `#E0E0E0`, etc.) instead resolve
+    to Rich's `ColorType.DEFAULT`, meaning "emit no colour code at all,
+    let the terminal use whatever it's already set to."
+  - New `CSS` class variable neutralizes two stock widgets that still leak
+    a fixed dark colour even with `ansi_color=True`: `Footer` (and its
+    `FooterKey`/`.footer-key--key`/`.footer-key--description` children)
+    has no `:ansi` rule of its own at all in Textual's source, and `Tree`'s
+    own `:ansi` rule only covers its text/guides, not the widget's own
+    `background: $surface`. Both forced to `background: transparent`
+    (`color: ansi_default` for the Footer pieces, whose foreground was
+    also hardcoded).
+
+### Root cause
+
+TASK-213 already committed to "no custom theme, native terminal colours"
+as a design principle, but never actually verified that Textual's
+*default* theme was off -- it wasn't. Every Textual `App` ships with a
+dark theme active by default (fixed hex `$background`/`$foreground`/etc.),
+regardless of anything an app's own screens do; TASK-213's work was all at
+the screen-content level (no colours set on the banner/spinner) and never
+touched the App/Screen background those widgets sit on top of, which is
+what was actually painting solid dark-grey/near-black across the whole
+terminal.
 
 ### Design decisions
 
-- **No custom Textual theme.** Per the user's explicit ask ("i dont need
-  the features of themes, just take the native terminal colours, and
-  support the rich text colours if terminal does") -- nothing here sets
-  `color:`/`background:` via Textual's `$primary`/`$boost` theme variables
-  (which `LoadingIndicator`, Textual's built-in spinner widget, does use --
-  that's why this task hand-rolled `_Spinner` instead of reaching for the
-  stock widget). The only colour anywhere is the `[red]` Rich markup on
-  the error text, which is exactly "rich text colour, degrades on a
-  terminal that doesn't support it" rather than a theme.
-- **Banner art taken verbatim from the user**, not generated. They were
-  shown four candidates (a hand-made block font, and figlet's `standard`/
-  `slant`/`small_slant` outputs, confirmed via a scratch `pyfiglet`
-  install) and picked their own alternative instead -- used as given.
-- **Spinner and error message share one slot, not two independent ones.**
-  The user's phrasing ("error message on scan failed, replacing circle
-  spinning") describes one region that changes mode, not a spinner that
-  keeps spinning next to a growing status line -- implemented as two
-  widgets in the same position with `display` toggled between them.
+- **`ansi_color=True`, not a custom CSS override of `$background`.**
+  Textual ships this exact mechanism for "use the terminal's own palette
+  instead of a fixed theme" -- reaching for it instead of hand-rolling
+  `background: transparent` on `App`/`Screen` ourselves means every other
+  built-in widget's own `:ansi` rules (already written by Textual, e.g.
+  `LoadingIndicator`'s, `Tree`'s partial one) kick in for free too, rather
+  than needing to override each one by hand.
+- **Functional highlight colours left alone.** The tree's selection
+  cursor (`.tree--cursor`, a blue highlight bar) and the progress bar's
+  fill colour were not touched -- they convey real state (what's selected,
+  how far along a sync is), which is a different thing from a background
+  theme painted under content that has no informational reason to be any
+  particular colour. The user's complaint was specifically about the
+  screen looking solid black, not about there being any colour at all.
 
 ### Verification log
 
@@ -77,16 +70,13 @@ Files touched:
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
 | `.venv/bin/pytest` | 249 passed, 4 skipped |
-| Direct `widget.render_line()`/`.region` inspection | Confirmed banner (36 wide), spinner (1 wide), and the error text (29 wide) each land independently centered in an 80-column screen (x=22, x=39, x=25 respectively -- each `(80-width)//2`), and that the spinner is hidden exactly when the error text is shown and vice versa |
-| Real terminal | **Not yet seen by the user.** Verified only via headless `Pilot`/render-line inspection in this environment. |
+| Direct Rich `Style` inspection | Rendered a segment from the Home screen's banner and confirmed its style is `default on default` (was previously resolving to a fixed near-black `Color(18, 18, 18)` background); did the same for a bare `Footer` and `Tree` harness and confirmed both now resolve to `on default` as well, after the CSS override |
+| Real terminal | **Not yet seen by the user.** This was diagnosed and fixed from the user's verbal report ("my tui turned black"), not a reproducible local crash -- there is no automated test asserting on rendered colour, since that's exactly the kind of thing this project's TUI suite can't currently exercise against a real terminal's actual palette. |
 
 ## Next
 
-Ask the user to run `python -m app.tui` (or the packaged binary) and confirm
-the banner/spinner/error layout looks right in their actual terminal --
-centering, glyph rendering (the block-drawing banner and the spinner both
-depend on the terminal's font support), and that red actually renders as
-red where their terminal has colour. Also still outstanding from
-TASK-210/211/212: re-confirmation that the Library screen's columns line
-up, "All playlists" collapses, and the app exits cleanly without the
-drop-on-wrong-thread crash.
+Ask the user to re-run the TUI and confirm the background now matches
+their terminal's own colours (not a dark grey/black block) on both the
+Home screen and the Library/Progress/Done screens. Also still outstanding:
+real-hardware re-confirmation of TASK-210/211/212's fixes, and how the
+TASK-213 banner/spinner actually render in their terminal.

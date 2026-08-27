@@ -297,6 +297,11 @@
       "id": "TASK-213",
       "title": "Home screen: centered ASCII banner, spinner, error state",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-214",
+      "title": "TUI: use native terminal colours instead of Textual's dark theme",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -639,6 +644,12 @@
     {
       "id": "TASK-213",
       "title": "Home screen: centered ASCII banner, spinner, error state",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-214",
+      "title": "TUI: use native terminal colours instead of Textual's dark theme",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

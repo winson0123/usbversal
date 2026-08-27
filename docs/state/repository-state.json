@@ -82,6 +82,7 @@
     "tui_library_all_node_collapsible": true,
     "tui_rekordbox_thread_affinity_fixed_on_exit": true,
     "tui_home_screen_ascii_banner_and_spinner": true,
+    "tui_uses_native_terminal_colours": true,
     "json_output_stdout_only": true,
     "discovery_skips_backup_trees": true,
     "sync_playlists": true,

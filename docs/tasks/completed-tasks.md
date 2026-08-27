@@ -288,6 +288,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-214 — TUI: use native terminal colours instead of Textual's dark theme
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | User reported the TUI "turned black" -- Textual's built-in theme paints `App`/`Screen` background as a fixed near-black hex (`#121212`) regardless of the user's own terminal colours, which is exactly the "theme" the user asked TASK-213 to avoid but hadn't actually been turned off yet |
+| Verification | ruff ✓ ruff format ✓ pytest 249 passed / 4 skipped; confirmed via direct Rich `Style` inspection on rendered segments that App/Screen/Footer/Tree backgrounds now resolve to `default` (terminal-native) rather than a fixed hex; **not yet seen by the user in a real terminal** |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

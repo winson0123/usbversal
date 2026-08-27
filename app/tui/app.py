@@ -75,13 +75,34 @@ class UsbversalApp(RekordboxThreadMixin, App):
     TITLE = "usbversal"
     BINDINGS = [Binding("q", "quit", "Quit", show=True)]
 
+    # Textual's built-in dark theme still leaks through on a couple of stock
+    # widgets even with ansi_color=True: Footer has no :ansi rule of its own
+    # at all, and Tree's only covers its text/guides, not its own background.
+    # Both default to near-black hex ($footer-background, $surface) -- this
+    # neutralizes them to the terminal's own colours, same as everything
+    # else. Functional highlights (the tree cursor, the progress bar fill)
+    # are left alone; they convey real information, not a theme.
+    CSS = """
+    Footer, FooterKey, .footer-key--key, .footer-key--description {
+        background: transparent;
+        color: ansi_default;
+    }
+    Tree {
+        background: transparent;
+    }
+    """
+
     def __init__(self, watcher: MountWatcher | None = None) -> None:
         """
         Args:
             watcher: Mount watcher for the Home screen; defaults to a fresh
                 one. Injectable for tests.
         """
-        super().__init__()
+        # ansi_color=True: use the terminal's own default/ANSI colours
+        # instead of Textual's built-in theme, whose $background/$foreground
+        # are fixed hex values (a near-black regardless of the user's actual
+        # terminal palette).
+        super().__init__(ansi_color=True)
         self._watcher = watcher
 
     def on_mount(self) -> None:
