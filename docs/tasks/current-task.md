@@ -10,70 +10,59 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-215` |
-| Objective | User asked: insert a valid USB and press enter to retry scanning, optionally type the path directly, with Tab completion |
+| Task ID | `TASK-216` |
+| Objective | Auto-detect a valid DJ USB under `/media/$USER/<device>` (real desktop Linux's udisks2/gvfs auto-mount location, as opposed to this project's own WSL dev environment's `/mnt/usb`), and show the mount that got opened on the Library screen |
 | Completed | 2026-08-27 |
 
 ### Scope
 
 Files touched:
 
-- `app/tui/screens/home.py`:
-  - `_complete_path(partial) -> str \| None` -- shell-style Tab completion.
-    Splits the partial into a directory and a name prefix, lists matching
-    entries, and completes to their longest common prefix
-    (`os.path.commonprefix`); returns `None` (no-op) when there's nothing
-    new to add (no matches, or the common prefix among several matches
-    equals what's already typed) so repeated Tab presses on an already-
-    maximal, still-ambiguous prefix do nothing rather than erroring. A
-    single unambiguous directory match gets a trailing `/`, matching
-    ordinary shell completion.
-  - `_PathInput(Input)` -- a `tab` binding (non-priority) calling
-    `action_complete`, which applies `_complete_path` to the current
-    value. Textual checks a *focused* widget's own bindings before
-    walking up to `Screen`'s (which has its own default `tab` ->
-    `app.focus_next`), so this didn't need `priority=True` the way
-    TASK-207's space-vs-Tree binding conflict did -- confirmed by
-    pressing Tab through a real `Pilot` and reading the value back,
-    not just calling the action method directly.
-  - `HomeScreen`: `_PathInput` sits in its own `Center` under the
-    spinner/status slot, auto-focused in `on_mount`. `on_input_submitted`
-    handles `Input.Submitted`: an empty value calls `self.poll_mounts()`
-    immediately (retry now, instead of waiting up to `POLL_INTERVAL_S`
-    for the next timer tick); a non-empty value goes straight to
-    `self._open(Path(value))`, the same bootstrap/open/hand-off path a
-    watcher-discovered mount already uses. `_open` now disables the
-    input while a real attempt is in flight and re-enables it (with
-    focus restored) on failure, so a bad manually typed path doesn't
-    leave the field stuck.
-- `tests/test_tui_home.py` -- 7 new tests: three direct unit tests of
-  `_complete_path` (fills a common prefix, adds a trailing slash for a
-  unique directory, no-ops on no-match/already-maximal-ambiguous), and
-  four `Pilot`-driven ones (Tab actually completes the focused input,
-  Enter on empty input retries immediately, Enter with a typed path opens
-  it and hands off to Library, a failed manual path re-enables the input).
+- `app/storage/mounts.py`:
+  - `LinuxMediaScanner` (new) -- lists `/media/$USER/*` the same way
+    `LinuxMntScanner` lists `/mnt/*`: one `MountPoint` per immediate child
+    directory, skipping dotfiles, tagged `source="linux_media"`. `$USER`
+    comes from `getpass.getuser()`, not a raw `os.environ["USER"]` read --
+    it falls back to other means of finding the username on systems where
+    that variable isn't set. An absent `/media/$USER` (no desktop
+    auto-mounter running, e.g. this project's own WSL environment) is not
+    an error -- just an empty list, same as `LinuxMntScanner` handles a
+    missing `/mnt`.
+  - `_CompositeScanner` (new) -- merges the mount lists from several
+    scanners into one. `get_mount_scanner()` now returns
+    `_CompositeScanner([LinuxMntScanner(), LinuxMediaScanner()])` on
+    Linux instead of picking exactly one -- a real box could plausibly
+    have mounts show up under either root, and `MountWatcher.poll()`
+    already de-duplicates by path via a `set` diff, so merging is safe
+    even if something briefly appeared in both.
+- `app/tui/screens/library.py` -- `compose()` now yields
+  `Static(f"Mounted: {self._library.mount}", id="mount-info")` above the
+  tree (`text-style: dim`, no colour -- consistent with TASK-213/214's "no
+  theme" stance). Shows whichever path actually got opened, regardless of
+  whether it came from either scanner or was typed manually through
+  TASK-215's path input.
+- `tests/test_mounts.py` -- `LinuxMediaScanner` listing + empty-root
+  cases, `_CompositeScanner`'s merge, and `get_mount_scanner` now
+  asserting a composite of both scanner types on Linux (previously
+  asserted `LinuxMntScanner` alone).
 
 ### Design decisions
 
-- **Retry reuses `poll_mounts()` rather than a separate code path.**
-  `poll_mounts()` already does the right thing when called at an arbitrary
-  moment -- diffs the watcher, opens a newly valid mount if one showed up,
-  otherwise falls back to the spinner/error state exactly as before -- so
-  "retry now" is just "call the same function early" rather than new logic
-  with its own risk of drifting from what the timer-driven path does.
-- **Manual path entry reuses `_open()` rather than duplicating its
-  probe/bootstrap/open/error-handling.** The only new thing a manually
-  typed path needs is *not* going through `probe_mount` first (the user
-  is asserting this path directly, rather than it being auto-discovered);
-  everything after that -- bootstrap, open, the same exception handling,
-  the same push to `LibraryScreen` -- is identical, so it was cheaper and
-  safer to call the existing method than fork it.
-- **No validation before calling `_open()` on a typed path.** `_open`
-  already catches `OSError` (covers a nonexistent/non-directory path),
-  `DatabaseNotFoundError`, and `UnsupportedDatabaseError` and turns each
-  into the same red error message auto-detection uses -- adding a second,
-  earlier validation step would just be two places that could disagree
-  about what counts as a valid path.
+- **A composite scanner, not a single scanner checking two roots.**
+  Keeping `LinuxMntScanner`/`LinuxMediaScanner` as separate single-root
+  scanners (each already had tests written against its own specific root)
+  and merging them at `get_mount_scanner()` meant no existing behavior or
+  test for `/mnt` scanning needed to change at all -- only the composition
+  point did.
+- **`getpass.getuser()`, not `os.environ["USER"]` directly.** More
+  portable across however the user's environment ended up configured;
+  matches "assuming `$USER`" in intent without depending on that exact
+  variable being set.
+- **The mount line reads `library.mount`, not a separately threaded-through
+  "how it was found" flag.** `UsbLibrary.mount` is already the resolved
+  path that got opened, however it got there (auto-detected via either
+  scanner, or typed manually) -- showing that instead of re-deriving or
+  passing through provenance was the simpler, always-correct choice.
 
 ### Verification log
 
@@ -81,17 +70,16 @@ Files touched:
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 256 passed, 4 skipped (7 new) |
-| Manual `Pilot` check | Typed a partial path into the real input, pressed Tab through `pilot.press`, and confirmed the value completed and focus stayed on the input, before writing the equivalent test |
-| Real terminal | **Not yet seen by the user.** Verified only through `Pilot`/unit tests in this environment, same as TASK-213/214. |
+| `.venv/bin/pytest` | 259 passed, 4 skipped (5 new) |
+| Direct `.region`/`render_line()` inspection | Built a real `UsbLibrary` against a synthetic stick and confirmed the `Mounted: <path>` line renders at the top of the Library screen, above the tree, with the tree's own region correctly starting one row lower |
+| Real hardware | **Not yet confirmed.** This environment has no `/media/$USER` at all (it's WSL, using the pre-existing `/mnt/usb` bind-mount path) -- `LinuxMediaScanner` was verified only against a synthetic monkeypatched directory tree, never a real udisks2/gvfs auto-mount. |
 
 ## Next
 
-Ask the user to try this against a real terminal: confirm the input field
-is focused and usable on launch, that pressing Enter with a stick freshly
-inserted actually retries without waiting, that typing a path and pressing
-Enter opens it, and that Tab completion behaves sensibly against their
-actual mount paths (e.g. `/media/<user>/...` or `/mnt/...`). Also still
-outstanding: real-hardware re-confirmation of TASK-210/211/212's fixes and
-how the TASK-213/214 banner/spinner/colours actually look in their
-terminal.
+Ask the user to confirm on a real desktop Linux machine: plug in a USB
+stick, let it auto-mount under `/media/$USER/...`, and check that
+`usbversal` finds it without needing the manual path entry, and that the
+Library screen's "Mounted: ..." line shows the right path. Also still
+outstanding from earlier tasks: real-hardware re-confirmation of
+TASK-210/211/212, and how TASK-213/214/215's banner/spinner/colours/input
+actually look and behave in a real terminal.

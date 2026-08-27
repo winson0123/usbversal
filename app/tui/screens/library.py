@@ -44,6 +44,7 @@ _SELECTED = "x"
 _UNSELECTED = "-"
 _PARTIAL_SELECTED = "~"
 _STATUS_ID = "selection-status"
+_MOUNT_ID = "mount-info"
 _ALL_NAME = "All playlists"
 
 # Fixed-width columns so the count and state sit in the same place on every
@@ -86,6 +87,13 @@ class LibraryScreen(Screen):
         Binding("e", "toggle_expand", "Expand/collapse", show=True),
     ]
 
+    DEFAULT_CSS = """
+    LibraryScreen #mount-info {
+        text-style: dim;
+        margin: 0 0 1 1;
+    }
+    """
+
     def __init__(self, library: UsbLibrary) -> None:
         """
         Args:
@@ -96,6 +104,7 @@ class LibraryScreen(Screen):
         self._selected: set[int] = set()
 
     def compose(self) -> ComposeResult:
+        yield Static(f"Mounted: {self._library.mount}", id=_MOUNT_ID)
         tree: Tree[_Row] = Tree("Playlists", id="playlist-tree")
         tree.show_root = False
         yield tree

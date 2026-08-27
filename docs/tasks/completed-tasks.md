@@ -308,6 +308,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-216 — Detect USB sticks under /media/$USER, show the mount on the Library screen
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | User asked to auto-detect a valid DJ USB under `/media/$USER/<device>` -- where udisks2/gvfs auto-mounts removable media on a real desktop Linux session, as opposed to this project's own WSL dev environment's `/mnt/usb` -- and show the mount that got opened somewhere on the Library screen |
+| Verification | ruff ✓ ruff format ✓ pytest 259 passed / 4 skipped (5 new: `LinuxMediaScanner` listing + empty-root cases, `_CompositeScanner` merge, `get_mount_scanner` now returning a composite on Linux); confirmed via direct `.region`/`render_line()` inspection that the mount line renders as expected above the tree |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

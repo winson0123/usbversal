@@ -1,5 +1,6 @@
 """Cross-platform mount point enumeration."""
 
+import getpass
 import platform
 import string
 from abc import ABC, abstractmethod
@@ -83,6 +84,50 @@ class LinuxMntScanner(MountScanner):
         return mounts
 
 
+class LinuxMediaScanner(MountScanner):
+    """Enumerate auto-mounted removable media under /media/$USER.
+
+    This is where udisks2/gvfs -- the auto-mount machinery behind most
+    desktop Linux distros (GNOME, KDE, ...) -- puts a USB stick the moment
+    it's plugged in, one subdirectory per device. /mnt (LinuxMntScanner) is
+    the WSL/manual-mount case; a real desktop session needs this one too.
+    """
+
+    def list_mounts(self) -> list[MountPoint]:
+        """
+        Scan /media/$USER/* for directory mounts.
+
+        Returns:
+            MountPoint entries for each immediate child directory of
+            /media/$USER, or an empty list if that directory doesn't exist
+            (no desktop auto-mounter, or nothing currently mounted).
+        """
+        media_root = Path("/media") / getpass.getuser()
+        if not media_root.is_dir():
+            return []
+
+        mounts: list[MountPoint] = []
+        for entry in sorted(media_root.iterdir()):
+            if entry.is_dir() and not entry.name.startswith("."):
+                mounts.append(
+                    MountPoint(path=entry.resolve(), source="linux_media"),
+                )
+        return mounts
+
+
+class _CompositeScanner(MountScanner):
+    """Merges mount points from several scanners into one list."""
+
+    def __init__(self, scanners: list[MountScanner]) -> None:
+        self._scanners = scanners
+
+    def list_mounts(self) -> list[MountPoint]:
+        mounts: list[MountPoint] = []
+        for scanner in self._scanners:
+            mounts.extend(scanner.list_mounts())
+        return mounts
+
+
 class WindowsMountScanner(MountScanner):
     """Enumerate Windows drive letters."""
 
@@ -110,4 +155,4 @@ def get_mount_scanner() -> MountScanner:
     """
     if platform.system() == "Windows":
         return WindowsMountScanner()
-    return LinuxMntScanner()
+    return _CompositeScanner([LinuxMntScanner(), LinuxMediaScanner()])
