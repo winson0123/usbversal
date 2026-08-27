@@ -428,6 +428,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-228 — Extract PathInput widget from the Home screen
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | Move PathInput + match_candidates to `app/tui/widgets/path_input.py` |
+| Verification | ruff ✓ ruff format ✓ pytest 278 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

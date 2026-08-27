@@ -367,6 +367,11 @@
       "id": "TASK-227",
       "title": "Home screen: explicit HomePhase instead of _seen_invalid",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-228",
+      "title": "Extract PathInput widget from the Home screen",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -793,6 +798,12 @@
     {
       "id": "TASK-227",
       "title": "Home screen: explicit HomePhase instead of _seen_invalid",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-228",
+      "title": "Extract PathInput widget from the Home screen",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

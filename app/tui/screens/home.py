@@ -13,7 +13,6 @@ from pathlib import Path
 
 from rich.text import Text
 from textual.app import ComposeResult
-from textual.binding import Binding
 from textual.containers import Center, CenterMiddle
 from textual.screen import Screen
 from textual.widgets import Input, Static
@@ -27,6 +26,7 @@ from app.services.library import (
     probe_mount,
 )
 from app.tui.screens.library import LibraryScreen
+from app.tui.widgets.path_input import PathInput
 
 _NONE_FOUND = "Did not detect a valid DJ USB."
 _RETRY_HINT = "Press 'Enter' to retry auto-scan…"
@@ -77,79 +77,6 @@ class _Spinner(Static):
     def _tick(self) -> None:
         self._frame = (self._frame + 1) % _SPINNER_FRAME_COUNT
         self.update(_scan_bar_frame(self._frame))
-
-
-def _match_candidates(partial: str) -> list[str]:
-    """
-    List every directory matching a partial path, for Tab-cycling.
-
-    Args:
-        partial: The path typed so far.
-
-    Returns:
-        Full path candidates, each with a trailing "/", sorted by name --
-        or an empty list if the parent directory can't be listed or
-        nothing matches. Directories only: the target is always a mount
-        root, and a file can never be one.
-    """
-    path = Path(partial)
-    if partial == "" or partial.endswith("/"):
-        directory, prefix = (path if partial else Path(".")), ""
-    else:
-        directory, prefix = path.parent, path.name
-
-    try:
-        entries = sorted(directory.iterdir(), key=lambda entry: entry.name)
-    except OSError:
-        return []
-
-    candidates = []
-    for entry in entries:
-        if entry.name.startswith(prefix) and entry.is_dir():
-            full = directory / entry.name if str(directory) != "." else Path(entry.name)
-            candidates.append(f"{full}/")
-    return candidates
-
-
-class _PathInput(Input):
-    """Path entry field with Tab-cycling through matching directories.
-
-    Each Tab press advances to the next matching directory, wrapping back
-    to the first after the last -- rather than completing to a common
-    prefix, which still leaves an ambiguous path needing to be finished by
-    hand. Retyping (the value no longer matching where the cycle left it)
-    starts a fresh cycle from whatever's typed now.
-
-    A plain (non-priority) binding is enough to win over Screen's own
-    default ``tab`` -> ``app.focus_next`` binding: Textual checks a
-    focused widget's own bindings before walking up to its ancestors, so
-    this only needs to out-rank Screen when *this* widget has focus.
-    """
-
-    BINDINGS = [Binding("tab", "complete", "Complete path", show=False)]
-
-    def __init__(self, *args: object, **kwargs: object) -> None:
-        super().__init__(*args, **kwargs)
-        self._cycle: tuple[list[str], int] | None = None
-
-    def action_complete(self) -> None:
-        if self._cycle is not None:
-            matches, index = self._cycle
-            if self.value == matches[index]:
-                index = (index + 1) % len(matches)
-                self._set_value(matches[index])
-                self._cycle = (matches, index)
-                return
-
-        matches = _match_candidates(self.value)
-        if not matches:
-            return
-        self._set_value(matches[0])
-        self._cycle = (matches, 0)
-
-    def _set_value(self, value: str) -> None:
-        self.value = value
-        self.cursor_position = len(value)
 
 
 class HomePhase(StrEnum):
@@ -215,7 +142,7 @@ class HomeScreen(Screen):
             with Center():
                 yield Static("", id=_STATUS_ID)
             with Center():
-                yield _PathInput(
+                yield PathInput(
                     placeholder="or enter an absolute path…",
                     id=_INPUT_ID,
                 )
@@ -288,7 +215,7 @@ class HomeScreen(Screen):
         """Apply spinner, status, and path-input widgets from ``self._phase``."""
         spinner = self.query_one(f"#{_SPINNER_ID}", _Spinner)
         status = self.query_one(f"#{_STATUS_ID}", Static)
-        path_input = self.query_one(_PathInput)
+        path_input = self.query_one(PathInput)
 
         if self._phase is HomePhase.FAILED:
             spinner.display = False

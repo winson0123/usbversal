@@ -12,7 +12,8 @@ from app.core.domain import MountPoint
 from app.storage.mount_watch import MountWatcher
 from app.storage.mounts import MountScanner
 from app.tui.app import UsbversalApp
-from app.tui.screens.home import HomePhase, HomeScreen, _match_candidates, _PathInput
+from app.tui.screens.home import HomePhase, HomeScreen
+from app.tui.widgets.path_input import PathInput, match_candidates
 
 
 class _FakeScanner(MountScanner):
@@ -81,7 +82,7 @@ async def test_still_within_the_timeout_keeps_spinning() -> None:
         await pilot.pause()
 
         assert home.query_one("#spinner").display is True
-        assert home.query_one(_PathInput).display is False
+        assert home.query_one(PathInput).display is False
 
 
 @pytest.mark.asyncio
@@ -101,7 +102,7 @@ async def test_search_times_out_and_reveals_manual_entry() -> None:
 
         assert home.query_one("#spinner").display is False
         assert "Did not detect a valid DJ USB" in _status_text(home)
-        path_input = home.query_one(_PathInput)
+        path_input = home.query_one(PathInput)
         assert path_input.display is True
         assert path_input.disabled is False
 
@@ -248,7 +249,7 @@ def test_match_candidates_lists_every_matching_directory(tmp_path: Path) -> None
     (tmp_path / "usbstick2").mkdir()
     (tmp_path / "usbstick1").mkdir()
 
-    matches = _match_candidates(f"{tmp_path}/us")
+    matches = match_candidates(f"{tmp_path}/us")
 
     assert matches == [f"{tmp_path}/usbstick1/", f"{tmp_path}/usbstick2/"]
 
@@ -258,14 +259,14 @@ def test_match_candidates_excludes_files(tmp_path: Path) -> None:
     (tmp_path / "usbstick").mkdir()
     (tmp_path / "usbstick.txt").write_text("not a directory")
 
-    assert _match_candidates(f"{tmp_path}/usbstick") == [f"{tmp_path}/usbstick/"]
+    assert match_candidates(f"{tmp_path}/usbstick") == [f"{tmp_path}/usbstick/"]
 
 
 def test_match_candidates_is_empty_when_nothing_matches(tmp_path: Path) -> None:
     """No matching directory, or an unreadable parent, is an empty list,
     not an error."""
-    assert _match_candidates(f"{tmp_path}/nope") == []
-    assert _match_candidates(f"{tmp_path}/nope/deeper") == []
+    assert match_candidates(f"{tmp_path}/nope") == []
+    assert match_candidates(f"{tmp_path}/nope/deeper") == []
 
 
 def _force_error_state(home: HomeScreen) -> None:
@@ -288,7 +289,7 @@ async def test_input_is_hidden_and_unfocused_while_still_searching() -> None:
         home.poll_mounts()
         await pilot.pause()
 
-        path_input = home.query_one(_PathInput)
+        path_input = home.query_one(PathInput)
         assert path_input.display is False
         assert path_input.disabled is True
         assert app.focused is not path_input
@@ -309,7 +310,7 @@ async def test_tab_cycles_through_matching_directories(tmp_path: Path) -> None:
         _force_error_state(home)
         await pilot.pause()
 
-        path_input = home.query_one(_PathInput)
+        path_input = home.query_one(PathInput)
         path_input.value = f"{tmp_path}/"
         path_input.cursor_position = len(path_input.value)
 
@@ -342,7 +343,7 @@ async def test_typing_after_a_tab_cycle_starts_a_fresh_one(tmp_path: Path) -> No
         _force_error_state(home)
         await pilot.pause()
 
-        path_input = home.query_one(_PathInput)
+        path_input = home.query_one(PathInput)
         path_input.value = f"{tmp_path}/"
         path_input.cursor_position = len(path_input.value)
         await pilot.press("tab")
@@ -396,7 +397,7 @@ async def test_enter_on_empty_input_visibly_resumes_scanning() -> None:
         await pilot.pause()
 
         assert home.query_one("#spinner").display is True
-        assert home.query_one(_PathInput).display is False
+        assert home.query_one(PathInput).display is False
         assert home._phase is HomePhase.SEARCHING
 
 
@@ -420,7 +421,7 @@ async def test_enter_with_a_typed_path_opens_that_library(tmp_path: Path) -> Non
             home = app.screen
             _force_error_state(home)
             await pilot.pause()
-            path_input = home.query_one(_PathInput)
+            path_input = home.query_one(PathInput)
             path_input.value = str(tmp_path)
 
             await pilot.press("enter")
@@ -449,7 +450,7 @@ async def test_a_typed_path_that_fails_to_open_re_enables_the_input(tmp_path: Pa
             home = app.screen
             _force_error_state(home)
             await pilot.pause()
-            path_input = home.query_one(_PathInput)
+            path_input = home.query_one(PathInput)
             path_input.value = str(tmp_path / "nope")
 
             await pilot.press("enter")

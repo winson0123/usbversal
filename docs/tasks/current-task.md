@@ -1,7 +1,7 @@
 # Current Task
 
 **Status:** `complete`
-**Task ID:** TASK-227
+**Task ID:** TASK-228
 **Last updated:** 2026-08-27
 
 ---
@@ -10,14 +10,15 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-227` |
-| Objective | Replace Home's `_seen_invalid` flag pile with an explicit `HomePhase` |
+| Task ID | `TASK-228` |
+| Objective | Move PathInput + match_candidates out of the Home screen module |
 | Completed | 2026-08-27 |
 
 ### Scope
 
-- `app/tui/screens/home.py`: `SEARCHING | FAILED | OPENING | READY`. `poll_mounts` only transitions. `_show_phase` (not `_render` — that name is Textual's) paints widgets on change. Timeout only applies while `SEARCHING`. Hidden path input stays disabled (Textual focus rule).
-- `tests/test_tui_home.py`: `_force_error_state` / `_seen_invalid` retargeted to `_enter` / `HomePhase`. Under-timeout fixture is `SCAN_TIMEOUT_S - 0.5`.
+- `app/tui/widgets/path_input.py`: Tab-cycle path field.
+- `app/tui/screens/home.py`: imports `PathInput`; scan bar stays here.
+- `tests/test_tui_home.py`: import path retarget only.
 
 ### Verification log
 
@@ -29,4 +30,4 @@
 
 ## Next
 
-TASK-228 — Extract PathInput to `app/tui/widgets/path_input.py`.
+TASK-229 — Unify `library` attribute on Home/Library/Progress; simplify quit clearing.
