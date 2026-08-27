@@ -51,37 +51,18 @@ class ProgressRateTracker:
             self._start_current = current
             self._start_at = at
 
-        return _estimate(
-            current=current,
-            total=total,
-            elapsed=at - self._start_at,
-            completed=current - self._start_current,
-        )
+        elapsed = at - self._start_at
+        completed = current - self._start_current
+        if elapsed <= 0 or completed <= 0:
+            return ProgressEstimate(rate_per_second=None, eta_seconds=None)
 
+        rate = completed / elapsed
+        if total is None:
+            return ProgressEstimate(rate_per_second=rate, eta_seconds=None)
 
-def _estimate(
-    *, current: int, total: int | None, elapsed: float, completed: int
-) -> ProgressEstimate:
-    """
-    Derive rate and ETA from one completed interval.
-
-    Args:
-        current: Units completed so far.
-        total: Units the job expects, when known.
-        elapsed: Seconds since the first sample.
-        completed: Units completed since the first sample.
-
-    Returns:
-        Rate/ETA estimate, or empty values until progress has advanced.
-    """
-    if elapsed <= 0 or completed <= 0:
-        return ProgressEstimate(rate_per_second=None, eta_seconds=None)
-    rate = completed / elapsed
-    if total is None:
-        return ProgressEstimate(rate_per_second=rate, eta_seconds=None)
-    remaining = total - current
-    eta = remaining / rate if remaining > 0 else 0.0
-    return ProgressEstimate(rate_per_second=rate, eta_seconds=eta)
+        remaining = total - current
+        eta = remaining / rate if remaining > 0 else 0.0
+        return ProgressEstimate(rate_per_second=rate, eta_seconds=eta)
 
 
 def format_duration(seconds: float) -> str:

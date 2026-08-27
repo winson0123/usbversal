@@ -91,45 +91,6 @@ def analysis_dat_path(mount: Path, content: Any) -> Path | None:
     return mount / serato_path(raw)
 
 
-def _beatgrid_update(beats: list[Beat]) -> dict[str, bytes]:
-    """
-    Encode a BeatGrid tag when the track has beats.
-
-    Args:
-        beats: Beats to encode, empty to skip.
-
-    Returns:
-        A one-entry update dict, or empty when there is nothing to write.
-    """
-    grid = encode_beatgrid(beats) if beats else None
-    if grid is None:
-        return {}
-    return {"Serato BeatGrid": grid}
-
-
-def _markers_update(audio_path: Path, cues: list[HotCue]) -> dict[str, bytes]:
-    """
-    Encode a Markers2 tag when the track has hot cues.
-
-    Args:
-        audio_path: Path to the audio file, for reading an existing payload.
-        cues: Hot cues to encode, empty to skip.
-
-    Returns:
-        A one-entry update dict, or empty when there is nothing to write.
-    """
-    if not cues:
-        return {}
-    existing = read_geob(audio_path).get("Serato Markers2")
-    markers = replace_cues(
-        decode_markers(existing) if existing else [],
-        [Cue(slot=cue.slot, position_ms=cue.position_ms, colour=cue.colour) for cue in cues],
-    )
-    return {
-        "Serato Markers2": encode_markers(markers, payload_size=len(existing) if existing else None)
-    }
-
-
 def write_track_tags(audio_path: Path, beats: list[Beat], cues: list[HotCue]) -> None:
     """
     Write a track's beatgrid and hot cues into its audio tags.
@@ -139,126 +100,22 @@ def write_track_tags(audio_path: Path, beats: list[Beat], cues: list[HotCue]) ->
         beats: Beats to encode as a Serato BeatGrid, empty to leave it alone.
         cues: Hot cues to encode as Serato Markers2, empty to leave them alone.
     """
-    updates = {**_beatgrid_update(beats), **_markers_update(audio_path, cues)}
+    updates: dict[str, bytes] = {}
+    if beats:
+        grid = encode_beatgrid(beats)
+        if grid is not None:
+            updates["Serato BeatGrid"] = grid
+    if cues:
+        existing = read_geob(audio_path).get("Serato Markers2")
+        markers = replace_cues(
+            decode_markers(existing) if existing else [],
+            [Cue(slot=cue.slot, position_ms=cue.position_ms, colour=cue.colour) for cue in cues],
+        )
+        updates["Serato Markers2"] = encode_markers(
+            markers, payload_size=len(existing) if existing else None
+        )
     if updates:
         write_geob(audio_path, updates)
-
-
-def _analysis_inputs(mount: Path, content: Any, raw: str) -> tuple[Path, Path] | None:
-    """
-    Return ``(audio_path, dat_path)`` for one track, or None to skip.
-
-    Args:
-        mount: Mount root.
-        content: Rekordbox content row, or None when the path is unknown.
-        raw: Rekordbox track path.
-
-    Returns:
-        Audio and ANLZ paths when both are usable, otherwise None.
-    """
-    if content is None:
-        return None
-    audio_path = mount / serato_path(raw)
-    dat_path = analysis_dat_path(mount, content)
-    if dat_path is None or not audio_path.is_file():
-        return None
-    return audio_path, dat_path
-
-
-def _write_analysis_tags(
-    audio_path: Path, dat_path: Path
-) -> tuple[list[Beat], list[HotCue]] | None:
-    """Write Serato tags from ANLZ data. None when the track has neither grid nor cues."""
-    beats = read_beats(dat_path)
-    cues = read_hot_cues(extended_path(dat_path))
-    if not beats and not cues:
-        return None
-    write_track_tags(audio_path, beats, cues)
-    return beats, cues
-
-
-def _record_one_analysis_track(
-    mount: Path,
-    contents: dict[str, Any],
-    raw: str,
-    lookups: RekordboxLookups,
-) -> tuple[str | None, TrackAnalysis | None, bool]:
-    """
-    Write one track's analysis tags.
-
-    Args:
-        mount: Mount root.
-        contents: Rekordbox path to content row.
-        raw: Rekordbox track path.
-        lookups: Id-to-name tables, for the index key column.
-
-    Returns:
-        ``(error, index_update, wrote_cues)``.
-    """
-    content = contents.get(raw)
-    inputs = _analysis_inputs(mount, content, raw)
-    if inputs is None:
-        return None, None, False
-    try:
-        written = _write_analysis_tags(*inputs)
-    except (AnlzError, TagFormatError, OSError) as exc:
-        return str(exc), None, False
-    if written is None:
-        return None, None, False
-    beats, cues = written
-    update = None
-    if beats:
-        update = TrackAnalysis(bpm=beats[0].bpm, key=lookups.keys.get(content.key_id))
-    return None, update, bool(cues)
-
-
-def _tally_one_analysis(
-    mount: Path,
-    contents: dict[str, Any],
-    raw: str,
-    lookups: RekordboxLookups,
-    updates: dict[str, TrackAnalysis],
-    errors: list[str],
-) -> tuple[str | None, bool]:
-    """
-    Record one track's analysis write and update running tallies.
-
-    Args:
-        mount: Mount root.
-        contents: Rekordbox path to content row.
-        raw: Rekordbox track path.
-        lookups: Id-to-name tables, for the index key column.
-        updates: Index updates collected so far; mutated when a grid is written.
-        errors: Failure messages collected so far; mutated on a write error.
-
-    Returns:
-        ``(error, wrote_cues)`` for this track.
-    """
-    track_error, update, wrote_cues = _record_one_analysis_track(mount, contents, raw, lookups)
-    if track_error is not None:
-        errors.append(f"{raw}: {track_error}")
-    if update is not None:
-        updates[serato_path(raw)] = update
-    return track_error, wrote_cues
-
-
-def _emit_progress(
-    on_progress: AnalysisProgress | None,
-    done: int,
-    total: int,
-    raw: str,
-    track_error: str | None,
-) -> None:
-    """Invoke ``on_progress`` when a caller supplied one."""
-    if on_progress is not None:
-        on_progress(done, total, raw, track_error)
-
-
-def _flush_index(index_path: Path | None, updates: dict[str, TrackAnalysis]) -> int:
-    """Write collected analysis updates into location.sqlite when present."""
-    if not updates or index_path is None:
-        return 0
-    return update_track_analysis(index_path, updates)
 
 
 def sync_analysis(
@@ -293,86 +150,56 @@ def sync_analysis(
         Counts of what was written, and one message per track that failed.
     """
     _ = write_context
-    grids = 0
     cues_written = 0
     errors: list[str] = []
     updates: dict[str, TrackAnalysis] = {}
-
     ordered = sorted(paths)
+
     for done, raw in enumerate(ordered, start=1):
         track_error: str | None = None
         try:
-            track_error, wrote_cues = _tally_one_analysis(
-                mount, contents, raw, lookups, updates, errors
-            )
-            cues_written += int(wrote_cues)
+            content = contents.get(raw)
+            audio_path = mount / serato_path(raw)
+            dat_path = analysis_dat_path(mount, content) if content is not None else None
+            if content is None or dat_path is None or not audio_path.is_file():
+                continue
+            try:
+                beats = read_beats(dat_path)
+                cues = read_hot_cues(extended_path(dat_path))
+                if not beats and not cues:
+                    continue
+                write_track_tags(audio_path, beats, cues)
+            except (AnlzError, TagFormatError, OSError) as exc:
+                track_error = str(exc)
+                errors.append(f"{raw}: {track_error}")
+                continue
+            if beats:
+                updates[serato_path(raw)] = TrackAnalysis(
+                    bpm=beats[0].bpm, key=lookups.keys.get(content.key_id)
+                )
+            if cues:
+                cues_written += 1
         finally:
-            _emit_progress(on_progress, done, len(ordered), raw, track_error)
-    grids = len(updates)
-    rows_updated = _flush_index(index_path, updates)
+            if on_progress is not None:
+                on_progress(done, len(ordered), raw, track_error)
+
+    rows_updated = 0
+    if updates and index_path is not None:
+        rows_updated = update_track_analysis(index_path, updates)
 
     logger.info(
         "analysis_sync_completed",
-        grids_written=grids,
+        grids_written=len(updates),
         cues_written=cues_written,
         index_rows_updated=rows_updated,
         errors=len(errors),
     )
     return AnalysisSyncResult(
-        grids_written=grids,
+        grids_written=len(updates),
         cues_written=cues_written,
         index_rows_updated=rows_updated,
         errors=tuple(errors),
     )
-
-
-def _grid_bpm(mount: Path, content: Any) -> tuple[str, float] | None:
-    """
-    Return a track's drive-relative path and first-beat tempo.
-
-    Args:
-        mount: Mount root.
-        content: Rekordbox content row.
-
-    Returns:
-        ``(serato_path, bpm)`` when the track has a readable grid, else None.
-    """
-    dat_path = analysis_dat_path(mount, content)
-    if dat_path is None:
-        return None
-    beats = read_beats(dat_path)
-    if not beats:
-        return None
-    return serato_path(content.path), beats[0].bpm
-
-
-def _collect_bpm_corrections(
-    library: UsbLibrary, indexed: dict[str, TrackAnalysis]
-) -> tuple[dict[str, TrackAnalysis], int]:
-    """
-    Find index rows whose stored BPM disagrees with the first beat.
-
-    Args:
-        library: Opened session handle.
-        indexed: Existing location.sqlite rows, keyed by drive-relative path.
-
-    Returns:
-        ``(updates, candidates)`` — rows to correct, and how many could be judged.
-    """
-    updates: dict[str, TrackAnalysis] = {}
-    candidates = 0
-    for content in library.rekordbox.database.get_contents():
-        found = _grid_bpm(library.mount, content)
-        if found is None:
-            continue
-        path, bpm = found
-        stored = indexed.get(path)
-        if stored is None:
-            continue
-        candidates += 1
-        if stored.bpm != bpm:
-            updates[path] = TrackAnalysis(bpm=bpm)
-    return updates, candidates
 
 
 def correct_index_bpm(
@@ -416,15 +243,31 @@ def correct_index_bpm(
     if not index_path.is_file():
         raise SeratoLibraryRequiredError(f"No location.sqlite under {serato_root}")
 
-    updates, candidates = _collect_bpm_corrections(library, read_track_analysis(index_path))
+    indexed = read_track_analysis(index_path)
+    updates: dict[str, TrackAnalysis] = {}
+    candidates = 0
+    for content in library.rekordbox.database.get_contents():
+        dat_path = analysis_dat_path(library.mount, content)
+        if dat_path is None:
+            continue
+        path = serato_path(content.path)
+        stored = indexed.get(path)
+        if stored is None:
+            continue
+        beats = read_beats(dat_path)
+        if not beats:
+            continue
+        candidates += 1
+        if stored.bpm != beats[0].bpm:
+            updates[path] = TrackAnalysis(bpm=beats[0].bpm)
+
     if dry_run or not updates:
         return IndexCorrectionResult(
             candidates=candidates, rows_updated=len(updates), backup_id=None
         )
 
     backup = backup_mount_for_migration(library.mount, backup_root=backup_root)
-    context = WriteContext(backup_path=backup.backup_dir)
-    _ = context
+    _ = WriteContext(backup_path=backup.backup_dir)
     rows_updated = update_track_analysis(index_path, updates)
 
     logger.info(

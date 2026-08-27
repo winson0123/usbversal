@@ -132,7 +132,14 @@ class LibraryScreen(Screen):
         # UsbversalApp.run_rekordbox.
         states = await self.app.run_rekordbox(playlist_tree_sync_states, self.library)
 
-        all_row = _all_playlists_row(states)
+        all_row = _Row(
+            name=_ALL_NAME,
+            state=combine_sync_states([state.state for state in states]),
+            synced=sum(state.synced for state in states),
+            total=sum(state.total for state in states),
+            ids=tuple(i for state in states for i in state.leaf_ids),
+            is_folder=True,
+        )
         all_node = tree.root.add(self._label(all_row, depth=0), data=all_row, expand=True)
         for state in states:
             self._add_node(all_node, state, depth=1)
@@ -185,7 +192,14 @@ class LibraryScreen(Screen):
         Returns:
             Label text with the state word styled red/yellow/green.
         """
-        name = f"{_checkbox(row.ids, self._selected)} {row.name}"
+        selected_count = sum(1 for i in row.ids if i in self._selected)
+        if selected_count == 0:
+            checkbox = _UNSELECTED
+        elif selected_count == len(row.ids):
+            checkbox = _SELECTED
+        else:
+            checkbox = _PARTIAL_SELECTED
+        name = f"{checkbox} {row.name}"
 
         name_field = max(1, _NAME_WIDTH - self._prefix_width(depth, row.is_folder))
         padded_name = name + " " * max(1, name_field - cell_len(name))
@@ -211,7 +225,10 @@ class LibraryScreen(Screen):
         row: _Row = node.data
         if not row.ids:
             return
-        _toggle_ids(self._selected, row.ids)
+        if all(i in self._selected for i in row.ids):
+            self._selected.difference_update(row.ids)
+        else:
+            self._selected.update(row.ids)
         self._refresh_labels(tree.root, depth=0)
         self._update_status()
 
@@ -235,47 +252,3 @@ class LibraryScreen(Screen):
             self._update_status()
             return
         self.app.push_screen(ProgressScreen(self.library, sorted(self._selected)))
-
-
-def _all_playlists_row(states: tuple[PlaylistTreeSyncState, ...]) -> _Row:
-    """Build the synthetic top-level "All playlists" row from root states."""
-    return _Row(
-        name=_ALL_NAME,
-        state=combine_sync_states([state.state for state in states]),
-        synced=sum(state.synced for state in states),
-        total=sum(state.total for state in states),
-        ids=_all_leaf_ids(states),
-        is_folder=True,
-    )
-
-
-def _all_leaf_ids(states: tuple[PlaylistTreeSyncState, ...]) -> tuple[int, ...]:
-    """Flatten every descendant leaf playlist id under the root states."""
-    return tuple(i for state in states for i in state.leaf_ids)
-
-
-def _checkbox(ids: tuple[int, ...], selected: set[int]) -> str:
-    """
-    Return the selection mark for a row covering ``ids``.
-
-    Args:
-        ids: Leaf playlist ids this row represents.
-        selected: Currently selected playlist ids.
-
-    Returns:
-        Selected, unselected, or partial mark.
-    """
-    selected_count = sum(1 for i in ids if i in selected)
-    if selected_count == 0:
-        return _UNSELECTED
-    if selected_count == len(ids):
-        return _SELECTED
-    return _PARTIAL_SELECTED
-
-
-def _toggle_ids(selected: set[int], ids: tuple[int, ...]) -> None:
-    """Select every id, or deselect them all when they are already selected."""
-    if all(i in selected for i in ids):
-        selected.difference_update(ids)
-        return
-    selected.update(ids)

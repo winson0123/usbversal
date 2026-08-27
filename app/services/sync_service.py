@@ -106,53 +106,27 @@ def playlist_sync_states(library: UsbLibrary) -> tuple[PlaylistSyncState, ...]:
     playlists = library.rekordbox.list_playlists()
     by_id = {p.id: p for p in playlists}
 
-    states = [
-        _one_playlist_sync_state(library, playlist, crates, indexed, by_id)
-        for playlist in playlists
-        if not playlist.is_folder
-    ]
+    states: list[PlaylistSyncState] = []
+    for playlist in playlists:
+        if playlist.is_folder:
+            continue
+        tracks = [
+            normalize_track_path(t) for t in library.rekordbox.get_playlist_track_paths(playlist.id)
+        ]
+        crate_name = crate_name_for(playlist, by_id)
+        in_crate = crates.get(crate_name, set())
+        states.append(
+            PlaylistSyncState(
+                playlist_id=playlist.id,
+                playlist_name=playlist.name,
+                crate_name=crate_name,
+                total=len(tracks),
+                in_crate=sum(1 for t in tracks if t in in_crate),
+                syncable=sum(1 for t in tracks if t in indexed),
+            )
+        )
     logger.info("sync_states_computed", playlists=len(states))
     return tuple(states)
-
-
-def _one_playlist_sync_state(
-    library: UsbLibrary,
-    playlist: Playlist,
-    crates: dict[str, set[str]],
-    indexed: set[str],
-    by_id: dict[int, Playlist],
-) -> PlaylistSyncState:
-    """
-    Compare one playlist against its crate and the Serato index.
-
-    Args:
-        library: Opened session handle.
-        playlist: Non-folder Rekordbox playlist.
-        crates: Crate stem to the tracks it already holds.
-        indexed: Normalized paths in the Serato database.
-        by_id: Playlist id to node, for crate-name ancestry.
-
-    Returns:
-        Sync counts for this playlist.
-    """
-    tracks = [
-        normalize_track_path(t) for t in library.rekordbox.get_playlist_track_paths(playlist.id)
-    ]
-    crate_name = crate_name_for(playlist, by_id)
-    in_crate = crates.get(crate_name, set())
-    return PlaylistSyncState(
-        playlist_id=playlist.id,
-        playlist_name=playlist.name,
-        crate_name=crate_name,
-        total=len(tracks),
-        in_crate=_count_in(tracks, in_crate),
-        syncable=_count_in(tracks, indexed),
-    )
-
-
-def _count_in(tracks: list[str], bag: set[str]) -> int:
-    """Count how many of ``tracks`` are present in ``bag``."""
-    return sum(1 for t in tracks if t in bag)
 
 
 @dataclass(frozen=True)
@@ -199,16 +173,11 @@ def combine_sync_states(states: list[SyncState]) -> SyncState:
     """
     if not states:
         return SyncState.NOT_SYNCED
-    if _all_have(states, SyncState.SYNCED):
+    if all(state == SyncState.SYNCED for state in states):
         return SyncState.SYNCED
-    if _all_have(states, SyncState.NOT_SYNCED):
+    if all(state == SyncState.NOT_SYNCED for state in states):
         return SyncState.NOT_SYNCED
     return SyncState.PARTIAL
-
-
-def _all_have(states: list[SyncState], value: SyncState) -> bool:
-    """Return True when every state equals ``value``."""
-    return all(state == value for state in states)
 
 
 def playlist_tree_sync_states(library: UsbLibrary) -> tuple[PlaylistTreeSyncState, ...]:
@@ -263,14 +232,9 @@ def _folder_tree_state(
         state=combine_sync_states([child.state for child in children]),
         synced=sum(child.synced for child in children),
         total=sum(child.total for child in children),
-        leaf_ids=_child_leaf_ids(children),
+        leaf_ids=tuple(i for child in children for i in child.leaf_ids),
         children=children,
     )
-
-
-def _child_leaf_ids(children: tuple[PlaylistTreeSyncState, ...]) -> tuple[int, ...]:
-    """Flatten every descendant leaf playlist id under ``children``."""
-    return tuple(i for child in children for i in child.leaf_ids)
 
 
 def _walk_playlist_tree(
@@ -299,19 +263,13 @@ def find_crate_name_collisions(playlists: tuple[Playlist, ...]) -> dict[str, lis
     Returns:
         Dict of crate stem -> colliding playlist names, for collisions only.
     """
-    by_name = _owners_by_crate(playlists)
-    return {name: owners for name, owners in by_name.items() if len(owners) > 1}
-
-
-def _owners_by_crate(playlists: tuple[Playlist, ...]) -> dict[str, list[str]]:
-    """Map crate stem to the playlist names that would write it."""
     by_id = {p.id: p for p in playlists}
     by_name: dict[str, list[str]] = {}
     for playlist in playlists:
         if playlist.is_folder:
             continue
         by_name.setdefault(crate_name_for(playlist, by_id), []).append(playlist.name)
-    return by_name
+    return {name: owners for name, owners in by_name.items() if len(owners) > 1}
 
 
 def sync_states_to_dict(states: tuple[PlaylistSyncState, ...]) -> dict[str, Any]:

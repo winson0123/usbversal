@@ -58,17 +58,15 @@ def serato_files_on_mount(mount_path: Path) -> list[Path]:
         return []
     serato_root, database_path = resolved
     found: list[Path] = [database_path]
-    _append_if_file(found, neworder_path(serato_root))
-    _append_if_file(found, library_db_path(serato_root))
-    for crate_path in list_crate_files(serato_root):
-        _append_if_file(found, crate_path)
+    extras = [
+        neworder_path(serato_root),
+        library_db_path(serato_root),
+        *list_crate_files(serato_root),
+    ]
+    for path in extras:
+        if path.is_file() and path not in found:
+            found.append(path)
     return found
-
-
-def _append_if_file(found: list[Path], path: Path) -> None:
-    """Append ``path`` when it is a file not already in ``found``."""
-    if path.is_file() and path not in found:
-        found.append(path)
 
 
 def backup_mount_for_migration(

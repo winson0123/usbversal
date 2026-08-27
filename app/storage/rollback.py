@@ -161,11 +161,33 @@ def rollback_from_backup(
 
     verify_backup_integrity(resolved_backup, manifest)
 
-    pre_dir = _maybe_pre_rollback(mount, manifest, pre_rollback, backup_root)
+    pre_dir: Path | None = None
+    if pre_rollback:
+        existing = [path for path in _manifest_targets_on_mount(mount, manifest) if path.is_file()]
+        if existing:
+            root = (backup_root or (mount / "backups")).resolve()
+            pre_result = create_backup(
+                source_mount=mount,
+                files=existing,
+                backup_root=root,
+                backup_id=f"pre-rollback-{manifest.backup_id}",
+            )
+            pre_dir = pre_result.backup_dir
+            logger.info(
+                "pre_rollback_backup_created",
+                backup_dir=str(pre_dir),
+                file_count=len(existing),
+            )
 
     restored: list[str] = []
     for entry in manifest.files:
-        restored.append(_restore_one_file(mount, resolved_backup, entry.relative_path))
+        backup_copy = resolved_backup / entry.relative_path
+        if not backup_copy.is_file():
+            raise FileNotFoundError(f"Backup copy missing: {backup_copy}")
+        target = mount / entry.relative_path
+        logger.info("rollback_restore", relative=entry.relative_path, target=str(target))
+        atomic_copy_file(backup_copy, target)
+        restored.append(entry.relative_path)
 
     logger.info(
         "rollback_completed",
@@ -178,70 +200,3 @@ def rollback_from_backup(
         restored_paths=tuple(restored),
         pre_rollback_backup_dir=pre_dir,
     )
-
-
-def _maybe_pre_rollback(
-    mount: Path,
-    manifest: BackupManifest,
-    pre_rollback: bool,
-    backup_root: Path | None,
-) -> Path | None:
-    """
-    Copy current mount files aside before restore, when asked.
-
-    Args:
-        mount: Mount root being restored onto.
-        manifest: Backup about to be applied.
-        pre_rollback: When False, skip the safety copy.
-        backup_root: Parent for the safety backup; defaults to mount/backups.
-
-    Returns:
-        The safety-backup directory, or None when nothing was copied.
-    """
-    if not pre_rollback:
-        return None
-    existing = _existing_targets(mount, manifest)
-    if not existing:
-        return None
-    root = (backup_root or (mount / "backups")).resolve()
-    pre_result = create_backup(
-        source_mount=mount,
-        files=existing,
-        backup_root=root,
-        backup_id=f"pre-rollback-{manifest.backup_id}",
-    )
-    logger.info(
-        "pre_rollback_backup_created",
-        backup_dir=str(pre_result.backup_dir),
-        file_count=len(existing),
-    )
-    return pre_result.backup_dir
-
-
-def _existing_targets(mount: Path, manifest: BackupManifest) -> list[Path]:
-    """Return mount paths from the manifest that currently exist as files."""
-    return [path for path in _manifest_targets_on_mount(mount, manifest) if path.is_file()]
-
-
-def _restore_one_file(mount: Path, backup_dir: Path, relative: str) -> str:
-    """
-    Copy one backup file onto the mount.
-
-    Args:
-        mount: Mount root.
-        backup_dir: Verified backup directory.
-        relative: Manifest-relative path of the file.
-
-    Returns:
-        The relative path that was restored.
-
-    Raises:
-        FileNotFoundError: The backup copy is missing.
-    """
-    backup_copy = backup_dir / relative
-    if not backup_copy.is_file():
-        raise FileNotFoundError(f"Backup copy missing: {backup_copy}")
-    target = mount / relative
-    logger.info("rollback_restore", relative=relative, target=str(target))
-    atomic_copy_file(backup_copy, target)
-    return relative

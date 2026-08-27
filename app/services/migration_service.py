@@ -158,17 +158,12 @@ def _playlist_by_name(playlists: tuple[Playlist, ...], playlist_name: str) -> Pl
     Raises:
         PlaylistNotFoundError: None match, or more than one does.
     """
-    matches = _leaves_named(playlists, playlist_name)
+    matches = [p for p in playlists if not p.is_folder and p.name == playlist_name]
     if not matches:
         raise PlaylistNotFoundError(f"Playlist not found: {playlist_name!r}")
     if len(matches) > 1:
         raise PlaylistNotFoundError(f"Multiple playlists named {playlist_name!r}")
     return matches[0]
-
-
-def _leaves_named(playlists: tuple[Playlist, ...], playlist_name: str) -> list[Playlist]:
-    """Return non-folder playlists whose name matches exactly."""
-    return [p for p in playlists if not p.is_folder and p.name == playlist_name]
 
 
 def build_migration_plan(

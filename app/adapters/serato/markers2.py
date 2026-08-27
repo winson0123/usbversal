@@ -54,49 +54,26 @@ def decode_markers(payload: bytes) -> list[Marker]:
     Returns:
         Entries in file order; empty when the payload holds none.
     """
-    blob = _markers_blob(payload)
-    if not blob:
+    encoded = bytes(c for c in payload[2:] if c not in b"\r\n\x00")
+    if not encoded:
         return []
+    blob = base64.b64decode(encoded + b"=" * ((-len(encoded)) % 4))
 
     markers: list[Marker] = []
     offset = 2
     while offset < len(blob):
-        marker, offset = _read_one_marker(blob, offset)
-        if marker is None:
+        end = blob.find(b"\x00", offset)
+        if end < 0:
             break
-        markers.append(marker)
+        name = blob[offset:end]
+        offset = end + 1
+        if not name or offset + 4 > len(blob):
+            break
+        length = struct.unpack(">I", blob[offset : offset + 4])[0]
+        offset += 4
+        markers.append(Marker(name=name, body=blob[offset : offset + length]))
+        offset += length
     return markers
-
-
-def _markers_blob(payload: bytes) -> bytes:
-    """Decode the base64 Markers2 body, or empty when the payload holds none."""
-    encoded = bytes(c for c in payload[2:] if c not in b"\r\n\x00")
-    if not encoded:
-        return b""
-    return base64.b64decode(encoded + b"=" * ((-len(encoded)) % 4))
-
-
-def _read_one_marker(blob: bytes, offset: int) -> tuple[Marker | None, int]:
-    """
-    Read one Markers2 entry starting at ``offset``.
-
-    Args:
-        blob: Decoded payload after the two-byte header.
-        offset: Byte index of the next entry name.
-
-    Returns:
-        ``(marker, next_offset)``, or ``(None, offset)`` when the blob ends.
-    """
-    end = blob.find(b"\x00", offset)
-    if end < 0:
-        return None, offset
-    name = blob[offset:end]
-    offset = end + 1
-    if not name or offset + 4 > len(blob):
-        return None, offset
-    length = struct.unpack(">I", blob[offset : offset + 4])[0]
-    offset += 4
-    return Marker(name=name, body=blob[offset : offset + length]), offset + length
 
 
 def encode_markers(markers: list[Marker], *, payload_size: int | None = None) -> bytes:

@@ -50,7 +50,25 @@ class RboxOneLibraryAdapter(RekordboxReadAdapter):
         Returns:
             Playlist domain objects mapped from rbox rows.
         """
-        result = [_playlist_from_row(row) for row in self._db.get_playlists()]
+        result: list[Playlist] = []
+        for row in self._db.get_playlists():
+            is_folder = row.attribute == PlaylistType.Folder
+            track_count = None
+            if not is_folder and hasattr(row, "items"):
+                try:
+                    track_count = len(row.items)
+                except (TypeError, AttributeError):
+                    track_count = None
+            raw_parent = int(row.parent_id) if row.parent_id is not None else 0
+            result.append(
+                Playlist(
+                    id=int(row.id),
+                    name=str(row.name),
+                    parent_id=None if raw_parent == 0 else raw_parent,
+                    is_folder=is_folder,
+                    track_count=track_count,
+                ),
+            )
         logger.info(
             "rekordbox_playlists_loaded",
             database=str(self._library.database_path),
@@ -88,37 +106,6 @@ class RboxOneLibraryAdapter(RekordboxReadAdapter):
             track_count=len(paths),
         )
         return paths
-
-
-def _playlist_from_row(row: object) -> Playlist:
-    """
-    Map one rbox playlist row to the domain Playlist.
-
-    Args:
-        row: rbox playlist row.
-
-    Returns:
-        Domain playlist, including folders.
-    """
-    is_folder = row.attribute == PlaylistType.Folder
-    raw_parent = int(row.parent_id) if row.parent_id is not None else 0
-    return Playlist(
-        id=int(row.id),
-        name=str(row.name),
-        parent_id=None if raw_parent == 0 else raw_parent,
-        is_folder=is_folder,
-        track_count=_row_track_count(row, is_folder),
-    )
-
-
-def _row_track_count(row: object, is_folder: bool) -> int | None:
-    """Return the playlist's item count when rbox exposes one."""
-    if is_folder or not hasattr(row, "items"):
-        return None
-    try:
-        return len(row.items)
-    except (TypeError, AttributeError):
-        return None
 
 
 def open_rekordbox_library(mount_path: Path) -> RekordboxReadAdapter:

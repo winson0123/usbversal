@@ -412,6 +412,11 @@
       "id": "TASK-236",
       "title": "Bring remaining app/ functions under CC 6",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-237",
+      "title": "Flatten the TASK-236 helper explosion",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -892,6 +897,12 @@
     {
       "id": "TASK-236",
       "title": "Bring remaining app/ functions under CC 6",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-237",
+      "title": "Flatten the TASK-236 helper explosion",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

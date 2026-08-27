@@ -10,15 +10,15 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-236` |
-| Objective | Bring every remaining `app/` function under CC 6 |
+| Task ID | `TASK-237` |
+| Objective | Flatten the TASK-236 helper explosion: inline one-off extracts, keep only splits that still earn their name |
 | Completed | 2026-08-27 |
 
 ### Scope
 
-- Named steps extracted from every remaining CC 6–10 function in `app/`.
-- Analysis write / index-BPM correction moved to `app/services/sync_analysis.py` so `sync_service.py` stays under 1000 lines (725).
-- Public signatures unchanged (`correct_index_bpm` still imported from `sync_service`).
+- Inlined one-off CC-split helpers back into their callers across CLI, TUI, adapters, storage, and services.
+- Kept the splits that still do real work: `_COMMANDS` / `_emit_json`, `sync_analysis.py`, shared backup extra/unique helpers, and the TASK-234/235 named steps.
+- Public signatures unchanged.
 
 ### Verification log
 

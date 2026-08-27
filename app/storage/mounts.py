@@ -84,14 +84,10 @@ class ChildDirectoryScanner(MountScanner):
 
         mounts: list[MountPoint] = []
         for entry in sorted(self._root.iterdir()):
-            if _is_listed_child(entry, self._exclude):
-                mounts.append(MountPoint(path=entry.resolve(), source=self._source))
+            if not entry.is_dir() or entry.name.startswith(".") or entry.name in self._exclude:
+                continue
+            mounts.append(MountPoint(path=entry.resolve(), source=self._source))
         return mounts
-
-
-def _is_listed_child(entry: Path, exclude: frozenset[str]) -> bool:
-    """Return True when ``entry`` is a visible, non-excluded directory."""
-    return entry.is_dir() and not entry.name.startswith(".") and entry.name not in exclude
 
 
 class WindowsMountScanner(MountScanner):

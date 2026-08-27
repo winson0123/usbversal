@@ -165,27 +165,20 @@ class HomeScreen(Screen):
         """One watch tick: check for new mounts and probe any that appeared."""
         if self._phase in (HomePhase.OPENING, HomePhase.READY):
             return
-        if self._accept_appeared_mount():
-            return
-        if _scan_timed_out(self._phase, self._searching_since, self.SCAN_TIMEOUT_S):
-            self._enter(HomePhase.FAILED)
-
-    def _accept_appeared_mount(self) -> bool:
-        """
-        Probe newly appeared mounts and start opening the first valid DJ USB.
-
-        Returns:
-            True when a supported stick was found and an open worker started.
-        """
         for change in self._watcher.poll():
             if change.kind is not MountChangeKind.APPEARED:
                 continue
-            if _is_valid_dj_usb(change.path):
+            probe = probe_mount(change.path)
+            if probe is not None and probe.is_dj_usb and probe.is_supported:
                 self._enter(HomePhase.OPENING)
                 self.run_worker(self._open(change.path), exclusive=True)
-                return True
+                return
             self._enter(HomePhase.FAILED)
-        return False
+        if (
+            self._phase is HomePhase.SEARCHING
+            and time.monotonic() - self._searching_since >= self.SCAN_TIMEOUT_S
+        ):
+            self._enter(HomePhase.FAILED)
 
     async def _open(self, mount: Path) -> None:
         """Prepare the session handle, then hand off to the Library screen."""
@@ -210,7 +203,7 @@ class HomeScreen(Screen):
         """
         if phase is HomePhase.SEARCHING and self._phase is not HomePhase.SEARCHING:
             self._searching_since = time.monotonic()
-        if _phase_unchanged(self._phase, phase, self._error, error):
+        if phase is self._phase and (phase is not HomePhase.FAILED or error == self._error):
             return
         self._phase = phase
         self._error = error
@@ -246,19 +239,3 @@ class HomeScreen(Screen):
         # hidden-but-enabled widget when it is the only focusable one.
         path_input.display = False
         path_input.disabled = True
-
-
-def _is_valid_dj_usb(path: Path) -> bool:
-    """Return True when ``path`` holds a supported Rekordbox export."""
-    probe = probe_mount(path)
-    return probe is not None and probe.is_dj_usb and probe.is_supported
-
-
-def _scan_timed_out(phase: HomePhase, searching_since: float, timeout_s: float) -> bool:
-    """Return True when a SEARCHING phase has exceeded ``timeout_s``."""
-    return phase is HomePhase.SEARCHING and (time.monotonic() - searching_since >= timeout_s)
-
-
-def _phase_unchanged(current: HomePhase, phase: HomePhase, current_error: str, error: str) -> bool:
-    """Return True when entering ``phase`` would not change what is on screen."""
-    return phase is current and (phase is not HomePhase.FAILED or error == current_error)

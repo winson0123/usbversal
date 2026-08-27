@@ -518,6 +518,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-237 — Flatten the TASK-236 helper explosion
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | Inline one-off extracts; keep only splits that still earn their name |
+| Verification | ruff ✓ ruff format ✓ pytest 284 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

@@ -86,64 +86,30 @@ def read_hot_cues(extended_file: str | Path) -> list[HotCue]:
     data = path.read_bytes()
     cues: list[HotCue] = []
     for tag, header_len, total_len, offset in _sections(data):
-        cues.extend(_cues_from_section(data, tag, header_len, total_len, offset))
+        if tag != _EXTENDED_CUES or total_len <= header_len:
+            continue
+        kind, count = struct.unpack(">IH", data[offset + 12 : offset + 18])
+        if kind != _HOT_CUE_LIST:
+            continue
+        entry = offset + header_len
+        for _ in range(count):
+            entry_header, entry_total = struct.unpack(">II", data[entry + 4 : entry + 12])
+            number = struct.unpack(">I", data[entry + 12 : entry + 16])[0]
+            body = data[entry + entry_header : entry + entry_total]
+            position = struct.unpack(">I", body[4:8])[0]
+            red, green, blue = body[-3:]
+            cues.append(
+                HotCue(
+                    slot=number - 1,
+                    position_ms=position,
+                    colour=f"#{red:02X}{green:02X}{blue:02X}",
+                )
+            )
+            entry += entry_total
 
     cues.sort(key=lambda cue: cue.slot)
     logger.debug("anlz_hot_cues_read", path=str(path), count=len(cues))
     return cues
-
-
-def _cues_from_section(
-    data: bytes, tag: str, header_len: int, total_len: int, offset: int
-) -> list[HotCue]:
-    """
-    Read hot cues from one PCO2 section, or return empty when it is not one.
-
-    Args:
-        data: Whole ANLZ file.
-        tag: Section fourcc.
-        header_len: Section header length.
-        total_len: Section total length.
-        offset: Byte index of the section.
-
-    Returns:
-        Hot cues in this section, or an empty list.
-    """
-    if tag != _EXTENDED_CUES or total_len <= header_len:
-        return []
-    kind, count = struct.unpack(">IH", data[offset + 12 : offset + 18])
-    if kind != _HOT_CUE_LIST:
-        return []
-    cues: list[HotCue] = []
-    entry = offset + header_len
-    for _ in range(count):
-        cue, entry = _read_one_hot_cue(data, entry)
-        cues.append(cue)
-    return cues
-
-
-def _read_one_hot_cue(data: bytes, entry: int) -> tuple[HotCue, int]:
-    """
-    Read one PCOB hot-cue entry.
-
-    Args:
-        data: Whole ANLZ file.
-        entry: Byte index of this cue entry.
-
-    Returns:
-        The cue and the byte index of the next entry.
-    """
-    entry_header, entry_total = struct.unpack(">II", data[entry + 4 : entry + 12])
-    number = struct.unpack(">I", data[entry + 12 : entry + 16])[0]
-    body = data[entry + entry_header : entry + entry_total]
-    position = struct.unpack(">I", body[4:8])[0]
-    red, green, blue = body[-3:]
-    cue = HotCue(
-        slot=number - 1,
-        position_ms=position,
-        colour=f"#{red:02X}{green:02X}{blue:02X}",
-    )
-    return cue, entry + entry_total
 
 
 @dataclass(frozen=True)
@@ -178,34 +144,13 @@ def read_beats(analysis_file: str | Path) -> list[Beat]:
 
     data = path.read_bytes()
     for tag, header_len, total_len, offset in _sections(data):
-        beats = _beats_from_section(data, tag, header_len, total_len, offset)
-        if beats is not None:
-            return beats
+        if tag != "PQTZ" or total_len <= header_len:
+            continue
+        body = data[offset + header_len : offset + total_len]
+        return [
+            Beat(number=number, bpm=tempo / 100.0, time_ms=time)
+            for number, tempo, time in (
+                struct.unpack(">HHI", body[i * 8 : (i + 1) * 8]) for i in range(len(body) // 8)
+            )
+        ]
     return []
-
-
-def _beats_from_section(
-    data: bytes, tag: str, header_len: int, total_len: int, offset: int
-) -> list[Beat] | None:
-    """
-    Read a PQTZ beat grid, or return None when this section is not one.
-
-    Args:
-        data: Whole ANLZ file.
-        tag: Section fourcc.
-        header_len: Section header length.
-        total_len: Section total length.
-        offset: Byte index of the section.
-
-    Returns:
-        Beats in time order, or None when the section is not a grid.
-    """
-    if tag != "PQTZ" or total_len <= header_len:
-        return None
-    body = data[offset + header_len : offset + total_len]
-    return [
-        Beat(number=number, bpm=tempo / 100.0, time_ms=time)
-        for number, tempo, time in (
-            struct.unpack(">HHI", body[i * 8 : (i + 1) * 8]) for i in range(len(body) // 8)
-        )
-    ]
