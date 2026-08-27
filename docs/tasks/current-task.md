@@ -10,14 +10,13 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-233` |
-| Objective | Skip the alternate screen on ConPTY so quit is not blocked by Windows Terminal's ~1s buffer swap |
+| Task ID | `TASK-234` |
+| Objective | Split `sync_playlists` (CC 27) and the other sync_service functions over CC 11 so each step has a name |
 | Completed | 2026-08-27 |
 
 ### Scope
 
-- `app/tui/app.py`: on WSL / Windows Terminal, replace `CSI ? 1049 h/l` with a viewport clear so we never enter the alt screen. Other terminals keep it.
-- `tests/test_tui_app.py`: rewrite, host detect, and write-filter coverage.
+- `app/services/sync_service.py`: extracted named steps from `sync_playlists`, `_sync_analysis`, and the nested `_walk`. Public signatures unchanged. File stays under 1000 lines (995).
 
 ### Verification log
 
@@ -29,4 +28,4 @@
 
 ## Next
 
-Ask the user. The large pending Library screen redesign is still not started — see `docs/HANDOFF.md`.
+Ask the user. Remaining CC 11+ lives outside this module (`build_track_record`, `write_geob`, `_find_playlist`). The Library two-pane redesign is still not started — see `docs/HANDOFF.md`.

@@ -205,31 +205,53 @@ def playlist_tree_sync_states(library: UsbLibrary) -> tuple[PlaylistTreeSyncStat
     """
     leaf_states = {state.playlist_id: state for state in playlist_sync_states(library)}
     roots = build_playlist_tree(library.rekordbox.list_playlists())
+    return tuple(_walk_playlist_tree(node, leaf_states) for node in roots)
 
-    def _walk(node: PlaylistNode) -> PlaylistTreeSyncState:
-        """Roll up one playlist-tree node and its descendants."""
-        children = tuple(_walk(child) for child in node.children)
-        if node.playlist.is_folder:
-            state = combine_sync_states([child.state for child in children])
-            synced = sum(child.synced for child in children)
-            total = sum(child.total for child in children)
-            leaf_ids = tuple(i for child in children for i in child.leaf_ids)
-        else:
-            leaf = leaf_states.get(node.playlist.id)
-            state = leaf.state if leaf is not None else SyncState.NOT_SYNCED
-            synced = leaf.in_crate if leaf is not None else 0
-            total = leaf.total if leaf is not None else 0
-            leaf_ids = (node.playlist.id,)
+
+def _leaf_tree_state(
+    node: PlaylistNode, leaf_states: dict[int, PlaylistSyncState]
+) -> PlaylistTreeSyncState:
+    """Build a tree node from a playlist's own sync counts."""
+    leaf = leaf_states.get(node.playlist.id)
+    if leaf is None:
         return PlaylistTreeSyncState(
             node=node,
-            state=state,
-            synced=synced,
-            total=total,
-            leaf_ids=leaf_ids,
-            children=children,
+            state=SyncState.NOT_SYNCED,
+            synced=0,
+            total=0,
+            leaf_ids=(node.playlist.id,),
         )
+    return PlaylistTreeSyncState(
+        node=node,
+        state=leaf.state,
+        synced=leaf.in_crate,
+        total=leaf.total,
+        leaf_ids=(node.playlist.id,),
+    )
 
-    return tuple(_walk(node) for node in roots)
+
+def _folder_tree_state(
+    node: PlaylistNode, children: tuple[PlaylistTreeSyncState, ...]
+) -> PlaylistTreeSyncState:
+    """Roll a folder's children into one tree node."""
+    return PlaylistTreeSyncState(
+        node=node,
+        state=combine_sync_states([child.state for child in children]),
+        synced=sum(child.synced for child in children),
+        total=sum(child.total for child in children),
+        leaf_ids=tuple(i for child in children for i in child.leaf_ids),
+        children=children,
+    )
+
+
+def _walk_playlist_tree(
+    node: PlaylistNode, leaf_states: dict[int, PlaylistSyncState]
+) -> PlaylistTreeSyncState:
+    """Roll up one playlist-tree node and its descendants."""
+    children = tuple(_walk_playlist_tree(child, leaf_states) for child in node.children)
+    if node.playlist.is_folder:
+        return _folder_tree_state(node, children)
+    return _leaf_tree_state(node, leaf_states)
 
 
 def find_crate_name_collisions(playlists: tuple[Playlist, ...]) -> dict[str, list[str]]:
@@ -434,6 +456,71 @@ def _write_track_tags(audio_path: Path, beats: list[Beat], cues: list[HotCue]) -
         write_geob(audio_path, updates)
 
 
+def _analysis_inputs(mount: Path, content: Any, raw: str) -> tuple[Path, Path] | None:
+    """
+    Return ``(audio_path, dat_path)`` for one track, or None to skip.
+
+    Args:
+        mount: Mount root.
+        content: Rekordbox content row, or None when the path is unknown.
+        raw: Rekordbox track path.
+    """
+    if content is None:
+        return None
+    audio_path = mount / serato_path(raw)
+    dat_path = _analysis_dat_path(mount, content)
+    if dat_path is None or not audio_path.is_file():
+        return None
+    return audio_path, dat_path
+
+
+def _write_analysis_tags(
+    audio_path: Path, dat_path: Path
+) -> tuple[list[Beat], list[HotCue]] | None:
+    """Write Serato tags from ANLZ data. None when the track has neither grid nor cues."""
+    beats = read_beats(dat_path)
+    cues = read_hot_cues(extended_path(dat_path))
+    if not beats and not cues:
+        return None
+    _write_track_tags(audio_path, beats, cues)
+    return beats, cues
+
+
+def _record_one_analysis_track(
+    mount: Path,
+    contents: dict[str, Any],
+    raw: str,
+    lookups: RekordboxLookups,
+) -> tuple[str | None, TrackAnalysis | None, bool]:
+    """
+    Write one track's analysis tags.
+
+    Args:
+        mount: Mount root.
+        contents: Rekordbox path to content row.
+        raw: Rekordbox track path.
+        lookups: Id-to-name tables, for the index key column.
+
+    Returns:
+        ``(error, index_update, wrote_cues)``.
+    """
+    content = contents.get(raw)
+    inputs = _analysis_inputs(mount, content, raw)
+    if content is None or inputs is None:
+        return None, None, False
+    try:
+        written = _write_analysis_tags(*inputs)
+    except (AnlzError, TagFormatError, OSError) as exc:
+        return str(exc), None, False
+    if written is None:
+        return None, None, False
+    beats, cues = written
+    update = None
+    if beats:
+        update = TrackAnalysis(bpm=beats[0].bpm, key=lookups.keys.get(content.key_id))
+    return None, update, bool(cues)
+
+
 def _sync_analysis(
     mount: Path,
     index_path: Path | None,
@@ -478,31 +565,15 @@ def _sync_analysis(
     for done, raw in enumerate(ordered, start=1):
         track_error: str | None = None
         try:
-            content = contents.get(raw)
-            if content is None:
-                continue
-            audio_path = mount / serato_path(raw)
-            dat_path = _analysis_dat_path(mount, content)
-            if dat_path is None or not audio_path.is_file():
-                continue
-
-            try:
-                beats = read_beats(dat_path)
-                cues = read_hot_cues(extended_path(dat_path))
-                if not beats and not cues:
-                    continue
-                _write_track_tags(audio_path, beats, cues)
-            except (AnlzError, TagFormatError, OSError) as exc:
-                track_error = str(exc)
-                errors.append(f"{raw}: {exc}")
-                continue
-
-            if beats:
+            track_error, update, wrote_cues = _record_one_analysis_track(
+                mount, contents, raw, lookups
+            )
+            if track_error is not None:
+                errors.append(f"{raw}: {track_error}")
+            if update is not None:
                 grids += 1
-                updates[serato_path(raw)] = TrackAnalysis(
-                    bpm=beats[0].bpm, key=lookups.keys.get(content.key_id)
-                )
-            if cues:
+                updates[serato_path(raw)] = update
+            if wrote_cues:
                 cues_written += 1
         finally:
             if on_progress is not None:
@@ -525,6 +596,214 @@ def _sync_analysis(
         index_rows_updated=rows_updated,
         errors=tuple(errors),
     )
+
+
+def _require_serato_library(library: UsbLibrary) -> tuple[Path, Path]:
+    """
+    Return ``(_Serato_ root, database V2 path)``, or raise if either is missing.
+
+    Args:
+        library: Opened session handle.
+    """
+    serato_root = library.serato_root
+    database_path = library.serato_database
+    if serato_root is None or database_path is None:
+        raise SeratoLibraryRequiredError(f"No Serato library under {library.mount}")
+    return serato_root, database_path
+
+
+def _leaf_playlists(
+    library: UsbLibrary, playlist_ids: Sequence[int]
+) -> tuple[dict[int, Playlist], list[Playlist]]:
+    """
+    Resolve selected ids to non-folder playlists, in selection order.
+
+    Args:
+        library: Opened session handle.
+        playlist_ids: Rekordbox playlist ids to sync.
+
+    Returns:
+        The full id map, and the selected leaf playlists.
+    """
+    by_id = {p.id: p for p in library.rekordbox.list_playlists()}
+    selected: list[Playlist] = []
+    for playlist_id in playlist_ids:
+        playlist = by_id.get(playlist_id)
+        if playlist is None or playlist.is_folder:
+            raise PlaylistNotFoundError(f"Playlist not found: {playlist_id}")
+        selected.append(playlist)
+    return by_id, selected
+
+
+def _unindexed_tracks(
+    tracks_by_playlist: dict[int, Sequence[str]], indexed: set[str]
+) -> tuple[list[str], set[str]]:
+    """
+    Collect every selected track, and those Serato has not indexed yet.
+
+    Args:
+        tracks_by_playlist: Rekordbox paths per playlist id.
+        indexed: Normalized paths already in database V2.
+
+    Returns:
+        Missing raw paths in first-seen order, plus the set of all raw paths.
+    """
+    missing: list[str] = []
+    seen: set[str] = set()
+    all_paths: set[str] = set()
+    for paths in tracks_by_playlist.values():
+        for raw in paths:
+            all_paths.add(raw)
+            key = normalize_track_path(raw)
+            if key not in indexed and key not in seen:
+                seen.add(key)
+                missing.append(raw)
+    return missing, all_paths
+
+
+def _dry_run_report(
+    library: UsbLibrary,
+    selected: Sequence[Playlist],
+    by_id: dict[int, Playlist],
+    tracks_by_playlist: dict[int, Sequence[str]],
+    missing: Sequence[str],
+) -> SyncReport:
+    """
+    Build the dry-run SyncReport -- nothing is written.
+
+    Args:
+        library: Opened session handle.
+        selected: Leaf playlists in selection order.
+        by_id: Every playlist on the stick, for crate-name ancestry.
+        tracks_by_playlist: Rekordbox paths per playlist id.
+        missing: Tracks Serato has not indexed yet.
+    """
+    return SyncReport(
+        mount=library.mount,
+        dry_run=True,
+        backup_id=None,
+        records_added=len(missing),
+        results=tuple(
+            PlaylistSyncResult(
+                playlist_id=p.id,
+                playlist_name=p.name,
+                crate_name=crate_name_for(p, by_id),
+                tracks=len(tracks_by_playlist[p.id]),
+            )
+            for p in selected
+        ),
+    )
+
+
+def _tracks_with_analysis(mount: Path, all_paths: set[str], by_path: dict[str, Any]) -> set[str]:
+    """
+    Return selected paths that have a Rekordbox ``.DAT`` file.
+
+    Args:
+        mount: Mount root.
+        all_paths: Rekordbox track paths in the selection.
+        by_path: Content row per Rekordbox path.
+    """
+    return {raw for raw in all_paths if _analysis_dat_path(mount, by_path.get(raw)) is not None}
+
+
+def _index_missing_tracks(
+    database_path: Path,
+    missing: Sequence[str],
+    by_path: dict[str, Any],
+    lookups: RekordboxLookups,
+    context: WriteContext,
+) -> int:
+    """
+    Append database V2 rows for ``missing``. Returns how many were written.
+
+    Args:
+        database_path: Path to database V2.
+        missing: Rekordbox paths not yet indexed.
+        by_path: Content row per Rekordbox path.
+        lookups: Id-to-name tables for ``build_track_record``.
+        context: Validated backup context.
+    """
+    if not missing:
+        return 0
+    records = [build_track_record(by_path[raw], lookups) for raw in missing if raw in by_path]
+    return append_database_tracks(
+        database_path=database_path, records=records, write_context=context
+    )
+
+
+def _existing_index_path(serato_root: Path) -> Path | None:
+    """
+    Return ``location.sqlite`` if it exists, else None.
+
+    Args:
+        serato_root: Path to ``_Serato_``.
+    """
+    index_path = library_db_path(serato_root)
+    if not index_path.is_file():
+        return None
+    return index_path
+
+
+def _written_crate_names(results: Sequence[PlaylistSyncResult]) -> list[str]:
+    """
+    Crate stems whose write succeeded, in result order.
+
+    Args:
+        results: Per-playlist outcomes from ``_write_playlist_crates``.
+    """
+    return [result.crate_name for result in results if result.error is None]
+
+
+def _write_playlist_crates(
+    serato_root: Path,
+    selected: Sequence[Playlist],
+    by_id: dict[int, Playlist],
+    tracks_by_playlist: dict[int, Sequence[str]],
+    context: WriteContext,
+) -> list[PlaylistSyncResult]:
+    """
+    Write one crate per selected playlist. Failed writes set ``error``.
+
+    Args:
+        serato_root: Path to ``_Serato_``.
+        selected: Leaf playlists in selection order.
+        by_id: Every playlist on the stick, for crate-name ancestry.
+        tracks_by_playlist: Rekordbox paths per playlist id.
+        context: Validated backup context.
+    """
+    results: list[PlaylistSyncResult] = []
+    for playlist in selected:
+        crate_name = crate_name_for(playlist, by_id)
+        paths = [serato_path(raw) for raw in tracks_by_playlist[playlist.id]]
+        try:
+            write_crate(
+                serato_root=serato_root,
+                crate_name=crate_name,
+                track_paths=paths,
+                write_context=context,
+                overwrite=True,
+            )
+        except (CrateExistsError, OSError) as exc:
+            results.append(
+                PlaylistSyncResult(
+                    playlist_id=playlist.id,
+                    playlist_name=playlist.name,
+                    crate_name=crate_name,
+                    tracks=0,
+                    error=str(exc),
+                )
+            )
+            continue
+        results.append(
+            PlaylistSyncResult(
+                playlist_id=playlist.id,
+                playlist_name=playlist.name,
+                crate_name=crate_name,
+                tracks=len(paths),
+            )
+        )
+    return results
 
 
 def sync_playlists(
@@ -565,116 +844,34 @@ def sync_playlists(
         SeratoLibraryRequiredError: The mount has no Serato library.
         PlaylistNotFoundError: A selected id is missing or is a folder.
     """
-    serato_root = library.serato_root
-    database_path = library.serato_database
-    if serato_root is None or database_path is None:
-        raise SeratoLibraryRequiredError(f"No Serato library under {library.mount}")
-
-    by_id = {p.id: p for p in library.rekordbox.list_playlists()}
-    selected = []
-    for playlist_id in playlist_ids:
-        playlist = by_id.get(playlist_id)
-        if playlist is None or playlist.is_folder:
-            raise PlaylistNotFoundError(f"Playlist not found: {playlist_id}")
-        selected.append(playlist)
-
+    serato_root, database_path = _require_serato_library(library)
+    by_id, selected = _leaf_playlists(library, playlist_ids)
     tracks_by_playlist = {p.id: library.rekordbox.get_playlist_track_paths(p.id) for p in selected}
-    indexed = _database_index(database_path)
-    missing = []
-    seen: set[str] = set()
-    all_paths: set[str] = set()
-    for paths in tracks_by_playlist.values():
-        for raw in paths:
-            all_paths.add(raw)
-            key = normalize_track_path(raw)
-            if key not in indexed and key not in seen:
-                seen.add(key)
-                missing.append(raw)
-
+    missing, all_paths = _unindexed_tracks(tracks_by_playlist, _database_index(database_path))
     if dry_run:
-        return SyncReport(
-            mount=library.mount,
-            dry_run=True,
-            backup_id=None,
-            records_added=len(missing),
-            results=tuple(
-                PlaylistSyncResult(
-                    playlist_id=p.id,
-                    playlist_name=p.name,
-                    crate_name=crate_name_for(p, by_id),
-                    tracks=len(tracks_by_playlist[p.id]),
-                )
-                for p in selected
-            ),
-        )
+        return _dry_run_report(library, selected, by_id, tracks_by_playlist, missing)
 
     lookups = load_lookups(library.rekordbox.database)
     by_path = {c.path: c for c in library.rekordbox.database.get_contents()}
-    analysis_targets = {
-        raw for raw in all_paths if _analysis_dat_path(library.mount, by_path.get(raw)) is not None
-    }
-
+    analysis_targets = _tracks_with_analysis(library.mount, all_paths, by_path)
     backup = backup_mount_for_migration(
         library.mount,
         backup_root=backup_root,
         extra_files=[library.mount / serato_path(raw) for raw in analysis_targets],
     )
     context = WriteContext(backup_path=backup.backup_dir)
-
-    records_added = 0
-    if missing:
-        records = [build_track_record(by_path[raw], lookups) for raw in missing if raw in by_path]
-        records_added = append_database_tracks(
-            database_path=database_path, records=records, write_context=context
-        )
-
-    index_path = library_db_path(serato_root)
+    records_added = _index_missing_tracks(database_path, missing, by_path, lookups, context)
     analysis = _sync_analysis(
         library.mount,
-        index_path if index_path.is_file() else None,
+        _existing_index_path(serato_root),
         by_path,
         analysis_targets,
         lookups,
         context,
         on_progress,
     )
-
-    results: list[PlaylistSyncResult] = []
-    for playlist in selected:
-        crate_name = crate_name_for(playlist, by_id)
-        paths = [serato_path(raw) for raw in tracks_by_playlist[playlist.id]]
-        try:
-            write_crate(
-                serato_root=serato_root,
-                crate_name=crate_name,
-                track_paths=paths,
-                write_context=context,
-                overwrite=True,
-            )
-        except (CrateExistsError, OSError) as exc:
-            results.append(
-                PlaylistSyncResult(
-                    playlist_id=playlist.id,
-                    playlist_name=playlist.name,
-                    crate_name=crate_name,
-                    tracks=0,
-                    error=str(exc),
-                )
-            )
-            continue
-        results.append(
-            PlaylistSyncResult(
-                playlist_id=playlist.id,
-                playlist_name=playlist.name,
-                crate_name=crate_name,
-                tracks=len(paths),
-            )
-        )
-
-    write_crate_order(
-        serato_root,
-        merge_crate_order(serato_root, [r.crate_name for r in results if r.error is None]),
-    )
+    results = _write_playlist_crates(serato_root, selected, by_id, tracks_by_playlist, context)
+    write_crate_order(serato_root, merge_crate_order(serato_root, _written_crate_names(results)))
 
     logger.info(
         "sync_completed",

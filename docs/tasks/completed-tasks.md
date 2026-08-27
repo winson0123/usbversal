@@ -488,6 +488,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-234 — Split sync_playlists and the other CC>11 functions in sync_service
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | Name each sync step; public signatures unchanged |
+| Verification | ruff ✓ ruff format ✓ pytest 284 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

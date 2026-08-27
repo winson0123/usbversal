@@ -397,6 +397,11 @@
       "id": "TASK-233",
       "title": "Skip the alt screen on ConPTY so quit is not a 1s buffer swap",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-234",
+      "title": "Split sync_playlists and the other CC>11 functions in sync_service",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -859,6 +864,12 @@
     {
       "id": "TASK-233",
       "title": "Skip the alt screen on ConPTY so quit is not a 1s buffer swap",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-234",
+      "title": "Split sync_playlists and the other CC>11 functions in sync_service",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }
