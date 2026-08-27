@@ -165,6 +165,7 @@ and none of them exist yet.
 | ~~`TASK-233`~~ | ~~Skip the alt screen on ConPTY so quit is not a 1s buffer swap~~ | Done — the pause left after TASK-232 was Windows Terminal / WSL ConPTY leaving `CSI ? 1049`. That host waits to sync the cursor across buffers (~1s); we cannot make that call faster. On WSL (`microsoft`/`wsl` in `platform.release()`) or when `WT_SESSION` is set, the driver write path replaces 1049 h/l with a viewport clear so we never enter the alt screen. Linux/macOS desktops keep it (their restore is instant). |
 | ~~`TASK-234`~~ | ~~Split `sync_playlists` and the other CC>11 functions in sync_service~~ | Done — McCabe 27 / 13 / 11 (`sync_playlists`, `_sync_analysis`, nested `_walk`) split into named steps. Public signatures unchanged. File 995 lines. |
 | ~~`TASK-235`~~ | ~~Split `write_geob`, `build_track_record`, and `_find_playlist`~~ | Done — last three CC 11+ functions in `app/`. Public signatures unchanged. No function left at 11+. |
+| ~~`TASK-236`~~ | ~~Bring remaining `app/` functions under CC 6~~ | Done — every remaining CC 6–10 function split into named steps. Analysis write / BPM correction live in `sync_analysis.py`. `sync_service.py` is 725 lines. Public signatures unchanged. No function left at 6+. |
 
 ---
 

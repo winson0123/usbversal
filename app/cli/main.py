@@ -20,7 +20,7 @@ from app.services.errors import (
     SeratoLibraryRequiredError,
     UnsupportedDatabaseError,
 )
-from app.services.library import open_library, probe_mount
+from app.services.library import MountProbe, open_library, probe_mount
 from app.services.migration_service import migrate_playlist_to_crate
 from app.services.playlist_service import list_rekordbox_playlists
 from app.services.rollback_service import rollback_mount_libraries, rollback_result_to_dict
@@ -211,6 +211,11 @@ def _cmd_tui(_args: argparse.Namespace) -> int:
     return 0
 
 
+def _emit_json(payload: object) -> None:
+    """Print ``payload`` as indented JSON on stdout."""
+    print(json.dumps(payload, indent=2))
+
+
 def _cmd_probe(args: argparse.Namespace) -> int:
     """
     Report what DJ library sits on a mount.
@@ -223,18 +228,24 @@ def _cmd_probe(args: argparse.Namespace) -> int:
     """
     probe = probe_mount(args.mount)
     if probe is None:
-        if args.json:
-            print(
-                json.dumps({"mount": args.mount, "is_dj_usb": False, "reason": "empty"}, indent=2)
-            )
-        else:
-            print(f"No stick at {args.mount} (path absent or empty)")
-        return 1
-
+        return _probe_empty(args)
     if args.json:
-        print(json.dumps(probe.to_dict(), indent=2))
+        _emit_json(probe.to_dict())
         return 0 if probe.is_dj_usb and probe.is_supported else 1
+    return _probe_text(probe)
 
+
+def _probe_empty(args: argparse.Namespace) -> int:
+    """Report that the mount path is absent or empty."""
+    if args.json:
+        _emit_json({"mount": args.mount, "is_dj_usb": False, "reason": "empty"})
+    else:
+        print(f"No stick at {args.mount} (path absent or empty)")
+    return 1
+
+
+def _probe_text(probe: MountProbe) -> int:
+    """Print a human-readable probe verdict."""
     if not probe.is_dj_usb:
         print(f"Not a DJ USB: {probe.mount}")
         return 1
@@ -268,9 +279,14 @@ def _cmd_status(args: argparse.Namespace) -> int:
         return 1
 
     if args.json:
-        print(json.dumps(sync_states_to_dict(states), indent=2))
+        _emit_json(sync_states_to_dict(states))
         return 0
+    _print_status_text(states)
+    return 0
 
+
+def _print_status_text(states: object) -> None:
+    """Print one status line per playlist, then a summary."""
     for state in states:
         blocked = f"  [{state.blocked} not in Serato library]" if state.blocked else ""
         print(
@@ -282,7 +298,6 @@ def _cmd_status(args: argparse.Namespace) -> int:
         f"\n{len(states)} playlists: "
         + ", ".join(f"{v} {_STATE_LABEL[k]}" for k, v in summary.items())
     )
-    return 0
 
 
 def _cmd_list_playlists(args: argparse.Namespace) -> int:
@@ -298,29 +313,40 @@ def _cmd_list_playlists(args: argparse.Namespace) -> int:
     log = structlog.get_logger()
     try:
         result = list_rekordbox_playlists(open_library(args.mount))
-    except DatabaseNotFoundError as exc:
-        log.error("list_playlists_failed", error=str(exc))
-        return 1
     except UnsupportedDatabaseError as exc:
         log.error("list_playlists_unsupported", error=str(exc))
         return 2
-    except OSError as exc:
+    except (DatabaseNotFoundError, OSError) as exc:
         log.error("list_playlists_failed", error=str(exc))
         return 1
 
     if args.json:
-        print(json.dumps(result.to_dict(), indent=2))
+        _emit_json(result.to_dict())
         return 0
+    _print_playlists_text(result)
+    return 0
 
+
+def _print_playlists_text(result: object) -> None:
+    """Print the list-playlists human-readable listing."""
     lib = result.library
     print(f"Database: {lib.database_path} ({lib.db_format.value})")
     print(f"Playlists: {len(result.playlists)}\n")
-    for pl in sorted(result.playlists, key=lambda p: (p.parent_id or 0, p.name)):
-        kind = "folder" if pl.is_folder else "playlist"
-        parent = f" parent={pl.parent_id}" if pl.parent_id is not None else ""
-        tracks = f" tracks={pl.track_count}" if pl.track_count is not None else ""
-        print(f"  [{kind}] {pl.id}: {pl.name}{parent}{tracks}")
-    return 0
+    for pl in sorted(result.playlists, key=_playlist_sort_key):
+        print(_playlist_line(pl))
+
+
+def _playlist_sort_key(playlist: object) -> tuple[int, str]:
+    """Sort playlists by parent id, then name."""
+    return (playlist.parent_id or 0, playlist.name)
+
+
+def _playlist_line(playlist: object) -> str:
+    """Format one list-playlists row."""
+    kind = "folder" if playlist.is_folder else "playlist"
+    parent = f" parent={playlist.parent_id}" if playlist.parent_id is not None else ""
+    tracks = f" tracks={playlist.track_count}" if playlist.track_count is not None else ""
+    return f"  [{kind}] {playlist.id}: {playlist.name}{parent}{tracks}"
 
 
 def _cmd_backup(args: argparse.Namespace) -> int:
@@ -336,24 +362,25 @@ def _cmd_backup(args: argparse.Namespace) -> int:
     log = structlog.get_logger()
     try:
         result = backup_mount_libraries(args.mount, backup_root=args.target)
-    except (FileNotFoundError, ValueError) as exc:
-        log.error("backup_failed", error=str(exc))
-        return 1
-    except OSError as exc:
+    except (FileNotFoundError, ValueError, OSError) as exc:
         log.error("backup_failed", error=str(exc))
         return 1
 
     if args.json:
-        print(json.dumps(backup_result_to_dict(result), indent=2))
+        _emit_json(backup_result_to_dict(result))
         return 0
+    _print_backup_text(result)
+    return 0
 
+
+def _print_backup_text(result: object) -> None:
+    """Print the backup command's human-readable listing."""
     print(f"Backup ID: {result.backup_id}")
     print(f"Directory: {result.backup_dir}")
     print(f"Manifest: {result.backup_dir / 'manifest.json'}")
     print(f"Files: {len(result.manifest.files)}")
     for entry in result.manifest.files:
         print(f"  {entry.relative_path} ({entry.size} bytes, sha256={entry.sha256[:12]}...)")
-    return 0
 
 
 def _cmd_rollback(args: argparse.Namespace) -> int:
@@ -374,17 +401,26 @@ def _cmd_rollback(args: argparse.Namespace) -> int:
             backup_root=args.target,
             pre_rollback=not args.no_pre_rollback,
         )
-    except (BackupNotFoundError, BackupVerificationError, MountMismatchError) as exc:
-        log.error("rollback_failed", error=str(exc))
-        return 1
-    except (FileNotFoundError, ValueError, OSError) as exc:
+    except (
+        BackupNotFoundError,
+        BackupVerificationError,
+        MountMismatchError,
+        FileNotFoundError,
+        ValueError,
+        OSError,
+    ) as exc:
         log.error("rollback_failed", error=str(exc))
         return 1
 
     if args.json:
-        print(json.dumps(rollback_result_to_dict(result), indent=2))
+        _emit_json(rollback_result_to_dict(result))
         return 0
+    _print_rollback_text(result)
+    return 0
 
+
+def _print_rollback_text(result: object) -> None:
+    """Print the rollback command's human-readable listing."""
     print(f"Restored from backup: {result.backup_id}")
     print(f"Backup directory: {result.backup_dir}")
     print(f"Files restored: {len(result.restored_paths)}")
@@ -392,7 +428,6 @@ def _cmd_rollback(args: argparse.Namespace) -> int:
         print(f"  {relative}")
     if result.pre_rollback_backup_dir:
         print(f"Pre-rollback safety copy: {result.pre_rollback_backup_dir}")
-    return 0
 
 
 def _cmd_migrate_playlist(args: argparse.Namespace) -> int:
@@ -429,9 +464,13 @@ def _cmd_migrate_playlist(args: argparse.Namespace) -> int:
         return 1
 
     if args.json:
-        print(json.dumps(result.to_dict(), indent=2))
+        _emit_json(result.to_dict())
         return 0
+    return _print_migrate_text(result)
 
+
+def _print_migrate_text(result: object) -> int:
+    """Print the migrate-playlist human-readable listing. Returns the exit code."""
     plan = result.plan
     print(f"Playlist: {plan.playlist_name} (id={plan.playlist_id})")
     print(f"Target crate: Subcrates/{plan.crate_name}.crate")
@@ -440,20 +479,26 @@ def _cmd_migrate_playlist(args: argparse.Namespace) -> int:
         f"{len(plan.serato_paths)} matched in Serato, "
         f"{len(plan.skipped_paths)} skipped",
     )
-    if plan.skipped_paths:
-        print("\nSkipped (not in Serato database V2):")
-        for path in plan.skipped_paths[:10]:
-            print(f"  {path}")
-        if len(plan.skipped_paths) > 10:
-            print(f"  ... and {len(plan.skipped_paths) - 10} more")
+    _print_skipped_paths(plan.skipped_paths)
     if result.dry_run:
         print("\n(dry-run: no backup or write performed)")
         return 0
-
     print(f"\nBackup ID: {result.backup.backup_id}")
     print(f"Backup dir: {result.backup.backup_dir}")
     print(f"Wrote crate: {result.crate_path}")
     return 0
+
+
+def _print_skipped_paths(skipped_paths: list[str]) -> None:
+    """Print up to ten skipped track paths, then a remainder count."""
+    if not skipped_paths:
+        return
+    print("\nSkipped (not in Serato database V2):")
+    for path in skipped_paths[:10]:
+        print(f"  {path}")
+    leftover = len(skipped_paths) - 10
+    if leftover > 0:
+        print(f"  ... and {leftover} more")
 
 
 def _cmd_list_crates(args: argparse.Namespace) -> int:
@@ -469,17 +514,19 @@ def _cmd_list_crates(args: argparse.Namespace) -> int:
     log = structlog.get_logger()
     try:
         result = list_serato_crates(args.mount)
-    except SeratoLibraryNotFoundError as exc:
-        log.error("list_crates_failed", error=str(exc))
-        return 1
-    except OSError as exc:
+    except (SeratoLibraryNotFoundError, OSError) as exc:
         log.error("list_crates_failed", error=str(exc))
         return 1
 
     if args.json:
-        print(json.dumps(result.to_dict(), indent=2))
+        _emit_json(result.to_dict())
         return 0
+    _print_crates_text(result)
+    return 0
 
+
+def _print_crates_text(result: object) -> None:
+    """Print the list-crates human-readable listing."""
     lib = result.library
     print(f"Serato: {lib.serato_root}")
     print(f"Database: {lib.database_path} ({lib.database_track_count} tracks indexed)")
@@ -489,7 +536,6 @@ def _cmd_list_crates(args: argparse.Namespace) -> int:
         print(f"    {crate.path}")
     if not result.crates:
         print("  (no .crate files under Subcrates/)")
-    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -504,26 +550,23 @@ def main(argv: list[str] | None = None) -> int:
     """
     parser = _build_parser()
     args = parser.parse_args(argv)
+    handler = _COMMANDS.get(args.command)
+    if handler is None:
+        parser.print_help()
+        return 1
+    return handler(args)
 
-    if args.command == "probe":
-        return _cmd_probe(args)
-    if args.command == "status":
-        return _cmd_status(args)
-    if args.command == "list-playlists":
-        return _cmd_list_playlists(args)
-    if args.command == "backup":
-        return _cmd_backup(args)
-    if args.command == "rollback":
-        return _cmd_rollback(args)
-    if args.command == "list-crates":
-        return _cmd_list_crates(args)
-    if args.command == "migrate-playlist":
-        return _cmd_migrate_playlist(args)
-    if args.command == "tui":
-        return _cmd_tui(args)
 
-    parser.print_help()
-    return 1
+_COMMANDS = {
+    "probe": _cmd_probe,
+    "status": _cmd_status,
+    "list-playlists": _cmd_list_playlists,
+    "backup": _cmd_backup,
+    "rollback": _cmd_rollback,
+    "list-crates": _cmd_list_crates,
+    "migrate-playlist": _cmd_migrate_playlist,
+    "tui": _cmd_tui,
+}
 
 
 if __name__ == "__main__":

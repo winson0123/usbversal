@@ -113,14 +113,34 @@ def _optional_track_fields(content: Any, lookups: RekordboxLookups) -> TrackReco
         ("talb", lookups.albums.get(content.album_id)),
         ("tgen", lookups.genres.get(content.genre_id)),
         ("tlen", _duration(content.length)),
-        ("tsiz", f"{content.file_size / 1048576:.1f}MB" if content.file_size else None),
-        ("tbit", f"{content.bitrate}.0kbps" if content.bitrate else None),
-        ("tsmp", f"{content.sampling_rate / 1000:.1f}k" if content.sampling_rate else None),
-        ("tbpm", f"{content.bpmx100 / 100:.2f}" if content.bpmx100 else None),
+        ("tsiz", _fmt_mb(content.file_size)),
+        ("tbit", _fmt_bitrate(content.bitrate)),
+        ("tsmp", _fmt_sample_rate(content.sampling_rate)),
+        ("tbpm", _fmt_bpm(content.bpmx100)),
         ("tkey", lookups.keys.get(content.key_id)),
         ("ttyr", _release_year(content)),
     ]
     return [(tag, value) for tag, value in optional if value]
+
+
+def _fmt_mb(size: int | None) -> str | None:
+    """Format a file size as Serato's ``N.NMB`` string."""
+    return f"{size / 1048576:.1f}MB" if size else None
+
+
+def _fmt_bitrate(bitrate: int | None) -> str | None:
+    """Format a bitrate as Serato's ``N.0kbps`` string."""
+    return f"{bitrate}.0kbps" if bitrate else None
+
+
+def _fmt_sample_rate(rate: int | None) -> str | None:
+    """Format a sample rate as Serato's ``N.Nk`` string."""
+    return f"{rate / 1000:.1f}k" if rate else None
+
+
+def _fmt_bpm(bpmx100: int | None) -> str | None:
+    """Format Rekordbox's bpm×100 integer as a two-decimal BPM string."""
+    return f"{bpmx100 / 100:.2f}" if bpmx100 else None
 
 
 def _size_and_added_fields(content: Any) -> TrackRecord:

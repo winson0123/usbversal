@@ -21,23 +21,41 @@ def match_candidates(partial: str) -> list[str]:
         nothing matches. Directories only: the target is always a mount
         root, and a file can never be one.
     """
-    path = Path(partial)
-    if partial == "" or partial.endswith("/"):
-        directory, prefix = (path if partial else Path(".")), ""
-    else:
-        directory, prefix = path.parent, path.name
-
+    directory, prefix = _parent_and_prefix(partial)
     try:
         entries = sorted(directory.iterdir(), key=lambda entry: entry.name)
     except OSError:
         return []
+    return [
+        _dir_candidate(directory, entry) for entry in entries if _is_matching_dir(entry, prefix)
+    ]
 
-    candidates = []
-    for entry in entries:
-        if entry.name.startswith(prefix) and entry.is_dir():
-            full = directory / entry.name if str(directory) != "." else Path(entry.name)
-            candidates.append(f"{full}/")
-    return candidates
+
+def _parent_and_prefix(partial: str) -> tuple[Path, str]:
+    """
+    Split a typed path into the directory to list and the name prefix.
+
+    Args:
+        partial: The path typed so far.
+
+    Returns:
+        ``(directory, prefix)`` — prefix is empty when the path ends in ``/``.
+    """
+    path = Path(partial)
+    if partial == "" or partial.endswith("/"):
+        return (path if partial else Path(".")), ""
+    return path.parent, path.name
+
+
+def _is_matching_dir(entry: Path, prefix: str) -> bool:
+    """Return True when ``entry`` is a directory whose name starts with ``prefix``."""
+    return entry.name.startswith(prefix) and entry.is_dir()
+
+
+def _dir_candidate(directory: Path, entry: Path) -> str:
+    """Return the completed path for ``entry``, always with a trailing slash."""
+    full = directory / entry.name if str(directory) != "." else Path(entry.name)
+    return f"{full}/"
 
 
 class PathInput(Input):

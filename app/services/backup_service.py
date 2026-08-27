@@ -58,16 +58,17 @@ def serato_files_on_mount(mount_path: Path) -> list[Path]:
         return []
     serato_root, database_path = resolved
     found: list[Path] = [database_path]
-    order_file = neworder_path(serato_root)
-    if order_file.is_file():
-        found.append(order_file)
-    index_file = library_db_path(serato_root)
-    if index_file.is_file():
-        found.append(index_file)
+    _append_if_file(found, neworder_path(serato_root))
+    _append_if_file(found, library_db_path(serato_root))
     for crate_path in list_crate_files(serato_root):
-        if crate_path.is_file() and crate_path not in found:
-            found.append(crate_path)
+        _append_if_file(found, crate_path)
     return found
+
+
+def _append_if_file(found: list[Path], path: Path) -> None:
+    """Append ``path`` when it is a file not already in ``found``."""
+    if path.is_file() and path not in found:
+        found.append(path)
 
 
 def backup_mount_for_migration(
@@ -94,20 +95,8 @@ def backup_mount_for_migration(
     """
     mount_path = resolve_mount_path(mount)
     files = rekordbox_files_on_mount(mount_path) + serato_files_on_mount(mount_path)
-    if extra_files:
-        for item in extra_files:
-            path = Path(item)
-            if not path.is_absolute():
-                path = mount_path / path
-            if path.is_file():
-                files.append(path)
-    unique: list[Path] = []
-    seen: set[Path] = set()
-    for path in files:
-        resolved = path.resolve()
-        if resolved not in seen:
-            seen.add(resolved)
-            unique.append(resolved)
+    files.extend(_existing_extra_files(mount_path, extra_files))
+    unique = _unique_paths(files)
     if not unique:
         msg = f"No Rekordbox or Serato library files found under {mount_path}"
         raise FileNotFoundError(msg)
@@ -143,16 +132,8 @@ def backup_mount_libraries(
     """
     mount_path = resolve_mount_path(mount)
     files = rekordbox_files_on_mount(mount_path)
-    if extra_files:
-        for item in extra_files:
-            path = Path(item)
-            if not path.is_absolute():
-                path = mount_path / path
-            if not path.is_file():
-                continue
-            resolved = path.resolve()
-            if resolved not in files:
-                files.append(resolved)
+    files.extend(_existing_extra_files(mount_path, extra_files))
+    files = _unique_paths(files)
 
     if not files:
         msg = f"No Rekordbox database files found under {mount_path}"
@@ -161,6 +142,39 @@ def backup_mount_libraries(
     logger.info("backup_mount_started", mount=str(mount_path), file_count=len(files))
     root = Path(backup_root).resolve() if backup_root else None
     return create_backup(source_mount=mount_path, files=files, backup_root=root)
+
+
+def _existing_extra_files(mount_path: Path, extra_files: list[str | Path] | None) -> list[Path]:
+    """
+    Resolve extra backup paths that exist as files.
+
+    Args:
+        mount_path: Mount root used for relative extra paths.
+        extra_files: Absolute or mount-relative paths, or None.
+
+    Returns:
+        Existing files, in the order given.
+    """
+    found: list[Path] = []
+    for item in extra_files or []:
+        path = Path(item)
+        if not path.is_absolute():
+            path = mount_path / path
+        if path.is_file():
+            found.append(path)
+    return found
+
+
+def _unique_paths(files: list[Path]) -> list[Path]:
+    """Return ``files`` with later duplicates of the same resolved path removed."""
+    unique: list[Path] = []
+    seen: set[Path] = set()
+    for path in files:
+        resolved = path.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            unique.append(resolved)
+    return unique
 
 
 def backup_result_to_dict(result: BackupResult) -> dict[str, Any]:

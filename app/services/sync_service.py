@@ -10,30 +10,14 @@ from typing import Any
 import structlog
 
 from app.adapters.base import WriteContext
-from app.adapters.rekordbox.anlz import (
-    AnlzError,
-    Beat,
-    HotCue,
-    extended_path,
-    read_beats,
-    read_hot_cues,
-)
 from app.adapters.serato import (
     crate_name_for,
     read_crate_track_paths,
     read_database_track_paths,
 )
-from app.adapters.serato.beatgrid import encode_beatgrid
-from app.adapters.serato.library_db import (
-    TrackAnalysis,
-    library_db_path,
-    read_track_analysis,
-    update_track_analysis,
-)
-from app.adapters.serato.markers2 import Cue, decode_markers, encode_markers, replace_cues
+from app.adapters.serato.library_db import library_db_path
 from app.adapters.serato.neworder import merge_crate_order, write_crate_order
 from app.adapters.serato.paths import list_crate_files
-from app.adapters.serato.tags import TagFormatError, read_geob, write_geob
 from app.adapters.serato.writer import (
     CrateExistsError,
     append_database_tracks,
@@ -45,6 +29,16 @@ from app.core.track_paths import normalize_track_path
 from app.services.backup_service import backup_mount_for_migration
 from app.services.library import UsbLibrary
 from app.services.migration_service import PlaylistNotFoundError, SeratoLibraryRequiredError
+from app.services.sync_analysis import (
+    IndexCorrectionResult as IndexCorrectionResult,
+)
+from app.services.sync_analysis import (
+    analysis_dat_path,
+    sync_analysis,
+)
+from app.services.sync_analysis import (
+    correct_index_bpm as correct_index_bpm,
+)
 from app.services.track_records import (
     RekordboxLookups,
     build_track_record,
@@ -112,28 +106,53 @@ def playlist_sync_states(library: UsbLibrary) -> tuple[PlaylistSyncState, ...]:
     playlists = library.rekordbox.list_playlists()
     by_id = {p.id: p for p in playlists}
 
-    states: list[PlaylistSyncState] = []
-    for playlist in playlists:
-        if playlist.is_folder:
-            continue
-        tracks = [
-            normalize_track_path(t) for t in library.rekordbox.get_playlist_track_paths(playlist.id)
-        ]
-        crate_name = crate_name_for(playlist, by_id)
-        in_crate = crates.get(crate_name, set())
-        states.append(
-            PlaylistSyncState(
-                playlist_id=playlist.id,
-                playlist_name=playlist.name,
-                crate_name=crate_name,
-                total=len(tracks),
-                in_crate=sum(1 for t in tracks if t in in_crate),
-                syncable=sum(1 for t in tracks if t in indexed),
-            )
-        )
-
+    states = [
+        _one_playlist_sync_state(library, playlist, crates, indexed, by_id)
+        for playlist in playlists
+        if not playlist.is_folder
+    ]
     logger.info("sync_states_computed", playlists=len(states))
     return tuple(states)
+
+
+def _one_playlist_sync_state(
+    library: UsbLibrary,
+    playlist: Playlist,
+    crates: dict[str, set[str]],
+    indexed: set[str],
+    by_id: dict[int, Playlist],
+) -> PlaylistSyncState:
+    """
+    Compare one playlist against its crate and the Serato index.
+
+    Args:
+        library: Opened session handle.
+        playlist: Non-folder Rekordbox playlist.
+        crates: Crate stem to the tracks it already holds.
+        indexed: Normalized paths in the Serato database.
+        by_id: Playlist id to node, for crate-name ancestry.
+
+    Returns:
+        Sync counts for this playlist.
+    """
+    tracks = [
+        normalize_track_path(t) for t in library.rekordbox.get_playlist_track_paths(playlist.id)
+    ]
+    crate_name = crate_name_for(playlist, by_id)
+    in_crate = crates.get(crate_name, set())
+    return PlaylistSyncState(
+        playlist_id=playlist.id,
+        playlist_name=playlist.name,
+        crate_name=crate_name,
+        total=len(tracks),
+        in_crate=_count_in(tracks, in_crate),
+        syncable=_count_in(tracks, indexed),
+    )
+
+
+def _count_in(tracks: list[str], bag: set[str]) -> int:
+    """Count how many of ``tracks`` are present in ``bag``."""
+    return sum(1 for t in tracks if t in bag)
 
 
 @dataclass(frozen=True)
@@ -180,11 +199,16 @@ def combine_sync_states(states: list[SyncState]) -> SyncState:
     """
     if not states:
         return SyncState.NOT_SYNCED
-    if all(state == SyncState.SYNCED for state in states):
+    if _all_have(states, SyncState.SYNCED):
         return SyncState.SYNCED
-    if all(state == SyncState.NOT_SYNCED for state in states):
+    if _all_have(states, SyncState.NOT_SYNCED):
         return SyncState.NOT_SYNCED
     return SyncState.PARTIAL
+
+
+def _all_have(states: list[SyncState], value: SyncState) -> bool:
+    """Return True when every state equals ``value``."""
+    return all(state == value for state in states)
 
 
 def playlist_tree_sync_states(library: UsbLibrary) -> tuple[PlaylistTreeSyncState, ...]:
@@ -239,9 +263,14 @@ def _folder_tree_state(
         state=combine_sync_states([child.state for child in children]),
         synced=sum(child.synced for child in children),
         total=sum(child.total for child in children),
-        leaf_ids=tuple(i for child in children for i in child.leaf_ids),
+        leaf_ids=_child_leaf_ids(children),
         children=children,
     )
+
+
+def _child_leaf_ids(children: tuple[PlaylistTreeSyncState, ...]) -> tuple[int, ...]:
+    """Flatten every descendant leaf playlist id under ``children``."""
+    return tuple(i for child in children for i in child.leaf_ids)
 
 
 def _walk_playlist_tree(
@@ -270,13 +299,19 @@ def find_crate_name_collisions(playlists: tuple[Playlist, ...]) -> dict[str, lis
     Returns:
         Dict of crate stem -> colliding playlist names, for collisions only.
     """
+    by_name = _owners_by_crate(playlists)
+    return {name: owners for name, owners in by_name.items() if len(owners) > 1}
+
+
+def _owners_by_crate(playlists: tuple[Playlist, ...]) -> dict[str, list[str]]:
+    """Map crate stem to the playlist names that would write it."""
     by_id = {p.id: p for p in playlists}
     by_name: dict[str, list[str]] = {}
     for playlist in playlists:
         if playlist.is_folder:
             continue
         by_name.setdefault(crate_name_for(playlist, by_id), []).append(playlist.name)
-    return {name: owners for name, owners in by_name.items() if len(owners) > 1}
+    return by_name
 
 
 def sync_states_to_dict(states: tuple[PlaylistSyncState, ...]) -> dict[str, Any]:
@@ -329,24 +364,6 @@ class PlaylistSyncResult:
     crate_name: str
     tracks: int
     error: str | None = None
-
-
-@dataclass(frozen=True)
-class AnalysisSyncResult:
-    """
-    Outcome of writing Rekordbox analysis into Serato tags and the index.
-
-    Attributes:
-        grids_written: Tracks that received a Serato BeatGrid tag.
-        cues_written: Tracks that received Serato Markers2 hot cues.
-        index_rows_updated: location.sqlite rows updated to match.
-        errors: One "path: reason" message per track that could not be written.
-    """
-
-    grids_written: int
-    cues_written: int
-    index_rows_updated: int
-    errors: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -409,193 +426,6 @@ class SyncReport:
                 for r in self.results
             ],
         }
-
-
-def _analysis_dat_path(mount: Path, content: Any) -> Path | None:
-    """
-    Resolve a Rekordbox track's ANLZ .DAT path on the mount.
-
-    Args:
-        mount: Mount root.
-        content: rbox content row for the track.
-
-    Returns:
-        Path to the .DAT file, or None when Rekordbox has not analysed it.
-    """
-    raw = getattr(content, "analysis_data_file_path", None)
-    if not raw:
-        return None
-    return mount / serato_path(raw)
-
-
-def _write_track_tags(audio_path: Path, beats: list[Beat], cues: list[HotCue]) -> None:
-    """
-    Write a track's beatgrid and hot cues into its audio tags.
-
-    Args:
-        audio_path: Path to the .mp3 or .wav file.
-        beats: Beats to encode as a Serato BeatGrid, empty to leave it alone.
-        cues: Hot cues to encode as Serato Markers2, empty to leave them alone.
-    """
-    updates: dict[str, bytes] = {}
-    if beats:
-        grid = encode_beatgrid(beats)
-        if grid is not None:
-            updates["Serato BeatGrid"] = grid
-    if cues:
-        existing = read_geob(audio_path).get("Serato Markers2")
-        markers = decode_markers(existing) if existing else []
-        markers = replace_cues(
-            markers,
-            [Cue(slot=cue.slot, position_ms=cue.position_ms, colour=cue.colour) for cue in cues],
-        )
-        updates["Serato Markers2"] = encode_markers(
-            markers, payload_size=len(existing) if existing else None
-        )
-    if updates:
-        write_geob(audio_path, updates)
-
-
-def _analysis_inputs(mount: Path, content: Any, raw: str) -> tuple[Path, Path] | None:
-    """
-    Return ``(audio_path, dat_path)`` for one track, or None to skip.
-
-    Args:
-        mount: Mount root.
-        content: Rekordbox content row, or None when the path is unknown.
-        raw: Rekordbox track path.
-    """
-    if content is None:
-        return None
-    audio_path = mount / serato_path(raw)
-    dat_path = _analysis_dat_path(mount, content)
-    if dat_path is None or not audio_path.is_file():
-        return None
-    return audio_path, dat_path
-
-
-def _write_analysis_tags(
-    audio_path: Path, dat_path: Path
-) -> tuple[list[Beat], list[HotCue]] | None:
-    """Write Serato tags from ANLZ data. None when the track has neither grid nor cues."""
-    beats = read_beats(dat_path)
-    cues = read_hot_cues(extended_path(dat_path))
-    if not beats and not cues:
-        return None
-    _write_track_tags(audio_path, beats, cues)
-    return beats, cues
-
-
-def _record_one_analysis_track(
-    mount: Path,
-    contents: dict[str, Any],
-    raw: str,
-    lookups: RekordboxLookups,
-) -> tuple[str | None, TrackAnalysis | None, bool]:
-    """
-    Write one track's analysis tags.
-
-    Args:
-        mount: Mount root.
-        contents: Rekordbox path to content row.
-        raw: Rekordbox track path.
-        lookups: Id-to-name tables, for the index key column.
-
-    Returns:
-        ``(error, index_update, wrote_cues)``.
-    """
-    content = contents.get(raw)
-    inputs = _analysis_inputs(mount, content, raw)
-    if content is None or inputs is None:
-        return None, None, False
-    try:
-        written = _write_analysis_tags(*inputs)
-    except (AnlzError, TagFormatError, OSError) as exc:
-        return str(exc), None, False
-    if written is None:
-        return None, None, False
-    beats, cues = written
-    update = None
-    if beats:
-        update = TrackAnalysis(bpm=beats[0].bpm, key=lookups.keys.get(content.key_id))
-    return None, update, bool(cues)
-
-
-def _sync_analysis(
-    mount: Path,
-    index_path: Path | None,
-    contents: dict[str, Any],
-    paths: set[str],
-    lookups: RekordboxLookups,
-    write_context: WriteContext,
-    on_progress: SyncProgressCallback | None = None,
-) -> AnalysisSyncResult:
-    """
-    Write beatgrids and hot cues from Rekordbox ANLZ data into Serato tags.
-
-    Only a track that gets a real beatgrid updates the library index, so the
-    list stays in step with what the deck now reads from the file. A track
-    this pass could not write is left exactly as Serato had it, rather than
-    guessed at from Rekordbox's own BPM.
-
-    Args:
-        mount: Mount root.
-        index_path: Path to location.sqlite, or None when absent.
-        contents: Rekordbox path to content row, for every track in the library.
-        paths: Rekordbox track paths to process; each must resolve in ``contents``
-            and carry Rekordbox analysis data.
-        lookups: Id-to-name tables, for key lookups.
-        write_context: Validated backup context (required before any write).
-        on_progress: Optional callback invoked as ``(tracks_done, total, track,
-            error)`` after each track, whether or not it produced a write --
-            this is the slow, per-track part of a sync, so it is what a
-            progress bar should track. ``error`` is that track's own failure
-            message, or None when it wrote cleanly (or had nothing to write).
-
-    Returns:
-        Counts of what was written, and one message per track that failed.
-    """
-    _ = write_context  # validated in WriteContext.__post_init__
-    grids = 0
-    cues_written = 0
-    errors: list[str] = []
-    updates: dict[str, TrackAnalysis] = {}
-
-    ordered = sorted(paths)
-    for done, raw in enumerate(ordered, start=1):
-        track_error: str | None = None
-        try:
-            track_error, update, wrote_cues = _record_one_analysis_track(
-                mount, contents, raw, lookups
-            )
-            if track_error is not None:
-                errors.append(f"{raw}: {track_error}")
-            if update is not None:
-                grids += 1
-                updates[serato_path(raw)] = update
-            if wrote_cues:
-                cues_written += 1
-        finally:
-            if on_progress is not None:
-                on_progress(done, len(ordered), raw, track_error)
-
-    rows_updated = 0
-    if updates and index_path is not None:
-        rows_updated = update_track_analysis(index_path, updates)
-
-    logger.info(
-        "analysis_sync_completed",
-        grids_written=grids,
-        cues_written=cues_written,
-        index_rows_updated=rows_updated,
-        errors=len(errors),
-    )
-    return AnalysisSyncResult(
-        grids_written=grids,
-        cues_written=cues_written,
-        index_rows_updated=rows_updated,
-        errors=tuple(errors),
-    )
 
 
 def _require_serato_library(library: UsbLibrary) -> tuple[Path, Path]:
@@ -704,7 +534,7 @@ def _tracks_with_analysis(mount: Path, all_paths: set[str], by_path: dict[str, A
         all_paths: Rekordbox track paths in the selection.
         by_path: Content row per Rekordbox path.
     """
-    return {raw for raw in all_paths if _analysis_dat_path(mount, by_path.get(raw)) is not None}
+    return {raw for raw in all_paths if analysis_dat_path(mount, by_path.get(raw)) is not None}
 
 
 def _index_missing_tracks(
@@ -861,7 +691,7 @@ def sync_playlists(
     )
     context = WriteContext(backup_path=backup.backup_dir)
     records_added = _index_missing_tracks(database_path, missing, by_path, lookups, context)
-    analysis = _sync_analysis(
+    analysis = sync_analysis(
         library.mount,
         _existing_index_path(serato_root),
         by_path,
@@ -892,104 +722,4 @@ def sync_playlists(
         cues_written=analysis.cues_written,
         index_rows_updated=analysis.index_rows_updated,
         analysis_errors=analysis.errors,
-    )
-
-
-@dataclass(frozen=True)
-class IndexCorrectionResult:
-    """
-    Outcome of correcting BPM values already wrong in the Serato library index.
-
-    Attributes:
-        candidates: Tracks with both a Rekordbox beatgrid and an existing
-            index row, i.e. tracks this pass could judge.
-        rows_updated: Rows whose stored BPM did not match the first beat's
-            tempo and were corrected. Zero on a dry run.
-        backup_id: Backup taken before writing, None on a dry run or when
-            nothing needed correcting.
-    """
-
-    candidates: int
-    rows_updated: int
-    backup_id: str | None
-
-
-def correct_index_bpm(
-    library: UsbLibrary,
-    *,
-    dry_run: bool = False,
-    backup_root: str | Path | None = None,
-) -> IndexCorrectionResult:
-    """
-    Correct Serato library index rows whose BPM disagrees with Rekordbox's grid.
-
-    Applies the same rule ``sync_playlists`` uses when it writes a fresh grid:
-    the index BPM is the track's first beat's tempo, not Rekordbox's headline
-    average and not whatever Serato originally analysed. Unlike
-    ``sync_playlists``, this looks at every track in the library with
-    Rekordbox analysis data and an existing index row, not only tracks in a
-    playlist being synced -- it is how the rows a partial sync never reached
-    get fixed: constant-tempo tracks sitting at half or double tempo, and any
-    variable-tempo track Serato anchored on the wrong section.
-
-    Never writes to the audio files themselves, and never inserts a row --
-    only tracks Serato has already indexed are eligible, matching
-    ``update_track_analysis``'s own behaviour.
-
-    Args:
-        library: Opened session handle.
-        dry_run: Plan only; take no backup and write nothing.
-        backup_root: Optional backups parent directory.
-
-    Returns:
-        IndexCorrectionResult describing what would be, or was, corrected.
-
-    Raises:
-        SeratoLibraryRequiredError: The mount has no Serato library, or no
-            ``location.sqlite`` index yet.
-    """
-    serato_root = library.serato_root
-    if serato_root is None:
-        raise SeratoLibraryRequiredError(f"No Serato library under {library.mount}")
-    index_path = library_db_path(serato_root)
-    if not index_path.is_file():
-        raise SeratoLibraryRequiredError(f"No location.sqlite under {serato_root}")
-
-    indexed = read_track_analysis(index_path)
-    updates: dict[str, TrackAnalysis] = {}
-    candidates = 0
-    for content in library.rekordbox.database.get_contents():
-        dat_path = _analysis_dat_path(library.mount, content)
-        if dat_path is None:
-            continue
-        path = serato_path(content.path)
-        stored = indexed.get(path)
-        if stored is None:
-            continue
-        beats = read_beats(dat_path)
-        if not beats:
-            continue
-        candidates += 1
-        correct_bpm = beats[0].bpm
-        if stored.bpm != correct_bpm:
-            updates[path] = TrackAnalysis(bpm=correct_bpm)
-
-    if dry_run or not updates:
-        return IndexCorrectionResult(
-            candidates=candidates, rows_updated=len(updates), backup_id=None
-        )
-
-    backup = backup_mount_for_migration(library.mount, backup_root=backup_root)
-    context = WriteContext(backup_path=backup.backup_dir)
-    _ = context  # validated in WriteContext.__post_init__
-    rows_updated = update_track_analysis(index_path, updates)
-
-    logger.info(
-        "index_bpm_corrected",
-        candidates=candidates,
-        rows_updated=rows_updated,
-        backup_id=backup.backup_id,
-    )
-    return IndexCorrectionResult(
-        candidates=candidates, rows_updated=rows_updated, backup_id=backup.backup_id
     )

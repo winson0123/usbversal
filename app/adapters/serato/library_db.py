@@ -89,24 +89,57 @@ def update_track_analysis(
         revision = con.execute("select max(revision) from asset").fetchone()[0] or 0
         changed = 0
         for row in con.execute("select id, portable_id, bpm, key from asset").fetchall():
-            wanted = updates.get(row["portable_id"])
-            if wanted is None:
-                continue
-            bpm = row["bpm"] if wanted.bpm is None else wanted.bpm
-            key = row["key"] if wanted.key is None else wanted.key
-            if bpm == row["bpm"] and key == row["key"]:
-                continue
-            revision += 1
-            changed += 1
-            con.execute(
-                "update asset set bpm = ?, key = ?, revision = ?, is_stale = 1 where id = ?",
-                (bpm, key, revision, row["id"]),
-            )
+            revision, delta = _apply_analysis_row(con, row, updates, revision)
+            changed += delta
         if changed:
-            con.execute("update space set revision = ?", (revision,))
-            con.execute("update serato set revision = max(revision, ?)", (revision,))
-            con.execute("update master set revision = max(revision, ?)", (revision,))
+            _bump_index_revisions(con, revision)
         con.commit()
 
     logger.info("serato_library_index_updated", path=str(database_path), rows=changed)
     return changed
+
+
+def _apply_analysis_row(
+    con: sqlite3.Connection,
+    row: sqlite3.Row,
+    updates: dict[str, TrackAnalysis],
+    revision: int,
+) -> tuple[int, int]:
+    """
+    Apply one index-row update when the stored values actually change.
+
+    Args:
+        con: Open writable connection.
+        row: Current asset row.
+        updates: Drive-relative path to the values to store.
+        revision: Current maximum revision.
+
+    Returns:
+        ``(revision, changed)`` after this row — ``changed`` is 1 or 0.
+    """
+    wanted = updates.get(row["portable_id"])
+    if wanted is None:
+        return revision, 0
+    bpm, key = _merged_analysis(row, wanted)
+    if (bpm, key) == (row["bpm"], row["key"]):
+        return revision, 0
+    revision += 1
+    con.execute(
+        "update asset set bpm = ?, key = ?, revision = ?, is_stale = 1 where id = ?",
+        (bpm, key, revision, row["id"]),
+    )
+    return revision, 1
+
+
+def _merged_analysis(row: sqlite3.Row, wanted: TrackAnalysis) -> tuple[object, object]:
+    """Return the BPM and key after applying only the fields that were set."""
+    bpm = row["bpm"] if wanted.bpm is None else wanted.bpm
+    key = row["key"] if wanted.key is None else wanted.key
+    return bpm, key
+
+
+def _bump_index_revisions(con: sqlite3.Connection, revision: int) -> None:
+    """Advance the space / serato / master revisions after asset rows change."""
+    con.execute("update space set revision = ?", (revision,))
+    con.execute("update serato set revision = max(revision, ?)", (revision,))
+    con.execute("update master set revision = max(revision, ?)", (revision,))

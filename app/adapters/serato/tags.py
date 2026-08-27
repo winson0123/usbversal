@@ -186,11 +186,21 @@ def verify_geob_rewrite(
             content changed, a written frame does not read back as requested,
             or a frame meant for removal is still present.
     """
+    _assert_same_size(original, rebuilt)
+    _assert_same_audio(original, rebuilt)
+    _assert_frames_match(rebuilt, updates, remove_geob)
+
+
+def _assert_same_size(original: bytes, rebuilt: bytes) -> None:
+    """Raise when a rewrite would change the file length."""
     if len(rebuilt) != len(original):
         raise TagFormatError(
             f"Write would change the file size ({len(original)} -> {len(rebuilt)} bytes)"
         )
 
+
+def _assert_same_audio(original: bytes, rebuilt: bytes) -> None:
+    """Raise when a rewrite would move or alter the audio stream."""
     original_span = _audio_span(original)
     rebuilt_span = _audio_span(rebuilt)
     if original_span != rebuilt_span:
@@ -201,13 +211,25 @@ def verify_geob_rewrite(
     if original_hash != rebuilt_hash:
         raise TagFormatError("Write would alter the audio stream")
 
+
+def _assert_frames_match(
+    rebuilt: bytes,
+    updates: dict[str, bytes],
+    remove_geob: set[str] | None,
+) -> None:
+    """Raise when written GEOB frames do not read back as requested."""
     frames = _read_geob_bytes(rebuilt)
     for description, payload in updates.items():
         if frames.get(description) != payload:
             raise TagFormatError(f"{description!r} did not read back as written")
-    for description in remove_geob or set():
+    for description in _dropped_geob(remove_geob):
         if description in frames:
             raise TagFormatError(f"{description!r} was supposed to be removed")
+
+
+def _dropped_geob(remove_geob: set[str] | None) -> set[str]:
+    """Return the GEOB descriptions that were meant to disappear."""
+    return remove_geob if remove_geob is not None else set()
 
 
 def _rewritten_frame(

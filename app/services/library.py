@@ -101,18 +101,32 @@ def probe_mount(mount: str | Path) -> MountProbe | None:
         unplugged stick leaves its mount point behind as an empty directory.
     """
     path = Path(mount).resolve()
-    if not path.is_dir() or not any(path.iterdir()):
+    if _mount_is_empty(path):
         return None
 
     rekordbox = resolve_rekordbox_database(path)
     serato = resolve_serato_library(path)
+    rb_path, rb_format = _split_resolved(rekordbox)
+    serato_root, serato_database = _split_resolved(serato)
     return MountProbe(
         mount=path,
-        rekordbox_database=rekordbox[0] if rekordbox else None,
-        rekordbox_format=rekordbox[1] if rekordbox else None,
-        serato_root=serato[0] if serato else None,
-        serato_database=serato[1] if serato else None,
+        rekordbox_database=rb_path,
+        rekordbox_format=rb_format,
+        serato_root=serato_root,
+        serato_database=serato_database,
     )
+
+
+def _mount_is_empty(path: Path) -> bool:
+    """Return True when ``path`` is missing or holds no entries."""
+    return not path.is_dir() or not any(path.iterdir())
+
+
+def _split_resolved(resolved: tuple[Any, Any] | None) -> tuple[Any, Any]:
+    """Unpack a ``(path, extra)`` pair, or ``(None, None)`` when absent."""
+    if resolved is None:
+        return None, None
+    return resolved[0], resolved[1]
 
 
 @dataclass

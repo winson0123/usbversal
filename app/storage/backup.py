@@ -198,47 +198,11 @@ def create_backup(
     created_at = datetime.now(UTC)
     root = (backup_root or (mount / "backups")).resolve()
 
-    if backup_id is not None:
-        backup_dir = root / backup_id
-        backup_dir.mkdir(parents=True, exist_ok=False)
-    else:
-        # The id has one-second resolution, so two backups requested within
-        # the same second (e.g. one operation gating straight into another)
-        # would otherwise collide on mkdir. Suffix with a counter rather than
-        # switching to a finer clock, so the common case keeps its plain,
-        # readable timestamp.
-        stem = created_at.strftime("%Y%m%dT%H%M%SZ")
-        backup_id = stem
-        suffix = 1
-        while True:
-            backup_dir = root / backup_id
-            try:
-                backup_dir.mkdir(parents=True, exist_ok=False)
-                break
-            except FileExistsError:
-                suffix += 1
-                backup_id = f"{stem}-{suffix}"
+    backup_dir, backup_id = _allocate_backup_dir(root, backup_id, created_at)
 
     entries: list[BackupFileEntry] = []
     for file_path in files:
-        source = file_path.resolve()
-        if not source.is_file():
-            raise FileNotFoundError(f"Backup source not found: {source}")
-        try:
-            relative = source.relative_to(mount).as_posix()
-        except ValueError:
-            relative = source.name
-
-        destination = backup_dir / relative
-        logger.info("backup_copy", source=str(source), destination=str(destination))
-        atomic_copy_file(source, destination)
-        entries.append(
-            BackupFileEntry(
-                relative_path=relative,
-                sha256=sha256_file(destination),
-                size=destination.stat().st_size,
-            ),
-        )
+        entries.append(_copy_one_backup_file(mount, backup_dir, file_path))
 
     manifest = BackupManifest(
         backup_id=backup_id,
@@ -254,3 +218,76 @@ def create_backup(
         file_count=len(entries),
     )
     return BackupResult(backup_id=backup_id, backup_dir=backup_dir, manifest=manifest)
+
+
+def _allocate_backup_dir(
+    root: Path, backup_id: str | None, created_at: datetime
+) -> tuple[Path, str]:
+    """
+    Create a new backup directory, suffixing the timestamp on collision.
+
+    Args:
+        root: Parent directory for backups.
+        backup_id: Requested directory name, or None for a UTC timestamp.
+        created_at: Clock used when minting a timestamp id.
+
+    Returns:
+        ``(backup_dir, backup_id)`` after the directory has been created.
+    """
+    if backup_id is not None:
+        backup_dir = root / backup_id
+        backup_dir.mkdir(parents=True, exist_ok=False)
+        return backup_dir, backup_id
+
+    # The id has one-second resolution, so two backups requested within
+    # the same second (e.g. one operation gating straight into another)
+    # would otherwise collide on mkdir. Suffix with a counter rather than
+    # switching to a finer clock, so the common case keeps its plain,
+    # readable timestamp.
+    stem = created_at.strftime("%Y%m%dT%H%M%SZ")
+    suffix = 1
+    while True:
+        candidate = _timestamp_id(stem, suffix)
+        backup_dir = root / candidate
+        try:
+            backup_dir.mkdir(parents=True, exist_ok=False)
+            return backup_dir, candidate
+        except FileExistsError:
+            suffix += 1
+
+
+def _timestamp_id(stem: str, suffix: int) -> str:
+    """Return ``stem`` or ``stem-N`` when the first timestamp is taken."""
+    return stem if suffix == 1 else f"{stem}-{suffix}"
+
+
+def _copy_one_backup_file(mount: Path, backup_dir: Path, file_path: Path) -> BackupFileEntry:
+    """
+    Copy one source file into the backup and return its manifest entry.
+
+    Args:
+        mount: Mount root; relative paths in the manifest are from here.
+        backup_dir: Destination backup directory.
+        file_path: Absolute or mount-relative source file.
+
+    Returns:
+        Manifest entry for the copied file.
+
+    Raises:
+        FileNotFoundError: The source file does not exist.
+    """
+    source = file_path.resolve()
+    if not source.is_file():
+        raise FileNotFoundError(f"Backup source not found: {source}")
+    try:
+        relative = source.relative_to(mount).as_posix()
+    except ValueError:
+        relative = source.name
+    destination = backup_dir / relative
+    logger.info("backup_copy", source=str(source), destination=str(destination))
+    atomic_copy_file(source, destination)
+    return BackupFileEntry(
+        relative_path=relative,
+        sha256=sha256_file(destination),
+        size=destination.stat().st_size,
+    )

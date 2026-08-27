@@ -33,6 +33,12 @@ def _anchors(beats: list[Beat]) -> list[Beat]:
     return chosen
 
 
+def _downbeats(beats: list[Beat]) -> list[Beat]:
+    """Prefer bar-1 beats; fall back to every beat when none are numbered 1."""
+    found = [beat for beat in beats if beat.number == 1]
+    return found or beats
+
+
 def encode_beatgrid(beats: list[Beat]) -> bytes | None:
     """
     Build a Serato BeatGrid payload from Rekordbox beats.
@@ -51,16 +57,29 @@ def encode_beatgrid(beats: list[Beat]) -> bytes | None:
     if not beats:
         return None
 
-    downbeats = [beat for beat in beats if beat.number == 1] or beats
-    anchors = _anchors(downbeats)
+    anchors = _anchors(_downbeats(beats))
 
     payload = bytearray(_HEADER + struct.pack(">I", len(anchors)))
     for index, anchor in enumerate(anchors):
-        position = anchor.time_ms / 1000.0
-        if index < len(anchors) - 1:
-            following = anchors[index + 1]
-            bars = max(1, round((following.time_ms - anchor.time_ms) / (240000.0 / anchor.bpm)))
-            payload += struct.pack(">fI", position, bars * 4)
-        else:
-            payload += struct.pack(">ff", position, anchor.bpm)
+        payload += _pack_anchor(index, anchor, anchors)
     return bytes(payload)
+
+
+def _pack_anchor(index: int, anchor: Beat, anchors: list[Beat]) -> bytes:
+    """
+    Encode one beatgrid marker, terminal or not.
+
+    Args:
+        index: Marker index among ``anchors``.
+        anchor: Beat this marker is placed on.
+        anchors: Full marker list, for the following beat when non-terminal.
+
+    Returns:
+        Packed marker bytes.
+    """
+    position = anchor.time_ms / 1000.0
+    if index >= len(anchors) - 1:
+        return struct.pack(">ff", position, anchor.bpm)
+    following = anchors[index + 1]
+    bars = max(1, round((following.time_ms - anchor.time_ms) / (240000.0 / anchor.bpm)))
+    return struct.pack(">fI", position, bars * 4)

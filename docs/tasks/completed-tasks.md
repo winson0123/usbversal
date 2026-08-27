@@ -508,6 +508,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-236 — Bring remaining app/ functions under CC 6
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | Name the remaining CC 6–10 steps; no function in app/ left at 6+ |
+| Verification | ruff ✓ ruff format ✓ pytest 284 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

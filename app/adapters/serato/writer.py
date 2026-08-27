@@ -72,18 +72,7 @@ def write_crate(
         ValueError: If write_context backup_path is invalid.
     """
     _ = write_context  # validated in WriteContext.__post_init__
-    subcrates = subcrates_dir(serato_root)
-    subcrates.mkdir(parents=True, exist_ok=True)
-    safe_name = sanitize_crate_name(crate_name)
-    crate_path = (subcrates / f"{safe_name}.crate").resolve()
-
-    if crate_path.is_file() and not overwrite:
-        raise CrateExistsError(f"Crate already exists: {crate_path} (use --overwrite)")
-
-    if crate_path.is_file():
-        crate_path.unlink()
-        logger.info("serato_crate_removed_for_overwrite", path=str(crate_path))
-
+    crate_path = _prepare_crate_path(serato_root, crate_name, overwrite)
     crate = Crate(str(crate_path))
     # Crate.DEFAULT_ENTRIES is class-level and add_track mutates it, so a new
     # crate inherits tracks added to any earlier one. Start from a private copy
@@ -97,6 +86,32 @@ def write_crate(
         path=str(crate_path),
         track_count=len(track_paths),
     )
+    return crate_path
+
+
+def _prepare_crate_path(serato_root: Path, crate_name: str, overwrite: bool) -> Path:
+    """
+    Resolve the crate path and remove an existing file when overwrite is set.
+
+    Args:
+        serato_root: Path to _Serato_.
+        crate_name: Crate filename stem.
+        overwrite: Replace an existing .crate file when True.
+
+    Returns:
+        Absolute path of the crate to write.
+
+    Raises:
+        CrateExistsError: Target crate exists and overwrite is False.
+    """
+    subcrates = subcrates_dir(serato_root)
+    subcrates.mkdir(parents=True, exist_ok=True)
+    crate_path = (subcrates / f"{sanitize_crate_name(crate_name)}.crate").resolve()
+    if crate_path.is_file() and not overwrite:
+        raise CrateExistsError(f"Crate already exists: {crate_path} (use --overwrite)")
+    if crate_path.is_file():
+        crate_path.unlink()
+        logger.info("serato_crate_removed_for_overwrite", path=str(crate_path))
     return crate_path
 
 

@@ -10,17 +10,15 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-235` |
-| Objective | Split the remaining CC 11+ functions: `write_geob`, `build_track_record`, `_find_playlist` |
+| Task ID | `TASK-236` |
+| Objective | Bring every remaining `app/` function under CC 6 |
 | Completed | 2026-08-27 |
 
 ### Scope
 
-- `app/adapters/serato/tags.py`: `write_geob` is now copy / append / pad / splice.
-- `app/services/track_records.py`: optional fields and size/date fields named separately.
-- `app/services/migration_service.py`: `_find_playlist` dispatches to by-id and by-name.
-
-Public signatures unchanged. No function in `app/` is left at CC 11+.
+- Named steps extracted from every remaining CC 6–10 function in `app/`.
+- Analysis write / index-BPM correction moved to `app/services/sync_analysis.py` so `sync_service.py` stays under 1000 lines (725).
+- Public signatures unchanged (`correct_index_bpm` still imported from `sync_service`).
 
 ### Verification log
 
@@ -32,4 +30,4 @@ Public signatures unchanged. No function in `app/` is left at CC 11+.
 
 ## Next
 
-Ask the user. The Library two-pane redesign is still not started — see `docs/HANDOFF.md`.
+Ask the user.
