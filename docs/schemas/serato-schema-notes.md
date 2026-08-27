@@ -114,13 +114,13 @@ Serato's crate list is flat. Hierarchy is encoded in the filename with `%%`
 as separator:
 
 ```text
-rekordbox  Gigs / Safety Day   ->   Subcrates/Gigs%%Safety Day.crate
+rekordbox  Gigs / Played / safety day   ->   Subcrates/Gigs%%Played%%safety day.crate
 ```
 
 `crate_name_for()` walks each ancestor folder, then the playlist, joined with
-`%%`. Confirmed in Serato after syncing Rekordbox `Gigs → Safety Day`: the
-crate appears under its parent in the crate tree. No empty parent crate file
-is required — `Gigs%%Safety Day.crate` alone is enough.
+`%%`. Confirmed in Serato after syncing Rekordbox `Gigs → Played → safety day`
+(TASK-245/246): the crate appears under Played under Gigs. No empty parent
+crate files are required — `Gigs%%Played%%safety day.crate` alone is enough.
 
 ---
 

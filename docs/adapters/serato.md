@@ -22,7 +22,7 @@ fixtures in [`tests/fixtures/serato/`](../../tests/fixtures/serato/).
 | `Serato Markers2` `CUE` layout | verified |
 | `Serato BeatGrid` / `Autotags` layout | verified format; no reference writer |
 | Path convention (drive-relative, no leading slash) | verified |
-| `%%` nested-crate naming | confirmed in Serato (`Gigs%%Safety Day`, 2026-08-27) |
+| `%%` nested-crate naming | confirmed in Serato (`Gigs%%Played%%safety day`, 2026-08-27) |
 | MP3 ID3 container path | **untested** — fixtures are WAV |
 
 Vendor formats still change without notice; treat versions defensively.

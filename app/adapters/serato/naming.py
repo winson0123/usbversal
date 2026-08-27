@@ -32,8 +32,8 @@ def crate_name_for(playlist: Playlist, by_id: dict[int, Playlist]) -> str:
     the filename: each ancestor folder's sanitized name, then the playlist's
     own, joined with "%%" -- "Techno / Peak Time" becomes
     "Techno%%Peak Time.crate". Confirmed in Serato (TASK-245): a synced
-    Rekordbox ``Gigs / Safety Day`` playlist appears as a child of Gigs. No
-    empty parent crate file is required.
+    Rekordbox ``Gigs / Played / safety day`` playlist appears under Played
+    under Gigs. No empty parent crate files are required.
 
     Sync state and the crate writer must agree on this mapping, so both call
     here rather than deriving names independently.

@@ -603,8 +603,18 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 | Field | Value |
 |-------|-------|
 | Completed | 2026-08-27 |
-| Objective | `Gigs → Safety Day` sync shows as a parent-child crate; no empty parent file required |
+| Objective | `Gigs → Played → safety day` sync shows as a three-level crate; no empty parent files required |
 | Verification | ruff ✓ ruff format ✓ pytest; user confirmation in Serato |
+
+---
+
+## TASK-246 — Record the three-level crate path
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | On-disk name is `Gigs%%Played%%safety day.crate` (Gigs → Played → safety day), not two levels |
+| Verification | ruff ✓ ruff format ✓ pytest; crate file on the stick |
 
 ---
 

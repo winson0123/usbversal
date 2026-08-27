@@ -10,13 +10,13 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-245` |
-| Objective | Confirm `Parent%%Child` crate naming in Serato |
+| Task ID | `TASK-246` |
+| Objective | Record the three-level `Gigs%%Played%%safety day` crate path |
 | Completed | 2026-08-27 |
 
 ### Scope
 
-- User synced Rekordbox `Gigs → Safety Day`; Serato showed it under Gigs.
+- User synced Rekordbox `Gigs → Played → safety day`; Serato showed the three-level tree. On disk: `Gigs%%Played%%safety day.crate` (11 tracks). No `Gigs.crate` or `Gigs%%Played.crate`.
 - No empty parent crate file is required.
 - Schema notes, adapter docs, and `crate_name_for` docstring marked confirmed.
 
