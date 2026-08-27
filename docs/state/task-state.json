@@ -342,6 +342,16 @@
       "id": "TASK-222",
       "title": "Home screen: scan timeout so nothing plugged in does not spin forever",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-223",
+      "title": "Home screen: shorten the scan timeout to 3 seconds",
+      "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-224",
+      "title": "Home screen: retry actually resumes scanning instead of re-printing the same error",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -738,6 +748,18 @@
     {
       "id": "TASK-222",
       "title": "Home screen: scan timeout so nothing plugged in does not spin forever",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-223",
+      "title": "Home screen: shorten the scan timeout to 3 seconds",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-224",
+      "title": "Home screen: retry actually resumes scanning instead of re-printing the same error",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

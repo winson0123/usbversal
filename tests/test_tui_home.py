@@ -339,6 +339,28 @@ async def test_enter_on_an_empty_input_retries_the_scan_immediately() -> None:
 
 
 @pytest.mark.asyncio
+async def test_enter_on_empty_input_visibly_resumes_scanning() -> None:
+    """Retrying must actually look like something happened -- not silently
+    re-print the identical error, which is indistinguishable from Enter
+    having done nothing at all."""
+    watcher = MountWatcher(_FakeScanner([]))
+    app = UsbversalApp(watcher)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        home = app.screen
+        _force_error_state(home)
+        await pilot.pause()
+        assert home.query_one("#spinner").display is False
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert home.query_one("#spinner").display is True
+        assert home.query_one(_PathInput).display is False
+        assert home._seen_invalid is False
+
+
+@pytest.mark.asyncio
 async def test_enter_with_a_typed_path_opens_that_library(tmp_path: Path) -> None:
     """A manually typed path is opened directly, without waiting for the
     watcher to notice it -- the "optionally enter the path" case."""

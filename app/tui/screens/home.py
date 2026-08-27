@@ -162,7 +162,7 @@ class HomeScreen(Screen):
     """
 
     POLL_INTERVAL_S = 1.0
-    SCAN_TIMEOUT_S = 15.0
+    SCAN_TIMEOUT_S = 3.0
 
     def __init__(self, watcher: MountWatcher | None = None) -> None:
         """
@@ -199,6 +199,15 @@ class HomeScreen(Screen):
         event.stop()
         value = event.value.strip()
         if not value:
+            # An explicit retry gets a fresh look, not an instant re-print
+            # of the same failure: _seen_invalid stays true forever once
+            # set (that's what stops hopeful auto-checking after a real
+            # rejection), so without resetting it here, poll_mounts()
+            # would just show the identical error again with nothing on
+            # screen ever changing -- indistinguishable from Enter having
+            # done nothing at all.
+            self._seen_invalid = False
+            self._searching_since = time.monotonic()
             self.poll_mounts()
             return
         self._show_spinner()

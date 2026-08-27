@@ -378,6 +378,26 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-223 — Home screen: shorten the scan timeout to 3 seconds
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | User: "can you change to 3 seconds? don't need that long" |
+| Verification | ruff ✓ ruff format ✓ pytest 275 passed / 4 skipped (no test changes needed -- both timeout tests already read `home.SCAN_TIMEOUT_S` off the instance) |
+
+---
+
+## TASK-224 — Home screen: retry actually resumes scanning instead of re-printing the same error
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | User: "pressing enter doesnt restart auto scanning" -- found immediately after TASK-223 shortened the timeout enough to actually try retrying by hand |
+| Verification | ruff ✓ ruff format ✓ pytest 276 passed / 4 skipped (1 new: retry visibly flips the screen back to the spinner state, not just re-showing the identical error) |
+
+---
+
 ## Template (for future entries)
 
 ```markdown
