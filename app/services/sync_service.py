@@ -149,6 +149,8 @@ class PlaylistTreeSyncState:
             the sum across a folder's descendants.
         total: Tracks in the playlist -- a leaf's own ``total``, or the sum
             across a folder's descendants.
+        leaf_ids: Playlist ids of every non-folder descendant, including
+            this node when it is itself a playlist.
         children: Nested tree-sync-state nodes, mirroring ``node.children``.
     """
 
@@ -156,6 +158,7 @@ class PlaylistTreeSyncState:
     state: SyncState
     synced: int
     total: int
+    leaf_ids: tuple[int, ...]
     children: tuple[PlaylistTreeSyncState, ...] = ()
 
 
@@ -204,18 +207,26 @@ def playlist_tree_sync_states(library: UsbLibrary) -> tuple[PlaylistTreeSyncStat
     roots = build_playlist_tree(library.rekordbox.list_playlists())
 
     def _walk(node: PlaylistNode) -> PlaylistTreeSyncState:
+        """Roll up one playlist-tree node and its descendants."""
         children = tuple(_walk(child) for child in node.children)
         if node.playlist.is_folder:
             state = combine_sync_states([child.state for child in children])
             synced = sum(child.synced for child in children)
             total = sum(child.total for child in children)
+            leaf_ids = tuple(i for child in children for i in child.leaf_ids)
         else:
             leaf = leaf_states.get(node.playlist.id)
             state = leaf.state if leaf is not None else SyncState.NOT_SYNCED
             synced = leaf.in_crate if leaf is not None else 0
             total = leaf.total if leaf is not None else 0
+            leaf_ids = (node.playlist.id,)
         return PlaylistTreeSyncState(
-            node=node, state=state, synced=synced, total=total, children=children
+            node=node,
+            state=state,
+            synced=synced,
+            total=total,
+            leaf_ids=leaf_ids,
+            children=children,
         )
 
     return tuple(_walk(node) for node in roots)

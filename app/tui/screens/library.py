@@ -17,6 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from rich.cells import cell_len
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.screen import Screen
@@ -136,7 +137,7 @@ class LibraryScreen(Screen):
             state=combine_sync_states([state.state for state in states]),
             synced=sum(state.synced for state in states),
             total=sum(state.total for state in states),
-            ids=tuple(i for state in states for i in self._leaf_ids(state)),
+            ids=tuple(i for state in states for i in state.leaf_ids),
             is_folder=True,
         )
         all_node = tree.root.add(self._label(all_row, depth=0), data=all_row, expand=True)
@@ -155,7 +156,7 @@ class LibraryScreen(Screen):
             state=state.state,
             synced=state.synced,
             total=state.total,
-            ids=tuple(self._leaf_ids(state)),
+            ids=state.leaf_ids,
             is_folder=state.node.playlist.is_folder,
         )
         if row.is_folder:
@@ -164,16 +165,6 @@ class LibraryScreen(Screen):
             node = parent.add_leaf(self._label(row, depth), data=row)
         for child in state.children:
             self._add_node(node, child, depth + 1)
-
-    @staticmethod
-    def _leaf_ids(state: PlaylistTreeSyncState) -> list[int]:
-        """Playlist ids of every non-folder descendant, including itself."""
-        if not state.node.playlist.is_folder:
-            return [state.node.playlist.id]
-        ids: list[int] = []
-        for child in state.children:
-            ids.extend(LibraryScreen._leaf_ids(child))
-        return ids
 
     def _prefix_width(self, depth: int, is_folder: bool) -> int:
         """
@@ -187,7 +178,20 @@ class LibraryScreen(Screen):
         icon_width = cell_len(Tree.ICON_NODE_EXPANDED) if is_folder else 0
         return depth * tree.guide_depth + icon_width
 
-    def _label(self, row: _Row, depth: int) -> str:
+    def _label(self, row: _Row, depth: int) -> Text:
+        """
+        Build one tree-row label with aligned count and coloured state.
+
+        Playlist names are arbitrary user data, so the state colour is a
+        ``Text`` style, not a markup tag that a ``[`` in the name could break.
+
+        Args:
+            row: Row data to render.
+            depth: Nesting depth, used to pad the name around Tree guides.
+
+        Returns:
+            Label text with the state word styled red/yellow/green.
+        """
         selected_count = sum(1 for i in row.ids if i in self._selected)
         if not row.ids or selected_count == 0:
             checkbox = _UNSELECTED
@@ -202,7 +206,9 @@ class LibraryScreen(Screen):
 
         counts = f"{row.synced}/{row.total}"
         colour, word = _MARKER[row.state]
-        return f"{padded_name}{counts:>{_COUNT_WIDTH}}  [{colour}]{word:>{_STATE_WIDTH}}[/{colour}]"
+        label = Text(f"{padded_name}{counts:>{_COUNT_WIDTH}}  ")
+        label.append(f"{word:>{_STATE_WIDTH}}", style=colour)
+        return label
 
     def action_toggle_expand(self) -> None:
         """Expand or collapse the highlighted folder (including "All playlists")."""

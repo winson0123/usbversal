@@ -382,6 +382,11 @@
       "id": "TASK-230",
       "title": "Replace Linux/macOS mount scanner twins with ChildDirectoryScanner",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-231",
+      "title": "Library labels as Text; leaf_ids on PlaylistTreeSyncState",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -826,6 +831,12 @@
     {
       "id": "TASK-230",
       "title": "Replace Linux/macOS mount scanner twins with ChildDirectoryScanner",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-231",
+      "title": "Library labels as Text; leaf_ids on PlaylistTreeSyncState",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

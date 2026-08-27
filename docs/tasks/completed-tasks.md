@@ -458,6 +458,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-231 — Library labels as Text; leaf_ids on PlaylistTreeSyncState
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | Safer tree labels; playlist ids live with the sync tree |
+| Verification | ruff ✓ ruff format ✓ pytest 277 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

@@ -1,7 +1,7 @@
 # Current Task
 
-**Status:** `complete`
-**Task ID:** TASK-230
+**Status:** `idle`
+**Task ID:** none
 **Last updated:** 2026-08-27
 
 ---
@@ -10,9 +10,16 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-230` |
-| Objective | One ChildDirectoryScanner instead of Linux/macOS twins |
+| Task ID | `TASK-231` |
+| Objective | Library labels as `Text`; `leaf_ids` computed on `PlaylistTreeSyncState` |
 | Completed | 2026-08-27 |
+
+### Scope
+
+- `app/services/sync_service.py`: `PlaylistTreeSyncState.leaf_ids` rolled up while building the tree.
+- `app/tui/screens/library.py`: `_leaf_ids` removed; `_label` uses `rich.text.Text` so a `[` in a playlist name cannot break markup.
+
+TUI restructure TASK-226–231 is done. Next pending product work is still the Library two-pane redesign in `docs/HANDOFF.md`.
 
 ### Verification log
 
@@ -24,4 +31,4 @@
 
 ## Next
 
-TASK-231 — Library labels as Text; leaf_ids on PlaylistTreeSyncState.
+Ask the user. The large pending Library screen redesign is still not started — see `docs/HANDOFF.md`.

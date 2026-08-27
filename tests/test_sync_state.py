@@ -268,8 +268,11 @@ def test_tree_rollup_composes_through_nested_folders(tmp_path: Path) -> None:
     (outer_state,) = playlist_tree_sync_states(library)
 
     assert outer_state.state is SyncState.SYNCED
+    assert outer_state.leaf_ids == (1,)
     assert outer_state.children[0].state is SyncState.SYNCED
+    assert outer_state.children[0].leaf_ids == (1,)
     assert outer_state.children[0].children[0].state is SyncState.SYNCED
+    assert outer_state.children[0].children[0].leaf_ids == (1,)
 
 
 def test_summary_counts_states(tmp_path: Path) -> None:

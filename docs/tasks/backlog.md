@@ -160,6 +160,7 @@ and none of them exist yet.
 | ~~`TASK-228`~~ | ~~Extract PathInput widget from the Home screen~~ | Done — Tab-cycle path field lives in `app/tui/widgets/path_input.py`. The scan bar stays in `home.py`. |
 | ~~`TASK-229`~~ | ~~Unify TUI screen library attribute name~~ | Done — Home/Library/Progress all use `library`. Quit clears `getattr(screen, "library", _MISSING)`. |
 | ~~`TASK-230`~~ | ~~Replace Linux/macOS mount scanner twins with `ChildDirectoryScanner`~~ | Done — same child-directory listing, different root/exclude. Windows and `EnvMountScanner` unchanged. |
+| ~~`TASK-231`~~ | ~~Library labels as `Text`; `leaf_ids` on `PlaylistTreeSyncState`~~ | Done — playlist names no longer go through markup; leaf playlist ids are computed when the tree is built, not re-walked in the TUI. |
 
 ---
 
