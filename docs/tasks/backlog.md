@@ -162,6 +162,7 @@ and none of them exist yet.
 | ~~`TASK-230`~~ | ~~Replace Linux/macOS mount scanner twins with `ChildDirectoryScanner`~~ | Done — same child-directory listing, different root/exclude. Windows and `EnvMountScanner` unchanged. |
 | ~~`TASK-231`~~ | ~~Library labels as `Text`; `leaf_ids` on `PlaylistTreeSyncState`~~ | Done — playlist names no longer go through markup; leaf playlist ids are computed when the tree is built, not re-walked in the TUI. |
 | ~~`TASK-232`~~ | ~~Quit feels instant: park library handles, Drop after the UI is gone~~ | Done — `q` used to await `gc.collect()` (and the PyOneLibrary Drop it forces) *before* Textual left the alt screen, so the last frame sat there for about a second. Now `action_quit` only re-points each screen's `library` onto the app (`_held_libraries`) and `exit()`s; `on_unmount` Drops those parked handles on the rekordbox thread after the terminal is already restored. Same thread-affinity rule as TASK-212; the wait is just no longer on screen. |
+| ~~`TASK-233`~~ | ~~Skip the alt screen on ConPTY so quit is not a 1s buffer swap~~ | Done — the pause left after TASK-232 was Windows Terminal / WSL ConPTY leaving `CSI ? 1049`. That host waits to sync the cursor across buffers (~1s); we cannot make that call faster. On WSL (`microsoft`/`wsl` in `platform.release()`) or when `WT_SESSION` is set, the driver write path replaces 1049 h/l with a viewport clear so we never enter the alt screen. Linux/macOS desktops keep it (their restore is instant). |
 
 ---
 

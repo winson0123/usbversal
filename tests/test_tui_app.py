@@ -15,7 +15,13 @@ import pytest
 from textual.app import App
 from textual.screen import Screen
 
-from app.tui.app import RekordboxThreadMixin, UsbversalApp
+from app.tui.app import (
+    RekordboxThreadMixin,
+    UsbversalApp,
+    conpty_alt_screen_is_slow,
+    rewrite_alt_screen,
+    suppress_alt_screen,
+)
 from app.tui.screens.home import HomeScreen
 
 
@@ -144,3 +150,56 @@ async def test_quit_from_home_does_not_hop_to_the_rekordbox_thread() -> None:
         await app.action_quit()
 
     assert hops == 0
+
+
+def test_rewrite_alt_screen_swaps_on_and_off_for_a_clear() -> None:
+    """1049 h/l become a viewport clear, including when concatenated."""
+    assert rewrite_alt_screen("\x1b[?1049h") == "\x1b[2J\x1b[H"
+    assert rewrite_alt_screen("\x1b[?1049l\x1b[?25h") == "\x1b[2J\x1b[H\x1b[?25h"
+    assert rewrite_alt_screen("hello") == "hello"
+
+
+def test_conpty_alt_screen_is_slow_on_wsl_release(monkeypatch: pytest.MonkeyPatch) -> None:
+    """WSL's kernel release string is enough to skip the alt screen."""
+    monkeypatch.delenv("WT_SESSION", raising=False)
+    monkeypatch.setattr("app.tui.app.platform.release", lambda: "6.6.114.1-microsoft-standard-WSL2")
+
+    assert conpty_alt_screen_is_slow() is True
+
+
+def test_conpty_alt_screen_is_slow_on_windows_terminal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Windows Terminal advertises itself with WT_SESSION."""
+    monkeypatch.setenv("WT_SESSION", "some-guid")
+    monkeypatch.setattr("app.tui.app.platform.release", lambda: "24H2")
+
+    assert conpty_alt_screen_is_slow() is True
+
+
+def test_conpty_alt_screen_is_not_slow_on_plain_linux(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A normal Linux desktop should keep the alt screen (instant restore)."""
+    monkeypatch.delenv("WT_SESSION", raising=False)
+    monkeypatch.setattr("app.tui.app.platform.release", lambda: "6.8.0-generic")
+
+    assert conpty_alt_screen_is_slow() is False
+
+
+def test_suppress_alt_screen_filters_driver_writes() -> None:
+    """The installed write wrapper rewrites 1049 sequences and passes the rest."""
+    written: list[str] = []
+
+    class _Driver:
+        def write(self, text: str) -> None:
+            """Record what would have gone to the terminal."""
+            written.append(text)
+
+    driver = _Driver()
+    suppress_alt_screen(driver)  # type: ignore[arg-type]
+    driver.write("\x1b[?1049h")
+    driver.write("payload")
+    driver.write("\x1b[?1049l\x1b[?25h")
+
+    assert written == ["\x1b[2J\x1b[H", "payload", "\x1b[2J\x1b[H\x1b[?25h"]

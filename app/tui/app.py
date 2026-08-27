@@ -5,18 +5,73 @@ from __future__ import annotations
 import asyncio
 import functools
 import gc
+import os
+import platform
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import TypeVar
 
 from textual.app import App
 from textual.binding import Binding
+from textual.driver import Driver
 
 from app.services.library import MountWatcher
 from app.tui.screens.home import HomeScreen
 
 _T = TypeVar("_T")
 _MISSING = object()
+_ALT_SCREEN_ON = "\x1b[?1049h"
+_ALT_SCREEN_OFF = "\x1b[?1049l"
+_CLEAR_SCREEN = "\x1b[2J\x1b[H"
+
+
+def rewrite_alt_screen(text: str) -> str:
+    """
+    Replace alt-screen on/off sequences with a viewport clear.
+
+    Args:
+        text: Bytes the driver is about to write, possibly containing
+            ``CSI ? 1049 h/l`` alone or concatenated with other sequences.
+
+    Returns:
+        The same text, with those sequences swapped for clear-and-home.
+    """
+    if _ALT_SCREEN_ON not in text and _ALT_SCREEN_OFF not in text:
+        return text
+    return text.replace(_ALT_SCREEN_ON, _CLEAR_SCREEN).replace(_ALT_SCREEN_OFF, _CLEAR_SCREEN)
+
+
+def conpty_alt_screen_is_slow() -> bool:
+    """
+    True on Windows Terminal / WSL ConPTY.
+
+    Leaving the alternate screen there blocks for about a second while
+    the terminal syncs the cursor across buffers. Other hosts return
+    from ``CSI ? 1049 l`` immediately and should keep the alt screen.
+
+    Returns:
+        Whether this process should draw on the main buffer instead.
+    """
+    if os.environ.get("WT_SESSION"):
+        return True
+    release = platform.release().lower()
+    return "microsoft" in release or "wsl" in release
+
+
+def suppress_alt_screen(driver: Driver) -> None:
+    """
+    Make ``driver.write`` never enter or leave the alternate screen.
+
+    Args:
+        driver: Textual driver whose ``write`` should be filtered.
+    """
+    write = driver.write
+
+    def write_on_main_buffer(text: str) -> None:
+        """Write ``text`` after stripping alt-screen sequences."""
+        write(rewrite_alt_screen(text))
+
+    driver.write = write_on_main_buffer  # type: ignore[method-assign]
 
 
 class RekordboxThreadMixin:
@@ -138,6 +193,35 @@ class UsbversalApp(RekordboxThreadMixin, App):
 
     def on_mount(self) -> None:
         self.push_screen(HomeScreen(self._watcher))
+
+    def _build_driver(
+        self,
+        headless: bool,
+        inline: bool,
+        mouse: bool,
+        size: tuple[int, int] | None,
+    ) -> Driver:
+        """
+        Build Textual's driver, skipping the alt screen on ConPTY.
+
+        ``CSI ? 1049 l`` is the one-second pause still visible after
+        TASK-232: Windows Terminal waits to sync the cursor across
+        buffers. Drawing on the main buffer and clearing on exit avoids
+        that swap. Headless and inline runs are left alone.
+
+        Args:
+            headless: No terminal I/O (tests).
+            inline: Draw under the prompt instead of taking the screen.
+            mouse: Enable mouse reporting.
+            size: Forced terminal size, or None to detect.
+
+        Returns:
+            The driver Textual will use for this run.
+        """
+        driver = super()._build_driver(headless, inline, mouse, size)
+        if not headless and not inline and conpty_alt_screen_is_slow():
+            suppress_alt_screen(driver)
+        return driver
 
     async def action_quit(self) -> None:
         """Park library handles and leave the UI; Drop runs after unmount."""

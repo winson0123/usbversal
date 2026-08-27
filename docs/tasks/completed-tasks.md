@@ -478,6 +478,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-233 — Skip the alt screen on ConPTY so quit is not a 1s buffer swap
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | Draw on the main buffer under WSL / Windows Terminal; keep the alt screen elsewhere |
+| Verification | ruff ✓ ruff format ✓ pytest 284 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

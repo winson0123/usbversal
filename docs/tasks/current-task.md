@@ -10,14 +10,14 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-232` |
-| Objective | Quit restores the terminal immediately; Rekordbox Drop waits until after the UI is gone |
+| Task ID | `TASK-233` |
+| Objective | Skip the alternate screen on ConPTY so quit is not blocked by Windows Terminal's ~1s buffer swap |
 | Completed | 2026-08-27 |
 
 ### Scope
 
-- `app/tui/app.py`: `q` parks each screen's `library` on the app (re-point only) and `exit()`s. `on_unmount` Drops the parked handles on the rekordbox thread after Textual has left the alt screen.
-- `tests/test_tui_app.py`: park-without-drop, Drop-on-rekordbox-thread, and no-hop-from-Home.
+- `app/tui/app.py`: on WSL / Windows Terminal, replace `CSI ? 1049 h/l` with a viewport clear so we never enter the alt screen. Other terminals keep it.
+- `tests/test_tui_app.py`: rewrite, host detect, and write-filter coverage.
 
 ### Verification log
 
@@ -25,7 +25,7 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 279 passed, 4 skipped |
+| `.venv/bin/pytest` | 284 passed, 4 skipped |
 
 ## Next
 

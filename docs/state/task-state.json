@@ -392,6 +392,11 @@
       "id": "TASK-232",
       "title": "Quit feels instant: park library handles, Drop after the UI is gone",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-233",
+      "title": "Skip the alt screen on ConPTY so quit is not a 1s buffer swap",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -848,6 +853,12 @@
     {
       "id": "TASK-232",
       "title": "Quit feels instant: park library handles, Drop after the UI is gone",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-233",
+      "title": "Skip the alt screen on ConPTY so quit is not a 1s buffer swap",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }
