@@ -377,6 +377,11 @@
       "id": "TASK-229",
       "title": "Unify TUI screen library attribute name",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-230",
+      "title": "Replace Linux/macOS mount scanner twins with ChildDirectoryScanner",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -815,6 +820,12 @@
     {
       "id": "TASK-229",
       "title": "Unify TUI screen library attribute name",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-230",
+      "title": "Replace Linux/macOS mount scanner twins with ChildDirectoryScanner",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

@@ -448,6 +448,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-230 — Replace Linux/macOS mount scanner twins with ChildDirectoryScanner
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | One directory-listing scanner; Linux and macOS only differ by root and exclude |
+| Verification | ruff ✓ ruff format ✓ pytest 277 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

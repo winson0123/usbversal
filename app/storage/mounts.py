@@ -49,62 +49,44 @@ class MountScanner(ABC):
         """
 
 
-class LinuxMediaScanner(MountScanner):
-    """Enumerate auto-mounted removable media under /media/$USER.
+class ChildDirectoryScanner(MountScanner):
+    """Enumerate immediate child directories of a mount root.
 
-    This is where udisks2/gvfs -- the auto-mount machinery behind most
-    desktop Linux distros (GNOME, KDE, ...) -- puts a USB stick the moment
-    it's plugged in, one subdirectory per device.
+    Linux auto-mounts sticks under /media/$USER; macOS uses /Volumes.
+    Both are the same listing, with different roots and exclude sets.
     """
+
+    def __init__(
+        self,
+        root: Path,
+        source: str,
+        exclude: frozenset[str] = frozenset(),
+    ) -> None:
+        """
+        Args:
+            root: Directory whose immediate children are candidate mounts.
+            source: Scanner identifier stored on each MountPoint.
+            exclude: Child names to skip (e.g. the macOS boot volume).
+        """
+        self._root = root
+        self._source = source
+        self._exclude = exclude
 
     def list_mounts(self) -> list[MountPoint]:
         """
-        Scan /media/$USER/* for directory mounts.
+        List child directories of ``root``, skipping hidden names and excludes.
 
         Returns:
-            MountPoint entries for each immediate child directory of
-            /media/$USER, or an empty list if that directory doesn't exist
-            (no desktop auto-mounter, or nothing currently mounted).
+            MountPoint entries, or an empty list if ``root`` is not a directory.
         """
-        media_root = Path("/media") / getpass.getuser()
-        if not media_root.is_dir():
+        if not self._root.is_dir():
             return []
 
         mounts: list[MountPoint] = []
-        for entry in sorted(media_root.iterdir()):
-            if entry.is_dir() and not entry.name.startswith("."):
-                mounts.append(
-                    MountPoint(path=entry.resolve(), source="linux_media"),
-                )
-        return mounts
-
-
-class MacVolumesScanner(MountScanner):
-    """Enumerate mounted volumes under /Volumes (macOS).
-
-    macOS mounts every disk, including a plugged-in USB stick, as an
-    immediate child of /Volumes -- no per-user subdirectory the way
-    /media/$USER has one on Linux.
-    """
-
-    def list_mounts(self) -> list[MountPoint]:
-        """
-        Scan /Volumes/* for directory mounts.
-
-        Returns:
-            MountPoint entries for each immediate child directory of
-            /Volumes, excluding the boot volume ("Macintosh HD").
-        """
-        volumes_root = Path("/Volumes")
-        if not volumes_root.is_dir():
-            return []
-
-        mounts: list[MountPoint] = []
-        for entry in sorted(volumes_root.iterdir()):
-            if entry.is_dir() and not entry.name.startswith(".") and entry.name != "Macintosh HD":
-                mounts.append(
-                    MountPoint(path=entry.resolve(), source="macos_volumes"),
-                )
+        for entry in sorted(self._root.iterdir()):
+            if not entry.is_dir() or entry.name.startswith(".") or entry.name in self._exclude:
+                continue
+            mounts.append(MountPoint(path=entry.resolve(), source=self._source))
         return mounts
 
 
@@ -183,7 +165,16 @@ def get_mount_scanner() -> MountScanner:
     if system == "Windows":
         platform_scanner: MountScanner = WindowsMountScanner()
     elif system == "Darwin":
-        platform_scanner = MacVolumesScanner()
+        # macOS mounts every disk as a child of /Volumes.
+        platform_scanner = ChildDirectoryScanner(
+            Path("/Volumes"),
+            "macos_volumes",
+            exclude=frozenset({"Macintosh HD"}),
+        )
     else:
-        platform_scanner = LinuxMediaScanner()
+        # udisks2/gvfs on desktop Linux: /media/$USER/<device>.
+        platform_scanner = ChildDirectoryScanner(
+            Path("/media") / getpass.getuser(),
+            "linux_media",
+        )
     return _CompositeScanner([platform_scanner, EnvMountScanner()])

@@ -5,9 +5,8 @@ from unittest.mock import patch
 
 from app.core.domain import MountPoint
 from app.storage.mounts import (
+    ChildDirectoryScanner,
     EnvMountScanner,
-    LinuxMediaScanner,
-    MacVolumesScanner,
     MountScanner,
     WindowsMountScanner,
     _CompositeScanner,
@@ -15,60 +14,40 @@ from app.storage.mounts import (
 )
 
 
-def test_linux_media_scanner_lists_child_directories_under_current_user(
-    tmp_path: Path, monkeypatch
-) -> None:
-    """LinuxMediaScanner returns resolved child directories under
-    /media/$USER -- where udisks2/gvfs auto-mounts a stick on a real
-    desktop Linux session."""
-    (tmp_path / "someuser" / "MY_USB").mkdir(parents=True)
-    (tmp_path / "someuser" / ".hidden").mkdir()
+def test_child_directory_scanner_lists_visible_children(tmp_path: Path) -> None:
+    """Immediate child directories are mounts; hidden names are skipped."""
+    (tmp_path / "MY_USB").mkdir()
+    (tmp_path / ".hidden").mkdir()
 
-    monkeypatch.setattr("app.storage.mounts.getpass.getuser", lambda: "someuser")
-    monkeypatch.setattr("app.storage.mounts.Path", lambda p: tmp_path if p == "/media" else Path(p))
-
-    scanner = LinuxMediaScanner()
-    mounts = scanner.list_mounts()
+    mounts = ChildDirectoryScanner(tmp_path, "linux_media").list_mounts()
 
     assert len(mounts) == 1
     assert mounts[0].path.name == "MY_USB"
     assert mounts[0].source == "linux_media"
 
 
-def test_linux_media_scanner_returns_empty_when_media_root_is_absent(monkeypatch) -> None:
-    """No /media/$USER at all (no desktop auto-mounter) is not an error."""
-    monkeypatch.setattr("app.storage.mounts.getpass.getuser", lambda: "nobody-such-user")
-
-    scanner = LinuxMediaScanner()
+def test_child_directory_scanner_returns_empty_when_root_is_absent() -> None:
+    """A missing root (no auto-mounter, or not this OS) is not an error."""
+    scanner = ChildDirectoryScanner(Path("/nonexistent-root-xyz"), "linux_media")
 
     assert scanner.list_mounts() == []
 
 
-def test_mac_volumes_scanner_lists_child_directories(tmp_path: Path, monkeypatch) -> None:
-    """MacVolumesScanner returns resolved child directories under /Volumes,
-    excluding the boot volume."""
+def test_child_directory_scanner_skips_excluded_names(tmp_path: Path) -> None:
+    """macOS /Volumes listing drops the boot volume the same way."""
     (tmp_path / "MY_USB").mkdir()
     (tmp_path / "Macintosh HD").mkdir()
     (tmp_path / ".hidden").mkdir()
 
-    monkeypatch.setattr(
-        "app.storage.mounts.Path", lambda p: tmp_path if p == "/Volumes" else Path(p)
-    )
-
-    scanner = MacVolumesScanner()
-    mounts = scanner.list_mounts()
+    mounts = ChildDirectoryScanner(
+        tmp_path,
+        "macos_volumes",
+        exclude=frozenset({"Macintosh HD"}),
+    ).list_mounts()
 
     assert len(mounts) == 1
     assert mounts[0].path.name == "MY_USB"
     assert mounts[0].source == "macos_volumes"
-
-
-def test_mac_volumes_scanner_returns_empty_when_volumes_root_is_absent(monkeypatch) -> None:
-    """No /Volumes at all is not an error (not actually reachable on real
-    macOS, but the scanner shouldn't assume it)."""
-    monkeypatch.setattr("app.storage.mounts.Path", lambda p: Path("/nonexistent-root-xyz"))
-
-    assert MacVolumesScanner().list_mounts() == []
 
 
 def test_composite_scanner_merges_all_sub_scanners() -> None:
@@ -94,7 +73,9 @@ def test_get_mount_scanner_returns_a_composite_on_linux() -> None:
         scanner = get_mount_scanner()
     assert isinstance(scanner, _CompositeScanner)
     kinds = {type(s) for s in scanner._scanners}
-    assert kinds == {LinuxMediaScanner, EnvMountScanner}
+    assert kinds == {ChildDirectoryScanner, EnvMountScanner}
+    child = next(s for s in scanner._scanners if isinstance(s, ChildDirectoryScanner))
+    assert child._source == "linux_media"
 
 
 def test_get_mount_scanner_returns_a_composite_on_macos() -> None:
@@ -103,7 +84,10 @@ def test_get_mount_scanner_returns_a_composite_on_macos() -> None:
         scanner = get_mount_scanner()
     assert isinstance(scanner, _CompositeScanner)
     kinds = {type(s) for s in scanner._scanners}
-    assert kinds == {MacVolumesScanner, EnvMountScanner}
+    assert kinds == {ChildDirectoryScanner, EnvMountScanner}
+    child = next(s for s in scanner._scanners if isinstance(s, ChildDirectoryScanner))
+    assert child._source == "macos_volumes"
+    assert "Macintosh HD" in child._exclude
 
 
 def test_get_mount_scanner_returns_a_composite_on_windows() -> None:

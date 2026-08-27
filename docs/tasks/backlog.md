@@ -159,6 +159,7 @@ and none of them exist yet.
 | ~~`TASK-227`~~ | ~~Home screen: explicit `HomePhase` instead of `_seen_invalid`~~ | Done — one overloaded boolean (rejected / timed out / open failed / stop-hopeful-scan) replaced with `SEARCHING | FAILED | OPENING | READY`. `poll_mounts` only decides transitions; widgets update on phase change. |
 | ~~`TASK-228`~~ | ~~Extract PathInput widget from the Home screen~~ | Done — Tab-cycle path field lives in `app/tui/widgets/path_input.py`. The scan bar stays in `home.py`. |
 | ~~`TASK-229`~~ | ~~Unify TUI screen library attribute name~~ | Done — Home/Library/Progress all use `library`. Quit clears `getattr(screen, "library", _MISSING)`. |
+| ~~`TASK-230`~~ | ~~Replace Linux/macOS mount scanner twins with `ChildDirectoryScanner`~~ | Done — same child-directory listing, different root/exclude. Windows and `EnvMountScanner` unchanged. |
 
 ---
 
