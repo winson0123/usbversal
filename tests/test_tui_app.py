@@ -73,15 +73,13 @@ async def test_usbversal_app_pushes_exactly_one_home_screen() -> None:
 
 
 class _FakeLibraryScreen(Screen):
-    """Stands in for Home/Library/Progress, each of which holds a reference
-    to the open UsbLibrary under a `library` or `_library` attribute."""
+    """Stands in for Home/Library/Progress, each of which holds the open
+    UsbLibrary on a public ``library`` attribute."""
 
-    def __init__(self, *, private: bool) -> None:
+    def __init__(self) -> None:
+        """Hold a dummy library reference the quit path must clear."""
         super().__init__()
-        if private:
-            self._library = object()
-        else:
-            self.library = object()
+        self.library = object()
 
 
 @pytest.mark.asyncio
@@ -92,13 +90,13 @@ async def test_quit_clears_library_references_on_the_rekordbox_thread() -> None:
     app = UsbversalApp()
     async with app.run_test() as pilot:
         await pilot.pause()
-        public_screen = _FakeLibraryScreen(private=False)
-        private_screen = _FakeLibraryScreen(private=True)
-        await app.push_screen(public_screen)
-        await app.push_screen(private_screen)
+        first = _FakeLibraryScreen()
+        second = _FakeLibraryScreen()
+        await app.push_screen(first)
+        await app.push_screen(second)
         await pilot.pause()
 
         await app.action_quit()
 
-        assert public_screen.library is None
-        assert private_screen._library is None
+        assert first.library is None
+        assert second.library is None

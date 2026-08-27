@@ -16,6 +16,7 @@ from app.services.library import MountWatcher
 from app.tui.screens.home import HomeScreen
 
 _T = TypeVar("_T")
+_MISSING = object()
 
 
 class RekordboxThreadMixin:
@@ -134,10 +135,8 @@ class UsbversalApp(RekordboxThreadMixin, App):
 
         def _clear() -> None:
             for screen in screens:
-                if hasattr(screen, "library"):
+                if getattr(screen, "library", _MISSING) is not _MISSING:
                     screen.library = None
-                if hasattr(screen, "_library"):
-                    screen._library = None
             gc.collect()
 
         await self.run_rekordbox(_clear)

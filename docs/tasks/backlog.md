@@ -158,6 +158,7 @@ and none of them exist yet.
 | ~~`TASK-226`~~ | ~~Move TUI session-open into `prepare_library`~~ | Done — Home no longer orchestrates `bootstrap_serato_library` + `open_library` + a discarded `list_playlists()` itself. `services.library.prepare_library()` is the session-open path: bootstrap if needed, open, then list playlists so a database that cannot be read fails before Library takes over. `open_library` is unchanged so the CLI does not create `_Serato_`. |
 | ~~`TASK-227`~~ | ~~Home screen: explicit `HomePhase` instead of `_seen_invalid`~~ | Done — one overloaded boolean (rejected / timed out / open failed / stop-hopeful-scan) replaced with `SEARCHING | FAILED | OPENING | READY`. `poll_mounts` only decides transitions; widgets update on phase change. |
 | ~~`TASK-228`~~ | ~~Extract PathInput widget from the Home screen~~ | Done — Tab-cycle path field lives in `app/tui/widgets/path_input.py`. The scan bar stays in `home.py`. |
+| ~~`TASK-229`~~ | ~~Unify TUI screen library attribute name~~ | Done — Home/Library/Progress all use `library`. Quit clears `getattr(screen, "library", _MISSING)`. |
 
 ---
 

@@ -37,7 +37,7 @@ class ProgressScreen(Screen):
             playlist_ids: Rekordbox playlist ids to sync, in selection order.
         """
         super().__init__()
-        self._library = library
+        self.library = library
         self._playlist_ids = list(playlist_ids)
         self._tracker = ProgressRateTracker()
 
@@ -57,7 +57,7 @@ class ProgressScreen(Screen):
             # on the app's one dedicated thread -- see UsbversalApp.run_rekordbox.
             report = await self.app.run_rekordbox(
                 sync_playlists,
-                self._library,
+                self.library,
                 self._playlist_ids,
                 on_progress=self._report_progress,
             )

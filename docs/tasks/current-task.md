@@ -1,7 +1,7 @@
 # Current Task
 
 **Status:** `complete`
-**Task ID:** TASK-228
+**Task ID:** TASK-229
 **Last updated:** 2026-08-27
 
 ---
@@ -10,15 +10,9 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-228` |
-| Objective | Move PathInput + match_candidates out of the Home screen module |
+| Task ID | `TASK-229` |
+| Objective | One `library` attribute on Home/Library/Progress; quit getattr-clears it |
 | Completed | 2026-08-27 |
-
-### Scope
-
-- `app/tui/widgets/path_input.py`: Tab-cycle path field.
-- `app/tui/screens/home.py`: imports `PathInput`; scan bar stays here.
-- `tests/test_tui_home.py`: import path retarget only.
 
 ### Verification log
 
@@ -30,4 +24,4 @@
 
 ## Next
 
-TASK-229 — Unify `library` attribute on Home/Library/Progress; simplify quit clearing.
+TASK-230 — ChildDirectoryScanner. Then TASK-231 — Library Text labels + leaf_ids.

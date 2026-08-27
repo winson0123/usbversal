@@ -438,6 +438,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-229 — Unify TUI screen library attribute name
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | Home/Library/Progress all use `library`; quit clears that one name |
+| Verification | ruff ✓ ruff format ✓ pytest 278 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

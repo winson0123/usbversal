@@ -100,11 +100,11 @@ class LibraryScreen(Screen):
             library: Opened session handle to read playlists and sync state from.
         """
         super().__init__()
-        self._library = library
+        self.library = library
         self._selected: set[int] = set()
 
     def compose(self) -> ComposeResult:
-        yield Static(f"Mounted: {self._library.mount}", id=_MOUNT_ID)
+        yield Static(f"Mounted: {self.library.mount}", id=_MOUNT_ID)
         tree: Tree[_Row] = Tree("Playlists", id="playlist-tree")
         tree.show_root = False
         yield tree
@@ -129,7 +129,7 @@ class LibraryScreen(Screen):
         # playlist_tree_sync_states reads through library.rekordbox, which
         # must stay on the app's one dedicated thread -- see
         # UsbversalApp.run_rekordbox.
-        states = await self.app.run_rekordbox(playlist_tree_sync_states, self._library)
+        states = await self.app.run_rekordbox(playlist_tree_sync_states, self.library)
 
         all_row = _Row(
             name=_ALL_NAME,
@@ -245,4 +245,4 @@ class LibraryScreen(Screen):
         if not self._selected:
             self._update_status()
             return
-        self.app.push_screen(ProgressScreen(self._library, sorted(self._selected)))
+        self.app.push_screen(ProgressScreen(self.library, sorted(self._selected)))
