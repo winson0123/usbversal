@@ -298,6 +298,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-215 — Home screen: retry-on-enter and manual path entry with Tab completion
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | User asked: insert a valid USB and press enter to retry scanning, optionally type the path directly, with Tab completion |
+| Verification | ruff ✓ ruff format ✓ pytest 256 passed / 4 skipped (7 new tests: path-completion unit tests plus Pilot-driven Tab/Enter/manual-path/failure-recovery tests) |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

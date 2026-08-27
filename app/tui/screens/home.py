@@ -8,12 +8,14 @@ no ``LibraryDiscovery`` walk runs on this screen.
 from __future__ import annotations
 
 import asyncio
+import os
 from pathlib import Path
 
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.containers import Center, CenterMiddle
 from textual.screen import Screen
-from textual.widgets import Static
+from textual.widgets import Input, Static
 
 from app.services.bootstrap_service import bootstrap_serato_library
 from app.services.errors import DatabaseNotFoundError, UnsupportedDatabaseError
@@ -30,6 +32,7 @@ _NONE_FOUND = "Did not detect a valid DJ USB"
 _BANNER_ID = "banner"
 _SPINNER_ID = "spinner"
 _STATUS_ID = "status"
+_INPUT_ID = "path-input"
 _SPINNER_INTERVAL_S = 0.1
 _SPINNER_FRAMES = ("◐", "◓", "◑", "◒")
 
@@ -53,6 +56,58 @@ class _Spinner(Static):
         self.update(_SPINNER_FRAMES[self._frame])
 
 
+def _complete_path(partial: str) -> str | None:
+    """
+    Shell-style Tab completion for a filesystem path: complete to the
+    longest common prefix among matching entries, or nothing if that
+    prefix is no longer than what's already typed.
+
+    Returns:
+        The completed path, or None if there is nothing to add.
+    """
+    path = Path(partial)
+    if partial == "" or partial.endswith("/"):
+        directory, prefix = (path if partial else Path(".")), ""
+    else:
+        directory, prefix = path.parent, path.name
+
+    try:
+        matches = sorted(
+            entry.name for entry in directory.iterdir() if entry.name.startswith(prefix)
+        )
+    except OSError:
+        return None
+    if not matches:
+        return None
+
+    common = os.path.commonprefix(matches)
+    if common == prefix and len(matches) != 1:
+        return None
+
+    completed = directory / common if str(directory) != "." else Path(common)
+    if len(matches) == 1 and (directory / matches[0]).is_dir():
+        return f"{completed}/"
+    return str(completed)
+
+
+class _PathInput(Input):
+    """Path entry field with shell-style Tab completion.
+
+    A plain (non-priority) binding is enough to win over Screen's own
+    default ``tab`` -> ``app.focus_next`` binding: Textual checks a
+    focused widget's own bindings before walking up to its ancestors, so
+    this only needs to out-rank Screen when *this* widget has focus.
+    """
+
+    BINDINGS = [Binding("tab", "complete", "Complete path", show=False)]
+
+    def action_complete(self) -> None:
+        completed = _complete_path(self.value)
+        if completed is not None:
+            self.value = completed
+            self.cursor_position = len(completed)
+
+
 class HomeScreen(Screen):
     """
     Poll for a mount to appear, check it, then push the Library screen.
@@ -69,6 +124,10 @@ class HomeScreen(Screen):
         text-align: center;
     }
     HomeScreen #spinner, HomeScreen #status {
+        margin-top: 1;
+    }
+    HomeScreen #path-input {
+        width: 46;
         margin-top: 1;
     }
     """
@@ -95,10 +154,25 @@ class HomeScreen(Screen):
                 yield _Spinner(id=_SPINNER_ID)
             with Center():
                 yield Static("", id=_STATUS_ID)
+            with Center():
+                yield _PathInput(
+                    placeholder="insert a USB and press enter to retry, or type a path",
+                    id=_INPUT_ID,
+                )
 
     def on_mount(self) -> None:
         self.query_one(f"#{_STATUS_ID}", Static).display = False
+        self.query_one(_PathInput).focus()
         self.set_interval(self.POLL_INTERVAL_S, self.poll_mounts)
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        event.stop()
+        value = event.value.strip()
+        if not value:
+            self.poll_mounts()
+            return
+        self._show_spinner()
+        self.run_worker(self._open(Path(value)), exclusive=True)
 
     def poll_mounts(self) -> None:
         """One watch tick: check for new mounts and probe any that appeared."""
@@ -122,6 +196,8 @@ class HomeScreen(Screen):
 
     async def _open(self, mount: Path) -> None:
         """Bootstrap a Serato library if needed, open it, then hand off."""
+        path_input = self.query_one(_PathInput)
+        path_input.disabled = True
         try:
             await asyncio.to_thread(bootstrap_serato_library, mount)
             # open_library, and every later touch of library.rekordbox, must
@@ -131,6 +207,8 @@ class HomeScreen(Screen):
         except (OSError, DatabaseNotFoundError, UnsupportedDatabaseError) as exc:
             self._seen_invalid = True
             self._show_error(f"{_NONE_FOUND} ({exc})")
+            path_input.disabled = False
+            path_input.focus()
             return
         self.library = library
         self.app.push_screen(LibraryScreen(library))

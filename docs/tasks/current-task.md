@@ -10,58 +10,70 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-214` |
-| Objective | User reported the TUI "turned black" -- turn off Textual's built-in dark theme and use the terminal's own native colours everywhere, per the explicit ask that started TASK-213 |
+| Task ID | `TASK-215` |
+| Objective | User asked: insert a valid USB and press enter to retry scanning, optionally type the path directly, with Tab completion |
 | Completed | 2026-08-27 |
 
 ### Scope
 
 Files touched:
 
-- `app/tui/app.py`:
-  - `UsbversalApp.__init__` now passes `ansi_color=True` to `App.__init__`.
-    This flips on Textual's `:ansi` CSS mode app-wide: `App`/`Screen`'s
-    `background`/`color` (which normally resolve to fixed hex values from
-    Textual's default theme -- `#121212`, `#E0E0E0`, etc.) instead resolve
-    to Rich's `ColorType.DEFAULT`, meaning "emit no colour code at all,
-    let the terminal use whatever it's already set to."
-  - New `CSS` class variable neutralizes two stock widgets that still leak
-    a fixed dark colour even with `ansi_color=True`: `Footer` (and its
-    `FooterKey`/`.footer-key--key`/`.footer-key--description` children)
-    has no `:ansi` rule of its own at all in Textual's source, and `Tree`'s
-    own `:ansi` rule only covers its text/guides, not the widget's own
-    `background: $surface`. Both forced to `background: transparent`
-    (`color: ansi_default` for the Footer pieces, whose foreground was
-    also hardcoded).
-
-### Root cause
-
-TASK-213 already committed to "no custom theme, native terminal colours"
-as a design principle, but never actually verified that Textual's
-*default* theme was off -- it wasn't. Every Textual `App` ships with a
-dark theme active by default (fixed hex `$background`/`$foreground`/etc.),
-regardless of anything an app's own screens do; TASK-213's work was all at
-the screen-content level (no colours set on the banner/spinner) and never
-touched the App/Screen background those widgets sit on top of, which is
-what was actually painting solid dark-grey/near-black across the whole
-terminal.
+- `app/tui/screens/home.py`:
+  - `_complete_path(partial) -> str \| None` -- shell-style Tab completion.
+    Splits the partial into a directory and a name prefix, lists matching
+    entries, and completes to their longest common prefix
+    (`os.path.commonprefix`); returns `None` (no-op) when there's nothing
+    new to add (no matches, or the common prefix among several matches
+    equals what's already typed) so repeated Tab presses on an already-
+    maximal, still-ambiguous prefix do nothing rather than erroring. A
+    single unambiguous directory match gets a trailing `/`, matching
+    ordinary shell completion.
+  - `_PathInput(Input)` -- a `tab` binding (non-priority) calling
+    `action_complete`, which applies `_complete_path` to the current
+    value. Textual checks a *focused* widget's own bindings before
+    walking up to `Screen`'s (which has its own default `tab` ->
+    `app.focus_next`), so this didn't need `priority=True` the way
+    TASK-207's space-vs-Tree binding conflict did -- confirmed by
+    pressing Tab through a real `Pilot` and reading the value back,
+    not just calling the action method directly.
+  - `HomeScreen`: `_PathInput` sits in its own `Center` under the
+    spinner/status slot, auto-focused in `on_mount`. `on_input_submitted`
+    handles `Input.Submitted`: an empty value calls `self.poll_mounts()`
+    immediately (retry now, instead of waiting up to `POLL_INTERVAL_S`
+    for the next timer tick); a non-empty value goes straight to
+    `self._open(Path(value))`, the same bootstrap/open/hand-off path a
+    watcher-discovered mount already uses. `_open` now disables the
+    input while a real attempt is in flight and re-enables it (with
+    focus restored) on failure, so a bad manually typed path doesn't
+    leave the field stuck.
+- `tests/test_tui_home.py` -- 7 new tests: three direct unit tests of
+  `_complete_path` (fills a common prefix, adds a trailing slash for a
+  unique directory, no-ops on no-match/already-maximal-ambiguous), and
+  four `Pilot`-driven ones (Tab actually completes the focused input,
+  Enter on empty input retries immediately, Enter with a typed path opens
+  it and hands off to Library, a failed manual path re-enables the input).
 
 ### Design decisions
 
-- **`ansi_color=True`, not a custom CSS override of `$background`.**
-  Textual ships this exact mechanism for "use the terminal's own palette
-  instead of a fixed theme" -- reaching for it instead of hand-rolling
-  `background: transparent` on `App`/`Screen` ourselves means every other
-  built-in widget's own `:ansi` rules (already written by Textual, e.g.
-  `LoadingIndicator`'s, `Tree`'s partial one) kick in for free too, rather
-  than needing to override each one by hand.
-- **Functional highlight colours left alone.** The tree's selection
-  cursor (`.tree--cursor`, a blue highlight bar) and the progress bar's
-  fill colour were not touched -- they convey real state (what's selected,
-  how far along a sync is), which is a different thing from a background
-  theme painted under content that has no informational reason to be any
-  particular colour. The user's complaint was specifically about the
-  screen looking solid black, not about there being any colour at all.
+- **Retry reuses `poll_mounts()` rather than a separate code path.**
+  `poll_mounts()` already does the right thing when called at an arbitrary
+  moment -- diffs the watcher, opens a newly valid mount if one showed up,
+  otherwise falls back to the spinner/error state exactly as before -- so
+  "retry now" is just "call the same function early" rather than new logic
+  with its own risk of drifting from what the timer-driven path does.
+- **Manual path entry reuses `_open()` rather than duplicating its
+  probe/bootstrap/open/error-handling.** The only new thing a manually
+  typed path needs is *not* going through `probe_mount` first (the user
+  is asserting this path directly, rather than it being auto-discovered);
+  everything after that -- bootstrap, open, the same exception handling,
+  the same push to `LibraryScreen` -- is identical, so it was cheaper and
+  safer to call the existing method than fork it.
+- **No validation before calling `_open()` on a typed path.** `_open`
+  already catches `OSError` (covers a nonexistent/non-directory path),
+  `DatabaseNotFoundError`, and `UnsupportedDatabaseError` and turns each
+  into the same red error message auto-detection uses -- adding a second,
+  earlier validation step would just be two places that could disagree
+  about what counts as a valid path.
 
 ### Verification log
 
@@ -69,14 +81,17 @@ terminal.
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 249 passed, 4 skipped |
-| Direct Rich `Style` inspection | Rendered a segment from the Home screen's banner and confirmed its style is `default on default` (was previously resolving to a fixed near-black `Color(18, 18, 18)` background); did the same for a bare `Footer` and `Tree` harness and confirmed both now resolve to `on default` as well, after the CSS override |
-| Real terminal | **Not yet seen by the user.** This was diagnosed and fixed from the user's verbal report ("my tui turned black"), not a reproducible local crash -- there is no automated test asserting on rendered colour, since that's exactly the kind of thing this project's TUI suite can't currently exercise against a real terminal's actual palette. |
+| `.venv/bin/pytest` | 256 passed, 4 skipped (7 new) |
+| Manual `Pilot` check | Typed a partial path into the real input, pressed Tab through `pilot.press`, and confirmed the value completed and focus stayed on the input, before writing the equivalent test |
+| Real terminal | **Not yet seen by the user.** Verified only through `Pilot`/unit tests in this environment, same as TASK-213/214. |
 
 ## Next
 
-Ask the user to re-run the TUI and confirm the background now matches
-their terminal's own colours (not a dark grey/black block) on both the
-Home screen and the Library/Progress/Done screens. Also still outstanding:
-real-hardware re-confirmation of TASK-210/211/212's fixes, and how the
-TASK-213 banner/spinner actually render in their terminal.
+Ask the user to try this against a real terminal: confirm the input field
+is focused and usable on launch, that pressing Enter with a stick freshly
+inserted actually retries without waiting, that typing a path and pressing
+Enter opens it, and that Tab completion behaves sensibly against their
+actual mount paths (e.g. `/media/<user>/...` or `/mnt/...`). Also still
+outstanding: real-hardware re-confirmation of TASK-210/211/212's fixes and
+how the TASK-213/214 banner/spinner/colours actually look in their
+terminal.
