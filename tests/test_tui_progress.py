@@ -9,7 +9,7 @@ from textual.app import App
 from textual.screen import Screen
 from textual.widgets import ProgressBar, RichLog, Static
 
-from app.services.sync_service import SyncReport
+from app.services.sync_service import SyncProgress, SyncReport
 from app.tui.app import RekordboxThreadMixin
 from app.tui.screens.progress import DoneScreen, ProgressScreen
 
@@ -32,7 +32,10 @@ def _fake_report(**overrides) -> SyncReport:
 
 def _fake_sync(
     *,
-    calls=((1, 2, "Contents/a.mp3", None), (2, 2, "Contents/b.mp3", None)),
+    calls=(
+        SyncProgress("analysis", 1, 2, "Contents/a.mp3"),
+        SyncProgress("analysis", 2, 2, "Contents/b.mp3"),
+    ),
     report=None,
     error=None,
     delay_s=0.0,
@@ -41,10 +44,10 @@ def _fake_sync(
 
     def _sync(library, playlist_ids, *, dry_run=False, backup_root=None, on_progress=None):
         if on_progress is not None:
-            for done, total, track, track_error in calls:
+            for sample in calls:
                 if delay_s:
                     time.sleep(delay_s)
-                on_progress(done, total, track, track_error)
+                on_progress(sample)
         if error is not None:
             raise error
         return report if report is not None else _fake_report()
@@ -183,8 +186,8 @@ async def test_progress_bar_reflects_the_last_sample() -> None:
             screen = app.screen
             assert isinstance(screen, ProgressScreen)
 
-            screen._update_progress(1, 4, "Contents/a.mp3", None)
-            screen._update_progress(3, 4, "Contents/b.mp3", None)
+            screen._update_progress(SyncProgress("analysis", 1, 4, "Contents/a.mp3"))
+            screen._update_progress(SyncProgress("analysis", 3, 4, "Contents/b.mp3"))
 
             bar = screen.query_one(ProgressBar)
             assert bar.total == 4
@@ -213,7 +216,7 @@ async def test_progress_log_shows_a_green_line_per_successful_track() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
             screen = app.screen
-            screen._update_progress(1, 2, "Contents/a.mp3", None)
+            screen._update_progress(SyncProgress("analysis", 1, 2, "Contents/a.mp3"))
             await pilot.pause()
 
             log = screen.query_one(RichLog)
@@ -236,7 +239,9 @@ async def test_progress_log_shows_a_red_line_for_a_failed_track() -> None:
         async with app.run_test() as pilot:
             await pilot.pause()
             screen = app.screen
-            screen._update_progress(1, 2, "Contents/a.mp3", "bad beatgrid")
+            screen._update_progress(
+                SyncProgress("analysis", 1, 2, "Contents/a.mp3", "bad beatgrid")
+            )
             await pilot.pause()
 
             log = screen.query_one(RichLog)

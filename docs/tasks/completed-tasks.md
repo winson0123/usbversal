@@ -578,6 +578,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-243 — Progress covers index and crate writes
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | `SyncProgress` phases for index, analysis, and crates |
+| Verification | ruff ✓ ruff format ✓ pytest 276 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

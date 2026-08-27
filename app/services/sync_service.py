@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import structlog
 
@@ -54,11 +54,41 @@ from app.services.track_records import (
 
 logger = structlog.get_logger(__name__)
 
-# Called once per track during the analysis pass, as
-# (tracks_done, total, track_path, error_or_none) -- error_or_none is the
-# failure message when that specific track's analysis could not be written,
-# and None when it was (or when it simply had nothing to write).
-SyncProgressCallback = Callable[[int, int, str, str | None], None]
+
+@dataclass(frozen=True)
+class SyncProgress:
+    """
+    One progress sample from a sync write step.
+
+    Attributes:
+        phase: Which write step this sample belongs to.
+        done: Items completed in this phase, 1-based.
+        total: Items in this phase.
+        item: Track path or crate name.
+        error: That item's failure message, or None.
+    """
+
+    phase: Literal["index", "analysis", "crates"]
+    done: int
+    total: int
+    item: str
+    error: str | None = None
+
+
+SyncProgressCallback = Callable[[SyncProgress], None]
+
+
+def _emit_progress(
+    on_progress: SyncProgressCallback | None,
+    phase: Literal["index", "analysis", "crates"],
+    done: int,
+    total: int,
+    item: str,
+    error: str | None = None,
+) -> None:
+    """Invoke ``on_progress`` when a caller supplied one."""
+    if on_progress is not None:
+        on_progress(SyncProgress(phase=phase, done=done, total=total, item=item, error=error))
 
 
 def _crate_contents(serato_root: Path | None) -> dict[str, set[str]]:
@@ -479,8 +509,7 @@ def _sync_analysis(
             and carry Rekordbox analysis data.
         lookups: Id-to-name tables, for key lookups.
         write_context: Validated backup context (required before any write).
-        on_progress: Optional callback invoked as ``(tracks_done, total, track,
-            error)`` after each track.
+        on_progress: Optional callback invoked after each track.
 
     Returns:
         Counts of what was written, and one message per track that failed.
@@ -516,8 +545,7 @@ def _sync_analysis(
             if cues:
                 cues_written += 1
         finally:
-            if on_progress is not None:
-                on_progress(done, len(ordered), raw, track_error)
+            _emit_progress(on_progress, "analysis", done, len(ordered), raw, track_error)
 
     rows_updated = 0
     if updates and index_path is not None:
@@ -653,6 +681,7 @@ def _index_missing_tracks(
     by_path: dict[str, Any],
     lookups: RekordboxLookups,
     context: WriteContext,
+    on_progress: SyncProgressCallback | None = None,
 ) -> int:
     """
     Append database V2 rows for ``missing``. Returns how many were written.
@@ -663,10 +692,16 @@ def _index_missing_tracks(
         by_path: Content row per Rekordbox path.
         lookups: Id-to-name tables for ``build_track_record``.
         context: Validated backup context.
+        on_progress: Optional callback after each missing path is prepared.
     """
     if not missing:
         return 0
-    records = [build_track_record(by_path[raw], lookups) for raw in missing if raw in by_path]
+    records = []
+    total = len(missing)
+    for done, raw in enumerate(missing, start=1):
+        if raw in by_path:
+            records.append(build_track_record(by_path[raw], lookups))
+        _emit_progress(on_progress, "index", done, total, raw)
     return append_database_tracks(
         database_path=database_path, records=records, write_context=context
     )
@@ -701,6 +736,7 @@ def _write_playlist_crates(
     by_id: dict[int, Playlist],
     tracks_by_playlist: dict[int, Sequence[str]],
     context: WriteContext,
+    on_progress: SyncProgressCallback | None = None,
 ) -> list[PlaylistSyncResult]:
     """
     Write one crate per selected playlist. Failed writes set ``error``.
@@ -711,11 +747,14 @@ def _write_playlist_crates(
         by_id: Every playlist on the stick, for crate-name ancestry.
         tracks_by_playlist: Rekordbox paths per playlist id.
         context: Validated backup context.
+        on_progress: Optional callback after each crate write.
     """
     results: list[PlaylistSyncResult] = []
-    for playlist in selected:
+    total = len(selected)
+    for done, playlist in enumerate(selected, start=1):
         crate_name = crate_name_for(playlist, by_id)
         paths = [serato_path(raw) for raw in tracks_by_playlist[playlist.id]]
+        error: str | None = None
         try:
             write_crate(
                 serato_root=serato_root,
@@ -725,15 +764,17 @@ def _write_playlist_crates(
                 overwrite=True,
             )
         except (CrateExistsError, OSError) as exc:
+            error = str(exc)
             results.append(
                 PlaylistSyncResult(
                     playlist_id=playlist.id,
                     playlist_name=playlist.name,
                     crate_name=crate_name,
                     tracks=0,
-                    error=str(exc),
+                    error=error,
                 )
             )
+            _emit_progress(on_progress, "crates", done, total, crate_name, error)
             continue
         results.append(
             PlaylistSyncResult(
@@ -743,6 +784,7 @@ def _write_playlist_crates(
                 tracks=len(paths),
             )
         )
+        _emit_progress(on_progress, "crates", done, total, crate_name)
     return results
 
 
@@ -769,13 +811,9 @@ def sync_playlists(
         playlist_ids: Rekordbox playlist ids to sync, in selection order.
         dry_run: Plan only; take no backup and write nothing.
         backup_root: Optional backups parent directory.
-        on_progress: Optional callback invoked as ``(tracks_done, total,
-            track, error)`` while writing analysis -- the slow, per-track
-            part of a sync, so it is what a caller driving a progress bar
-            should watch. ``error`` carries that one track's own failure
-            message when it has one, otherwise None. Not called for a dry
-            run, and not called at all when there is nothing with Rekordbox
-            analysis data to write.
+        on_progress: Optional callback for each index, analysis, and crate
+            step. ``error`` is that item's failure message, or None. Not
+            called for a dry run. A phase with nothing to do emits nothing.
 
     Returns:
         SyncReport describing what was written.
@@ -800,7 +838,9 @@ def sync_playlists(
         extra_files=[library.mount / serato_path(raw) for raw in analysis_targets],
     )
     context = WriteContext(backup_path=backup.backup_dir)
-    records_added = _index_missing_tracks(database_path, missing, by_path, lookups, context)
+    records_added = _index_missing_tracks(
+        database_path, missing, by_path, lookups, context, on_progress
+    )
     analysis = _sync_analysis(
         library.mount,
         _existing_index_path(serato_root),
@@ -810,7 +850,9 @@ def sync_playlists(
         context,
         on_progress,
     )
-    results = _write_playlist_crates(serato_root, selected, by_id, tracks_by_playlist, context)
+    results = _write_playlist_crates(
+        serato_root, selected, by_id, tracks_by_playlist, context, on_progress
+    )
     write_crate_order(serato_root, merge_crate_order(serato_root, _written_crate_names(results)))
 
     logger.info(

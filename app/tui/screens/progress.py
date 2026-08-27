@@ -19,7 +19,13 @@ from textual.widgets import Footer, ProgressBar, RichLog, Static
 
 from app.jobs.progress_rate import ProgressRateTracker, format_duration
 from app.services.library import UsbLibrary
-from app.services.sync_service import SyncReport, sync_playlists
+from app.services.sync_service import SyncProgress, SyncReport, sync_playlists
+
+_PHASE_STATUS = {
+    "index": "Indexing tracks",
+    "analysis": "Writing analysis",
+    "crates": "Writing crates",
+}
 
 _STATUS_ID = "sync-status"
 _BAR_ID = "sync-progress"
@@ -43,7 +49,7 @@ class ProgressScreen(Screen):
 
     def compose(self) -> ComposeResult:
         with Container():
-            yield Static("Starting sync…", id=_STATUS_ID)
+            yield Static("Taking backup…", id=_STATUS_ID)
             yield ProgressBar(id=_BAR_ID, show_eta=False)
             yield RichLog(id=_LOG_ID, max_lines=500, auto_scroll=True, wrap=True)
         yield Footer()
@@ -67,14 +73,23 @@ class ProgressScreen(Screen):
             return
         self.app.switch_screen(DoneScreen(report=report))
 
-    def _report_progress(self, done: int, total: int, track: str, error: str | None) -> None:
+    def _report_progress(self, sample: SyncProgress) -> None:
         """Called from the sync's worker thread; marshal back to the UI thread."""
-        self.app.call_from_thread(self._update_progress, done, total, track, error)
+        self.app.call_from_thread(self._update_progress, sample)
 
-    def _update_progress(self, done: int, total: int, track: str, error: str | None) -> None:
-        self.query_one(ProgressBar).update(total=total, progress=done)
-        estimate = self._tracker.observe(current=done, total=total, at=time.monotonic())
-        message = f"Writing analysis: {done}/{total}"
+    def _update_progress(self, sample: SyncProgress) -> None:
+        """
+        Apply one sync sample to the bar, status line, and log.
+
+        Args:
+            sample: Phase, counts, item path or crate name, and optional error.
+        """
+        self.query_one(ProgressBar).update(total=sample.total, progress=sample.done)
+        estimate = self._tracker.observe(
+            current=sample.done, total=sample.total, at=time.monotonic()
+        )
+        label = _PHASE_STATUS.get(sample.phase, sample.phase)
+        message = f"{label}: {sample.done}/{sample.total}"
         if estimate.rate_per_second is not None:
             message += f" ({estimate.rate_per_second:.1f}/s"
             if estimate.eta_seconds is not None:
@@ -83,10 +98,11 @@ class ProgressScreen(Screen):
         self.query_one(f"#{_STATUS_ID}", Static).update(message)
 
         log = self.query_one(RichLog)
-        if error is None:
-            log.write(Text(f"[{done}/{total}] {track}", style="green"))
+        line = f"[{sample.done}/{sample.total}] {sample.item}"
+        if sample.error is None:
+            log.write(Text(line, style="green"))
         else:
-            log.write(Text(f"[{done}/{total}] {track}: {error}", style="red"))
+            log.write(Text(f"{line}: {sample.error}", style="red"))
 
 
 class DoneScreen(Screen):

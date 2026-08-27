@@ -442,6 +442,11 @@
       "id": "TASK-242",
       "title": "FLAC Vorbis-comment Serato tag read/write",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-243",
+      "title": "Progress callback covers index and crate writes",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -958,6 +963,12 @@
     {
       "id": "TASK-242",
       "title": "FLAC Vorbis-comment Serato tag read/write",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-243",
+      "title": "Progress callback covers index and crate writes",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

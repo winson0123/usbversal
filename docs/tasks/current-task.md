@@ -10,14 +10,14 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-242` |
-| Objective | Read and write Serato BeatGrid / Markers2 on FLAC via Vorbis comments |
+| Task ID | `TASK-243` |
+| Objective | Progress callback covers index appends and crate writes, not only analysis |
 | Completed | 2026-08-27 |
 
 ### Scope
 
-- FLAC path in `tags.py`: `SERATO_BEATGRID` / `SERATO_MARKERS_V2`, base64 wrap, STREAMINFO + audio unchanged.
-- Tests: round-trip, foreign comment, audio hash, named removal.
+- `SyncProgress` record with `phase` (`index` / `analysis` / `crates`).
+- Progress screen status: Indexing tracks / Writing analysis / Writing crates. Opens on "Taking backup…".
 
 ### Verification log
 

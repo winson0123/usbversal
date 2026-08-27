@@ -172,6 +172,7 @@ and none of them exist yet.
 | ~~`TASK-240`~~ | ~~Remove the CLI~~ | Done — `app/cli/` and CLI-only tests gone. `usbversal` / `python -m app.tui` launch the TUI. |
 | ~~`TASK-241`~~ | ~~Confirm ID3v2.3 and v2.4 MP3 GEOB writes~~ | Done — `tests/test_mp3_tags.py` round-trips BeatGrid/Markers2 on hand-built MP3s; audio after the tag unchanged. Not yet confirmed live in Serato. |
 | ~~`TASK-242`~~ | ~~FLAC Vorbis-comment Serato tags~~ | Done — `SERATO_BEATGRID` / `SERATO_MARKERS_V2` via base64-wrapped payloads. STREAMINFO and audio frames stay byte-identical. MP4 still out of scope. |
+| ~~`TASK-243`~~ | ~~Progress covers index and crate writes~~ | Done — `SyncProgress` with `index` / `analysis` / `crates`. Progress screen labels each phase; backup is the opening status line. |
 
 ---
 

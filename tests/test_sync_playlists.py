@@ -15,7 +15,7 @@ from app.adapters.serato.neworder import read_crate_order, write_crate_order
 from app.adapters.serato.tags import read_geob
 from app.core.domain import Playlist
 from app.services.migration_service import PlaylistNotFoundError, SeratoLibraryRequiredError
-from app.services.sync_service import correct_index_bpm, sync_playlists
+from app.services.sync_service import SyncProgress, correct_index_bpm, sync_playlists
 from tests.conftest import EMPTY_DATABASE_V2, make_library
 
 TRACKS = ["/Contents/a.mp3", "/Contents/b.mp3"]
@@ -181,8 +181,10 @@ def test_sync_indexes_missing_tracks_and_writes_a_crate(tmp_path: Path) -> None:
     playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
     library = _library(mount, [playlist], {1: TRACKS}, [_content(t) for t in TRACKS])
 
-    report = sync_playlists(library, [1])
+    calls: list[SyncProgress] = []
+    report = sync_playlists(library, [1], on_progress=calls.append)
 
+    assert [sample.phase for sample in calls if sample.phase == "index"] == ["index", "index"]
     assert report.records_added == 2
     assert report.crates_written == 1
     assert report.backup_id is not None
@@ -490,18 +492,17 @@ def test_on_progress_reports_each_analysis_track(tmp_path: Path) -> None:
     ]
     playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
     library = _library(mount, [playlist], {1: ["/Contents/a.wav", "/Contents/b.wav"]}, contents)
-    calls: list[tuple[int, int, str, str | None]] = []
+    calls: list[SyncProgress] = []
 
-    sync_playlists(
-        library,
-        [1],
-        on_progress=lambda done, total, track, error: calls.append((done, total, track, error)),
-    )
+    sync_playlists(library, [1], on_progress=calls.append)
 
-    assert calls == [
-        (1, 2, "/Contents/a.wav", None),
-        (2, 2, "/Contents/b.wav", None),
+    analysis = [sample for sample in calls if sample.phase == "analysis"]
+    crates = [sample for sample in calls if sample.phase == "crates"]
+    assert analysis == [
+        SyncProgress("analysis", 1, 2, "/Contents/a.wav"),
+        SyncProgress("analysis", 2, 2, "/Contents/b.wav"),
     ]
+    assert crates == [SyncProgress("crates", 1, 1, "test")]
 
 
 def test_on_progress_reports_the_failing_track_and_its_error(tmp_path: Path) -> None:
@@ -517,31 +518,24 @@ def test_on_progress_reports_the_failing_track_and_its_error(tmp_path: Path) -> 
     ]
     playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
     library = _library(mount, [playlist], {1: ["/Contents/a.wav"]}, contents)
-    calls: list[tuple[int, int, str, str | None]] = []
+    calls: list[SyncProgress] = []
 
-    sync_playlists(
-        library,
-        [1],
-        on_progress=lambda done, total, track, error: calls.append((done, total, track, error)),
-    )
+    sync_playlists(library, [1], on_progress=calls.append)
 
-    assert len(calls) == 1
-    done, total, track, error = calls[0]
-    assert (done, total, track) == (1, 1, "/Contents/a.wav")
-    assert error is not None
+    analysis = [sample for sample in calls if sample.phase == "analysis"]
+    assert len(analysis) == 1
+    assert (analysis[0].done, analysis[0].total, analysis[0].item) == (1, 1, "/Contents/a.wav")
+    assert analysis[0].error is not None
 
 
-def test_on_progress_is_not_called_when_nothing_has_analysis_data(tmp_path: Path) -> None:
-    """No analysis targets means no progress callback at all."""
+def test_on_progress_skips_analysis_when_nothing_has_analysis_data(tmp_path: Path) -> None:
+    """No ANLZ data means no analysis samples; crate writes still report."""
     mount = _stick(tmp_path, indexed=["Contents/a.mp3"])
     playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
     library = _library(mount, [playlist], {1: ["/Contents/a.mp3"]}, [_content("/Contents/a.mp3")])
-    calls: list[tuple[int, int, str, str | None]] = []
+    calls: list[SyncProgress] = []
 
-    sync_playlists(
-        library,
-        [1],
-        on_progress=lambda done, total, track, error: calls.append((done, total, track, error)),
-    )
+    sync_playlists(library, [1], on_progress=calls.append)
 
-    assert calls == []
+    assert [sample.phase for sample in calls] == ["crates"]
+    assert calls[0] == SyncProgress("crates", 1, 1, "test")
