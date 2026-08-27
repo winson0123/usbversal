@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import gc
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import TypeVar
@@ -42,7 +43,7 @@ class RekordboxThreadMixin:
         self._rekordbox_executor = ThreadPoolExecutor(max_workers=1)
 
     def _shutdown_rekordbox_thread(self) -> None:
-        self._rekordbox_executor.shutdown(wait=False)
+        self._rekordbox_executor.shutdown(wait=True)
 
     async def run_rekordbox(self, func: Callable[..., _T], *args: object, **kwargs: object) -> _T:
         """
@@ -85,6 +86,36 @@ class UsbversalApp(RekordboxThreadMixin, App):
 
     def on_mount(self) -> None:
         self.push_screen(HomeScreen(self._watcher))
+
+    async def action_quit(self) -> None:
+        await self._release_rekordbox_handles()
+        await super().action_quit()
+
+    async def _release_rekordbox_handles(self) -> None:
+        """
+        Drop every screen's reference to the open ``UsbLibrary`` on the
+        dedicated rekordbox thread, before Textual unmounts the screen stack.
+
+        On quit, Textual releases every screen (and the App's own
+        attributes) from the main thread. If that happened to be what
+        dropped the last reference to ``UsbLibrary.rekordbox`` -- a pyo3
+        ``PyOneLibrary`` -- pyo3 would run its Drop there instead of on the
+        thread that created it and raise. Clearing the known references
+        ourselves, inside one call pinned to that thread, guarantees
+        whichever clear turns out to be the last one runs in the right
+        place.
+        """
+        screens = list(self.screen_stack)
+
+        def _clear() -> None:
+            for screen in screens:
+                if hasattr(screen, "library"):
+                    screen.library = None
+                if hasattr(screen, "_library"):
+                    screen._library = None
+            gc.collect()
+
+        await self.run_rekordbox(_clear)
 
     def on_unmount(self) -> None:
         self._shutdown_rekordbox_thread()

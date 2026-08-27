@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-27T07:00:00Z",
+  "updated_at": "2026-08-27T00:00:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -265,7 +265,7 @@
     },
     {
       "id": "TASK-075",
-      "title": "Nested playlist folders → Parent%%Child.crate",
+      "title": "Nested playlist folders \u2192 Parent%%Child.crate",
       "completed_at": "2026-08-27T00:00:00Z"
     },
     {
@@ -286,6 +286,11 @@
     {
       "id": "TASK-211",
       "title": "Library screen: true column alignment, \"All playlists\" node",
+      "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-212",
+      "title": "Fix rbox thread-affinity crash on TUI exit",
       "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
@@ -592,7 +597,7 @@
     },
     {
       "id": "TASK-075",
-      "title": "Nested playlist folders → Parent%%Child.crate",
+      "title": "Nested playlist folders \u2192 Parent%%Child.crate",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     },
@@ -617,6 +622,12 @@
     {
       "id": "TASK-211",
       "title": "Library screen: true column alignment, \"All playlists\" node",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-212",
+      "title": "Fix rbox thread-affinity crash on TUI exit",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

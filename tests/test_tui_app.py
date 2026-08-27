@@ -13,6 +13,7 @@ import threading
 
 import pytest
 from textual.app import App
+from textual.screen import Screen
 
 from app.tui.app import RekordboxThreadMixin, UsbversalApp
 from app.tui.screens.home import HomeScreen
@@ -69,3 +70,35 @@ async def test_usbversal_app_pushes_exactly_one_home_screen() -> None:
 
         assert isinstance(app.screen, HomeScreen)
         assert len(app.screen_stack) == 2  # the default screen, plus Home
+
+
+class _FakeLibraryScreen(Screen):
+    """Stands in for Home/Library/Progress, each of which holds a reference
+    to the open UsbLibrary under a `library` or `_library` attribute."""
+
+    def __init__(self, *, private: bool) -> None:
+        super().__init__()
+        if private:
+            self._library = object()
+        else:
+            self.library = object()
+
+
+@pytest.mark.asyncio
+async def test_quit_clears_library_references_on_the_rekordbox_thread() -> None:
+    """Quitting must null out every screen's library reference itself, on the
+    dedicated thread, rather than let Textual's own teardown be what drops
+    the last reference to a pyo3 PyOneLibrary from the main thread."""
+    app = UsbversalApp()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        public_screen = _FakeLibraryScreen(private=False)
+        private_screen = _FakeLibraryScreen(private=True)
+        await app.push_screen(public_screen)
+        await app.push_screen(private_screen)
+        await pilot.pause()
+
+        await app.action_quit()
+
+        assert public_screen.library is None
+        assert private_screen._library is None

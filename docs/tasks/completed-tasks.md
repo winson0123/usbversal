@@ -268,6 +268,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-212 — Fix rbox thread-affinity crash on TUI exit
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | Fix a new user-reported crash on quit -- `PyOneLibrary is unsendable, but is being dropped on another thread` -- the same pyo3 thread-affinity rule TASK-209 fixed for *use*, but this time for *drop*: Textual tears the whole screen stack down from the main thread on quit, and whichever screen holds the last reference to the opened library triggers its Drop there |
+| Verification | ruff ✓ ruff format ✓ pytest 249 passed / 4 skipped; **not yet re-confirmed on real hardware** -- this crash never reproduced in this environment at all, since the TUI test suite mocks the rekordbox adapter |
+
+---
+
 ## Template (for future entries)
 
 ```markdown
