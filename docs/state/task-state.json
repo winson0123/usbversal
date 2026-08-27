@@ -387,6 +387,11 @@
       "id": "TASK-231",
       "title": "Library labels as Text; leaf_ids on PlaylistTreeSyncState",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-232",
+      "title": "Quit feels instant: park library handles, Drop after the UI is gone",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -837,6 +842,12 @@
     {
       "id": "TASK-231",
       "title": "Library labels as Text; leaf_ids on PlaylistTreeSyncState",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-232",
+      "title": "Quit feels instant: park library handles, Drop after the UI is gone",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

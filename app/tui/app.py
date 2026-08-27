@@ -40,11 +40,37 @@ class RekordboxThreadMixin:
     """
 
     def __init__(self, *args: object, **kwargs: object) -> None:
+        """Start the dedicated rekordbox worker and an empty park list."""
         super().__init__(*args, **kwargs)
         self._rekordbox_executor = ThreadPoolExecutor(max_workers=1)
+        # Live UsbLibrary handles parked here on quit so Textual can tear
+        # the screen stack down without being the one that drops them.
+        self._held_libraries: list[object] = []
+
+    def _drop_parked_libraries(self) -> None:
+        """
+        Drop every parked ``UsbLibrary`` on this thread and collect.
+
+        Must run on the dedicated rekordbox thread: clearing the list is
+        what drops the last Python reference to ``PyOneLibrary``, and
+        pyo3 aborts if that Drop runs anywhere else.
+        """
+        self._held_libraries.clear()
+        gc.collect()
 
     def _shutdown_rekordbox_thread(self) -> None:
-        self._rekordbox_executor.shutdown(wait=True)
+        """
+        Drop parked library handles on the rekordbox thread, then join it.
+
+        Called from ``on_unmount``, after Textual has already left the
+        alternate screen -- the user sees the shell again while Drop
+        finishes, rather than staring at a frozen last frame.
+        """
+        try:
+            if self._held_libraries:
+                self._rekordbox_executor.submit(self._drop_parked_libraries).result()
+        finally:
+            self._rekordbox_executor.shutdown(wait=True)
 
     async def run_rekordbox(self, func: Callable[..., _T], *args: object, **kwargs: object) -> _T:
         """
@@ -114,34 +140,30 @@ class UsbversalApp(RekordboxThreadMixin, App):
         self.push_screen(HomeScreen(self._watcher))
 
     async def action_quit(self) -> None:
-        await self._release_rekordbox_handles()
+        """Park library handles and leave the UI; Drop runs after unmount."""
+        self._park_library_handles()
         await super().action_quit()
 
-    async def _release_rekordbox_handles(self) -> None:
+    def _park_library_handles(self) -> None:
         """
-        Drop every screen's reference to the open ``UsbLibrary`` on the
-        dedicated rekordbox thread, before Textual unmounts the screen stack.
+        Move every screen's ``library`` onto this app so Textual can
+        unmount the stack without dropping ``PyOneLibrary``.
 
-        On quit, Textual releases every screen (and the App's own
-        attributes) from the main thread. If that happened to be what
-        dropped the last reference to ``UsbLibrary.rekordbox`` -- a pyo3
-        ``PyOneLibrary`` -- pyo3 would run its Drop there instead of on the
-        thread that created it and raise. Clearing the known references
-        ourselves, inside one call pinned to that thread, guarantees
-        whichever clear turns out to be the last one runs in the right
-        place.
+        Safe on the UI thread: this only re-points Python references. The
+        objects stay alive in ``_held_libraries`` until
+        ``_drop_parked_libraries`` runs on the rekordbox thread, after
+        the terminal has already been restored.
         """
-        screens = list(self.screen_stack)
-
-        def _clear() -> None:
-            for screen in screens:
-                if getattr(screen, "library", _MISSING) is not _MISSING:
-                    screen.library = None
-            gc.collect()
-
-        await self.run_rekordbox(_clear)
+        for screen in self.screen_stack:
+            if getattr(screen, "library", _MISSING) is _MISSING:
+                continue
+            library = screen.library
+            if library is not None:
+                self._held_libraries.append(library)
+            screen.library = None
 
     def on_unmount(self) -> None:
+        """Drop parked Rekordbox handles on their thread, then join it."""
         self._shutdown_rekordbox_thread()
 
 

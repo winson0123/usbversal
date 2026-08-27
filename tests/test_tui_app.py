@@ -83,15 +83,16 @@ class _FakeLibraryScreen(Screen):
 
 
 @pytest.mark.asyncio
-async def test_quit_clears_library_references_on_the_rekordbox_thread() -> None:
-    """Quitting must null out every screen's library reference itself, on the
-    dedicated thread, rather than let Textual's own teardown be what drops
-    the last reference to a pyo3 PyOneLibrary from the main thread."""
+async def test_quit_parks_library_handles_without_dropping_them_yet() -> None:
+    """Quit must take every screen's library off the stack immediately so
+    Textual can tear down without Drop, but keep the objects alive on the
+    app until unmount drops them on the rekordbox thread."""
     app = UsbversalApp()
     async with app.run_test() as pilot:
         await pilot.pause()
         first = _FakeLibraryScreen()
         second = _FakeLibraryScreen()
+        held = [first.library, second.library]
         await app.push_screen(first)
         await app.push_screen(second)
         await pilot.pause()
@@ -100,3 +101,46 @@ async def test_quit_clears_library_references_on_the_rekordbox_thread() -> None:
 
         assert first.library is None
         assert second.library is None
+        assert app._held_libraries == held
+
+
+@pytest.mark.asyncio
+async def test_drop_parked_libraries_runs_on_the_rekordbox_thread() -> None:
+    """Clearing the park list (the Drop) must run on the dedicated thread,
+    not the UI thread that parked the handles."""
+    app = UsbversalApp()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        creator = await app.run_rekordbox(threading.get_ident)
+        app._held_libraries.append(object())
+
+        def drop_and_id() -> int:
+            """Drop parked handles, then report which thread ran the Drop."""
+            app._drop_parked_libraries()
+            return threading.get_ident()
+
+        dropped_on = await app.run_rekordbox(drop_and_id)
+
+        assert dropped_on == creator
+        assert app._held_libraries == []
+
+
+@pytest.mark.asyncio
+async def test_quit_from_home_does_not_hop_to_the_rekordbox_thread() -> None:
+    """With nothing open, quit is just park-nothing plus exit -- no thread hop."""
+    app = UsbversalApp()
+    hops = 0
+    original = app.run_rekordbox
+
+    async def counting(func, *args, **kwargs):
+        """Count hops through run_rekordbox, then forward to the original."""
+        nonlocal hops
+        hops += 1
+        return await original(func, *args, **kwargs)
+
+    app.run_rekordbox = counting  # type: ignore[method-assign]
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.action_quit()
+
+    assert hops == 0

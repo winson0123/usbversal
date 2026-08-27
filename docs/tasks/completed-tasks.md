@@ -468,6 +468,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-232 — Quit feels instant: park library handles, Drop after the UI is gone
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | Restore the terminal on `q`; drop PyOneLibrary on the rekordbox thread after unmount |
+| Verification | ruff ✓ ruff format ✓ pytest 279 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

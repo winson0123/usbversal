@@ -161,6 +161,7 @@ and none of them exist yet.
 | ~~`TASK-229`~~ | ~~Unify TUI screen library attribute name~~ | Done — Home/Library/Progress all use `library`. Quit clears `getattr(screen, "library", _MISSING)`. |
 | ~~`TASK-230`~~ | ~~Replace Linux/macOS mount scanner twins with `ChildDirectoryScanner`~~ | Done — same child-directory listing, different root/exclude. Windows and `EnvMountScanner` unchanged. |
 | ~~`TASK-231`~~ | ~~Library labels as `Text`; `leaf_ids` on `PlaylistTreeSyncState`~~ | Done — playlist names no longer go through markup; leaf playlist ids are computed when the tree is built, not re-walked in the TUI. |
+| ~~`TASK-232`~~ | ~~Quit feels instant: park library handles, Drop after the UI is gone~~ | Done — `q` used to await `gc.collect()` (and the PyOneLibrary Drop it forces) *before* Textual left the alt screen, so the last frame sat there for about a second. Now `action_quit` only re-points each screen's `library` onto the app (`_held_libraries`) and `exit()`s; `on_unmount` Drops those parked handles on the rekordbox thread after the terminal is already restored. Same thread-affinity rule as TASK-212; the wait is just no longer on screen. |
 
 ---
 

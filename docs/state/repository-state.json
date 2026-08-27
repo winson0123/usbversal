@@ -82,6 +82,7 @@
     "tui_library_select_all_node": true,
     "tui_library_all_node_collapsible": true,
     "tui_rekordbox_thread_affinity_fixed_on_exit": true,
+    "tui_quit_parks_library_then_drops": true,
     "tui_home_screen_ascii_banner_and_spinner": true,
     "tui_uses_native_terminal_colours": true,
     "tui_home_manual_path_entry_and_retry": true,
@@ -121,7 +122,7 @@
     "ruff_format": "pass",
     "pytest": "pass",
     "last_run": "2026-08-27T00:00:00Z",
-    "tests_passed": 277,
+    "tests_passed": 279,
     "tests_skipped": 4,
     "tests_failed": 0,
     "note": "run with no stick mounted and no dist/usbversal built; the 4 skips are 2 integration tests gated on USBVERSAL_TEST_MOUNT, the opt-in full PyInstaller build (USBVERSAL_PACKAGING_BUILD=1), and the binary-help smoke test that needs a prior ./scripts/build-release.sh -- a real build was run and verified during TASK-206, then cleaned up"
