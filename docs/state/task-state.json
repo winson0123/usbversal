@@ -322,6 +322,11 @@
       "id": "TASK-218",
       "title": "Home screen: only show manual path entry after auto-scan fails",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-219",
+      "title": "Progress screen: verbose per-track log, green/red colour instead of theme",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -694,6 +699,12 @@
     {
       "id": "TASK-218",
       "title": "Home screen: only show manual path entry after auto-scan fails",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-219",
+      "title": "Progress screen: verbose per-track log, green/red colour instead of theme",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

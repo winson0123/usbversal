@@ -11,6 +11,7 @@ import asyncio
 import os
 from pathlib import Path
 
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Center, CenterMiddle
@@ -219,7 +220,10 @@ class HomeScreen(Screen):
         self.query_one(f"#{_SPINNER_ID}", _Spinner).display = False
         status = self.query_one(f"#{_STATUS_ID}", Static)
         status.display = True
-        status.update(f"[red]{message}[/red]")
+        # Text(), not markup -- message can embed an arbitrary exception
+        # string, which could itself contain "[...]" that markup parsing
+        # would misread as a tag.
+        status.update(Text(message, style="red"))
         self._reveal_input()
 
     def _hide_input(self) -> None:

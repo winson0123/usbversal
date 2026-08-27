@@ -75,13 +75,13 @@ class UsbversalApp(RekordboxThreadMixin, App):
     TITLE = "usbversal"
     BINDINGS = [Binding("q", "quit", "Quit", show=True)]
 
-    # Textual's built-in dark theme still leaks through on a couple of stock
-    # widgets even with ansi_color=True: Footer has no :ansi rule of its own
-    # at all, and Tree's only covers its text/guides, not its own background.
-    # Both default to near-black hex ($footer-background, $surface) -- this
-    # neutralizes them to the terminal's own colours, same as everything
-    # else. Functional highlights (the tree cursor, the progress bar fill)
-    # are left alone; they convey real information, not a theme.
+    # Textual's built-in dark theme still leaks through on a few stock
+    # widgets even with ansi_color=True: none of these have a :ansi rule of
+    # their own covering their background (Tree's covers text/guides only),
+    # so they default to a near-black hex ($footer-background, $surface).
+    # This neutralizes them to the terminal's own colours, same as
+    # everything else. Functional highlights (the tree cursor, the progress
+    # bar fill) are left alone; they convey real information, not a theme.
     CSS = """
     Footer, FooterKey, .footer-key--key, .footer-key--description {
         background: transparent;
@@ -89,6 +89,10 @@ class UsbversalApp(RekordboxThreadMixin, App):
     }
     Tree {
         background: transparent;
+    }
+    RichLog {
+        background: transparent;
+        color: ansi_default;
     }
     """
 

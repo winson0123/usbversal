@@ -10,54 +10,71 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-218` |
-| Objective | User: the manual-path/retry input should only appear once auto-scanning has actually failed, not by default -- the default should just be the spinner, quietly scanning, until it fails |
+| Task ID | `TASK-219` |
+| Objective | User: "need verbose, i dont know what is happening on progress bar. green verbose, red on error" |
 | Completed | 2026-08-27 |
 
 ### Scope
 
 Files touched:
 
-- `app/tui/screens/home.py`:
-  - `_hide_input()` / `_reveal_input()` (new) -- the single place the path
-    input's visibility is decided, called from `on_mount` (starts hidden),
-    `_show_spinner()` (hides it), and `_show_error()` (reveals it).
-    Hidden means both `display = False` **and** `disabled = True`:
-    Textual still auto-focuses a hidden-but-enabled widget when it's the
-    only focusable one on the screen (confirmed empirically -- without
-    `disabled`, a user could type into an invisible field and it would
-    silently work).
-  - `_reveal_input()` only acts on the actual hidden -> visible
-    transition (`if path_input.display: return`), not on every later
-    `poll_mounts()` tick that re-confirms the same ongoing failure --
-    otherwise it would steal focus back from wherever the user clicked
-    once a second.
-  - Placeholder text changed to "Press enter to retry auto-scan, or enter
-    an absolute path" (from "insert a USB and press enter to retry, or
-    type a path"), per the user's suggested wording.
-  - `_open()` no longer separately manages the input's `disabled`/`focus`
-    state on failure -- `_show_error()` (via `_reveal_input()`) is now the
-    only place that happens, since it already needs to run there anyway.
-- `tests/test_tui_home.py` -- new
-  `test_input_is_hidden_and_unfocused_while_still_searching` (asserts
-  `display`, `disabled`, and focus all say "not interactive" during
-  ordinary searching); the four existing Tab/Enter/manual-path tests now
-  call a `_force_error_state()` helper (`home._show_error(...)`) before
-  interacting with the input, since revealing it is no longer automatic.
+- `app/services/sync_service.py`:
+  - New `SyncProgressCallback = Callable[[int, int, str, str | None], None]`
+    type alias, used by both `_sync_analysis` and `sync_playlists`.
+  - `_sync_analysis`'s per-track loop now captures a `track_error: str |
+    None` local per iteration (set in the existing `except` branch instead
+    of only being appended to the function-level `errors` list) and passes
+    it, plus the track's own path (`raw`), to `on_progress` on every call.
+    Callers that only care about counts can still ignore the new
+    arguments; nothing about the done/total semantics changed.
+- `app/tui/screens/progress.py`:
+  - `ProgressScreen` gained a `RichLog` (`max_lines=500`) under the
+    existing status line and `ProgressBar`. `_update_progress` (and the
+    `_report_progress` thread-marshalling wrapper) now take `(done, total,
+    track, error)` and write one line per track: green on success, red
+    with the error message on failure.
+  - A top-level sync failure (an exception from `sync_playlists` itself,
+    not a single track) also gets a red line in the log before switching
+    to `DoneScreen`.
+  - `DoneScreen._summary()` now returns a `rich.text.Text` (not a plain
+    `str`) styled green when nothing failed, red when there's a hard
+    error or any `analysis_errors`.
+  - **Both use `Text(..., style=...)` rather than markup strings**
+    (`f"[red]{message}[/red]"`). A track path or exception message is
+    arbitrary data and could itself contain `[...]`, which markup parsing
+    would misread as a tag and corrupt the line. Found and fixed the same
+    pre-existing pattern in `HomeScreen._show_error` while touching
+    adjacent code in this same task.
+- `app/tui/app.py` -- `RichLog` added to the app-level CSS neutralization
+  block alongside `Footer`/`Tree` (TASK-214): its own `DEFAULT_CSS` has no
+  `:ansi` rule at all, so both `background` and `color` defaulted to a
+  themed near-black/light-grey regardless of `ansi_color=True`. Confirmed
+  the explicit per-line green/red styles still take precedence over the
+  neutralized base style.
+- `tests/test_sync_playlists.py`, `tests/test_tui_progress.py` -- updated
+  every `on_progress` caller/fake for the new 4-argument signature; six
+  new tests (a failing-track case for the sync-level callback; two
+  `RichLog` line/colour checks read back via `log.lines[i]`'s segment
+  styles; three `DoneScreen` colour checks read back via
+  `Static.render().spans`).
 
 ### Design decisions
 
-- **Tied to the existing spinner/error toggle, not a third independent
-  state flag.** `_show_spinner()`/`_show_error()` were already the two
-  places that decided what the "second slot" under the banner shows;
-  making the input's visibility follow the same two calls kept this a
-  small, local change instead of introducing a parallel state machine
-  that could drift out of sync with the existing one.
-- **Disabled, not just hidden.** Caught by testing, not by reasoning
-  about it first: Textual auto-focuses the sole focusable widget on a
-  screen regardless of its `display` value. `display: none` alone left
-  the hidden input focused and able to accept keystrokes -- invisible,
-  but not actually inert.
+- **Extended the existing callback rather than adding a second one.**
+  `on_progress` was already the one hook `sync_playlists` offers a caller
+  driving a progress bar; adding `track`/`error` to it kept there being
+  exactly one thing to wire up, instead of a second parallel "verbose
+  events" channel that could drift out of step with the counts.
+- **Did not fabricate progress for the crate-write/record-add steps.**
+  Those still have no instrumentation at all (a pre-existing, separately
+  tracked gap -- see `known_gaps`); inventing synthetic log lines for
+  steps this project has no real per-item data for would have been
+  misleading verbosity, not real information.
+- **`rich.text.Text`, not markup, for anything embedding arbitrary
+  strings.** This surfaced as a real bug candidate while implementing the
+  log lines (a track path with a literal `[` would have broken a markup
+  string), not a hypothetical -- worth the small extra care everywhere
+  user-controlled or exception text meets a coloured line.
 
 ### Verification log
 
@@ -65,16 +82,20 @@ Files touched:
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 267 passed, 4 skipped (1 new) |
-| Direct `.display`/`.disabled`/`app.focused` inspection | Confirmed via a throwaway script: on mount, `display=False`, `disabled=True`, `app.focused is None`; after `_show_error(...)`, `display=True`, `disabled=False`, input focused; the placeholder text reads correctly in the error state |
-| Real terminal | **Not yet seen by the user.** Same as every other TUI change this session -- verified only via `Pilot`/direct widget inspection in this environment. |
+| `.venv/bin/pytest` | 273 passed, 4 skipped (6 new) |
+| Direct `RichLog.lines`/`Static.render()` inspection | Confirmed a green line's segment style resolves to `Color('green', ...)`, a red line's to `Color('red', ...)`, and `DoneScreen`'s rendered `Content` carries a `Span(..., style='green')` or `'red')` matching whether anything failed |
+| Real terminal | **Not yet seen by the user.** Same as every other TUI change this session -- verified only via `Pilot`/direct widget inspection here. |
 
 ## Next
 
-Ask the user to confirm the new sequencing feels right in a real terminal:
-plain spinner while it's still searching, no input in view at all, and the
-input only appearing (focused, ready to type) once a scan attempt actually
-fails. Also still outstanding from earlier tasks: real-hardware
-re-confirmation of TASK-210/211/212, the TASK-213/214 banner/spinner/
-colours, and the TASK-216/217 mount-detection changes on real macOS/Windows/
-Linux-desktop hardware.
+**A large new feature request came in and was deliberately deferred, not
+started** -- see [`docs/HANDOFF.md`](../HANDOFF.md)'s "Pending: Library
+screen redesign" section for the full spec, an open question about how
+metadata-column preferences should persist, and a suggested breakdown into
+several ordered sub-tasks. Read that before starting the next piece of
+work on this screen.
+
+Also still outstanding from earlier tasks: real-hardware re-confirmation
+of TASK-210/211/212, the TASK-213/214 banner/spinner/colours, and the
+TASK-216/217 mount-detection changes on real macOS/Windows/Linux-desktop
+hardware.

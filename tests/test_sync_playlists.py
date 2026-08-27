@@ -490,11 +490,45 @@ def test_on_progress_reports_each_analysis_track(tmp_path: Path) -> None:
     ]
     playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
     library = _library(mount, [playlist], {1: ["/Contents/a.wav", "/Contents/b.wav"]}, contents)
-    calls: list[tuple[int, int]] = []
+    calls: list[tuple[int, int, str, str | None]] = []
 
-    sync_playlists(library, [1], on_progress=lambda done, total: calls.append((done, total)))
+    sync_playlists(
+        library,
+        [1],
+        on_progress=lambda done, total, track, error: calls.append((done, total, track, error)),
+    )
 
-    assert calls == [(1, 2), (2, 2)]
+    assert calls == [
+        (1, 2, "/Contents/a.wav", None),
+        (2, 2, "/Contents/b.wav", None),
+    ]
+
+
+def test_on_progress_reports_the_failing_track_and_its_error(tmp_path: Path) -> None:
+    """A track whose analysis fails is reported with its own error message,
+    not just folded silently into the done/total counts."""
+    mount = _stick(tmp_path, indexed=["Contents/a.wav"])
+    _place_audio(mount, "Contents/a.wav")
+    dat = mount / "PIONEER" / "USBANLZ" / "a" / "ANLZ0000.DAT"
+    dat.parent.mkdir(parents=True, exist_ok=True)
+    dat.write_bytes(b"not a real ANLZ file")
+    contents = [
+        _content("/Contents/a.wav", analysis_data_file_path="/PIONEER/USBANLZ/a/ANLZ0000.DAT")
+    ]
+    playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
+    library = _library(mount, [playlist], {1: ["/Contents/a.wav"]}, contents)
+    calls: list[tuple[int, int, str, str | None]] = []
+
+    sync_playlists(
+        library,
+        [1],
+        on_progress=lambda done, total, track, error: calls.append((done, total, track, error)),
+    )
+
+    assert len(calls) == 1
+    done, total, track, error = calls[0]
+    assert (done, total, track) == (1, 1, "/Contents/a.wav")
+    assert error is not None
 
 
 def test_on_progress_is_not_called_when_nothing_has_analysis_data(tmp_path: Path) -> None:
@@ -502,8 +536,12 @@ def test_on_progress_is_not_called_when_nothing_has_analysis_data(tmp_path: Path
     mount = _stick(tmp_path, indexed=["Contents/a.mp3"])
     playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
     library = _library(mount, [playlist], {1: ["/Contents/a.mp3"]}, [_content("/Contents/a.mp3")])
-    calls: list[tuple[int, int]] = []
+    calls: list[tuple[int, int, str, str | None]] = []
 
-    sync_playlists(library, [1], on_progress=lambda done, total: calls.append((done, total)))
+    sync_playlists(
+        library,
+        [1],
+        on_progress=lambda done, total, track, error: calls.append((done, total, track, error)),
+    )
 
     assert calls == []

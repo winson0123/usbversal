@@ -10,11 +10,12 @@ from __future__ import annotations
 import time
 from collections.abc import Sequence
 
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container
 from textual.screen import Screen
-from textual.widgets import Footer, ProgressBar, Static
+from textual.widgets import Footer, ProgressBar, RichLog, Static
 
 from app.jobs.progress_rate import ProgressRateTracker, format_duration
 from app.services.library import UsbLibrary
@@ -22,6 +23,7 @@ from app.services.sync_service import SyncReport, sync_playlists
 
 _STATUS_ID = "sync-status"
 _BAR_ID = "sync-progress"
+_LOG_ID = "sync-log"
 _SUMMARY_ID = "done-summary"
 
 
@@ -43,6 +45,7 @@ class ProgressScreen(Screen):
         with Container():
             yield Static("Starting sync…", id=_STATUS_ID)
             yield ProgressBar(id=_BAR_ID, show_eta=False)
+            yield RichLog(id=_LOG_ID, max_lines=500, auto_scroll=True, wrap=True)
         yield Footer()
 
     def on_mount(self) -> None:
@@ -59,15 +62,16 @@ class ProgressScreen(Screen):
                 on_progress=self._report_progress,
             )
         except Exception as exc:  # reported on the Done screen, not raised
+            self.query_one(RichLog).write(Text(f"Sync failed: {exc}", style="red"))
             self.app.switch_screen(DoneScreen(error=str(exc)))
             return
         self.app.switch_screen(DoneScreen(report=report))
 
-    def _report_progress(self, done: int, total: int) -> None:
+    def _report_progress(self, done: int, total: int, track: str, error: str | None) -> None:
         """Called from the sync's worker thread; marshal back to the UI thread."""
-        self.app.call_from_thread(self._update_progress, done, total)
+        self.app.call_from_thread(self._update_progress, done, total, track, error)
 
-    def _update_progress(self, done: int, total: int) -> None:
+    def _update_progress(self, done: int, total: int, track: str, error: str | None) -> None:
         self.query_one(ProgressBar).update(total=total, progress=done)
         estimate = self._tracker.observe(current=done, total=total, at=time.monotonic())
         message = f"Writing analysis: {done}/{total}"
@@ -77,6 +81,12 @@ class ProgressScreen(Screen):
                 message += f", eta {format_duration(estimate.eta_seconds)}"
             message += ")"
         self.query_one(f"#{_STATUS_ID}", Static).update(message)
+
+        log = self.query_one(RichLog)
+        if error is None:
+            log.write(Text(f"[{done}/{total}] {track}", style="green"))
+        else:
+            log.write(Text(f"[{done}/{total}] {track}: {error}", style="red"))
 
 
 class DoneScreen(Screen):
@@ -101,9 +111,12 @@ class DoneScreen(Screen):
         yield Static(self._summary(), id=_SUMMARY_ID)
         yield Footer()
 
-    def _summary(self) -> str:
+    def _summary(self) -> Text:
         if self._error is not None:
-            return f"Sync failed: {self._error}"
+            # Text(), not markup -- self._error is an arbitrary exception
+            # message and could itself contain "[...]", which markup
+            # parsing would misread as a tag.
+            return Text(f"Sync failed: {self._error}", style="red")
         report = self._report
         assert report is not None
         lines = [
@@ -111,9 +124,11 @@ class DoneScreen(Screen):
             f"Grids: {report.grids_written}  Cues: {report.cues_written}  "
             f"Index rows: {report.index_rows_updated}",
         ]
+        style = "green"
         if report.analysis_errors:
             lines.append(f"{len(report.analysis_errors)} track(s) could not be analysed.")
-        return "\n".join(lines)
+            style = "red"
+        return Text("\n".join(lines), style=style)
 
     def action_return_to_library(self) -> None:
         self.app.pop_screen()

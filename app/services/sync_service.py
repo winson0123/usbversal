@@ -54,6 +54,12 @@ from app.services.track_records import (
 
 logger = structlog.get_logger(__name__)
 
+# Called once per track during the analysis pass, as
+# (tracks_done, total, track_path, error_or_none) -- error_or_none is the
+# failure message when that specific track's analysis could not be written,
+# and None when it was (or when it simply had nothing to write).
+SyncProgressCallback = Callable[[int, int, str, str | None], None]
+
 
 def _crate_contents(serato_root: Path | None) -> dict[str, set[str]]:
     """
@@ -424,7 +430,7 @@ def _sync_analysis(
     paths: set[str],
     lookups: RekordboxLookups,
     write_context: WriteContext,
-    on_progress: Callable[[int, int], None] | None = None,
+    on_progress: SyncProgressCallback | None = None,
 ) -> AnalysisSyncResult:
     """
     Write beatgrids and hot cues from Rekordbox ANLZ data into Serato tags.
@@ -442,9 +448,11 @@ def _sync_analysis(
             and carry Rekordbox analysis data.
         lookups: Id-to-name tables, for key lookups.
         write_context: Validated backup context (required before any write).
-        on_progress: Optional callback invoked as ``(tracks_done, total)`` after
-            each track, whether or not it produced a write -- this is the slow,
-            per-track part of a sync, so it is what a progress bar should track.
+        on_progress: Optional callback invoked as ``(tracks_done, total, track,
+            error)`` after each track, whether or not it produced a write --
+            this is the slow, per-track part of a sync, so it is what a
+            progress bar should track. ``error`` is that track's own failure
+            message, or None when it wrote cleanly (or had nothing to write).
 
     Returns:
         Counts of what was written, and one message per track that failed.
@@ -457,6 +465,7 @@ def _sync_analysis(
 
     ordered = sorted(paths)
     for done, raw in enumerate(ordered, start=1):
+        track_error: str | None = None
         try:
             content = contents.get(raw)
             if content is None:
@@ -473,6 +482,7 @@ def _sync_analysis(
                     continue
                 _write_track_tags(audio_path, beats, cues)
             except (AnlzError, TagFormatError, OSError) as exc:
+                track_error = str(exc)
                 errors.append(f"{raw}: {exc}")
                 continue
 
@@ -485,7 +495,7 @@ def _sync_analysis(
                 cues_written += 1
         finally:
             if on_progress is not None:
-                on_progress(done, len(ordered))
+                on_progress(done, len(ordered), raw, track_error)
 
     rows_updated = 0
     if updates and index_path is not None:
@@ -512,7 +522,7 @@ def sync_playlists(
     *,
     dry_run: bool = False,
     backup_root: str | Path | None = None,
-    on_progress: Callable[[int, int], None] | None = None,
+    on_progress: SyncProgressCallback | None = None,
 ) -> SyncReport:
     """
     Mirror the selected Rekordbox playlists into Serato crates.
@@ -529,11 +539,13 @@ def sync_playlists(
         playlist_ids: Rekordbox playlist ids to sync, in selection order.
         dry_run: Plan only; take no backup and write nothing.
         backup_root: Optional backups parent directory.
-        on_progress: Optional callback invoked as ``(tracks_done, total)``
-            while writing analysis -- the slow, per-track part of a sync, so
-            it is what a caller driving a progress bar should watch. Not
-            called for a dry run, and not called at all when there is
-            nothing with Rekordbox analysis data to write.
+        on_progress: Optional callback invoked as ``(tracks_done, total,
+            track, error)`` while writing analysis -- the slow, per-track
+            part of a sync, so it is what a caller driving a progress bar
+            should watch. ``error`` carries that one track's own failure
+            message when it has one, otherwise None. Not called for a dry
+            run, and not called at all when there is nothing with Rekordbox
+            analysis data to write.
 
     Returns:
         SyncReport describing what was written.

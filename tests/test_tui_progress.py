@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 from textual.app import App
 from textual.screen import Screen
-from textual.widgets import ProgressBar, Static
+from textual.widgets import ProgressBar, RichLog, Static
 
 from app.services.sync_service import SyncReport
 from app.tui.app import RekordboxThreadMixin
@@ -30,15 +30,21 @@ def _fake_report(**overrides) -> SyncReport:
     return SyncReport(**fields)
 
 
-def _fake_sync(*, calls=((1, 2), (2, 2)), report=None, error=None, delay_s=0.0):
+def _fake_sync(
+    *,
+    calls=((1, 2, "Contents/a.mp3", None), (2, 2, "Contents/b.mp3", None)),
+    report=None,
+    error=None,
+    delay_s=0.0,
+):
     """Build a stand-in for sync_playlists that drives on_progress synchronously."""
 
     def _sync(library, playlist_ids, *, dry_run=False, backup_root=None, on_progress=None):
         if on_progress is not None:
-            for done, total in calls:
+            for done, total, track, track_error in calls:
                 if delay_s:
                     time.sleep(delay_s)
-                on_progress(done, total)
+                on_progress(done, total, track, track_error)
         if error is not None:
             raise error
         return report if report is not None else _fake_report()
@@ -177,11 +183,112 @@ async def test_progress_bar_reflects_the_last_sample() -> None:
             screen = app.screen
             assert isinstance(screen, ProgressScreen)
 
-            screen._update_progress(1, 4)
-            screen._update_progress(3, 4)
+            screen._update_progress(1, 4, "Contents/a.mp3", None)
+            screen._update_progress(3, 4, "Contents/b.mp3", None)
 
             bar = screen.query_one(ProgressBar)
             assert bar.total == 4
             assert bar.progress == 3
+
+
+def _log_line_styles(log: RichLog, index: int) -> tuple[str, list]:
+    """Read back one written RichLog line as (plain text, segment styles)."""
+    strip = log.lines[index]
+    text = "".join(segment.text for segment in strip)
+    styles = [segment.style for segment in strip]
+    return text, styles
+
+
+@pytest.mark.asyncio
+async def test_progress_log_shows_a_green_line_per_successful_track() -> None:
+    """Each track that analyses cleanly gets its own green log line -- the
+    user asked to actually see what's happening, not just a bare counter."""
+
+    def _slow_sync(library, playlist_ids, *, dry_run=False, backup_root=None, on_progress=None):
+        time.sleep(1.0)
+        return _fake_report()
+
+    with patch("app.tui.screens.progress.sync_playlists", _slow_sync):
+        app = _Harness(library=object(), playlist_ids=[1])
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = app.screen
+            screen._update_progress(1, 2, "Contents/a.mp3", None)
+            await pilot.pause()
+
+            log = screen.query_one(RichLog)
+            text, styles = _log_line_styles(log, 0)
+            assert "Contents/a.mp3" in text
+            assert any(style is not None and style.color.name == "green" for style in styles)
+
+
+@pytest.mark.asyncio
+async def test_progress_log_shows_a_red_line_for_a_failed_track() -> None:
+    """A track whose analysis failed gets a red line naming the error,
+    instead of silently vanishing into the done/total counter."""
+
+    def _slow_sync(library, playlist_ids, *, dry_run=False, backup_root=None, on_progress=None):
+        time.sleep(1.0)
+        return _fake_report()
+
+    with patch("app.tui.screens.progress.sync_playlists", _slow_sync):
+        app = _Harness(library=object(), playlist_ids=[1])
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = app.screen
+            screen._update_progress(1, 2, "Contents/a.mp3", "bad beatgrid")
+            await pilot.pause()
+
+            log = screen.query_one(RichLog)
+            text, styles = _log_line_styles(log, 0)
+            assert "Contents/a.mp3" in text
+            assert "bad beatgrid" in text
+            assert any(style is not None and style.color.name == "red" for style in styles)
+
+
+@pytest.mark.asyncio
+async def test_done_summary_is_green_on_a_clean_sync() -> None:
+    """A sync with no analysis errors reads as unambiguously good news."""
+    with patch("app.tui.screens.progress.sync_playlists", _fake_sync(report=_fake_report())):
+        app = _Harness(library=object(), playlist_ids=[1])
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+
+            content = app.screen.query_one("#done-summary", Static).render()
+            assert any(span.style == "green" for span in content.spans)
+
+
+@pytest.mark.asyncio
+async def test_done_summary_is_red_when_analysis_errors_present() -> None:
+    """A partially-failed sync reads as a problem, not routine success."""
+    report = _fake_report(analysis_errors=("Contents/a.mp3: bad grid",))
+    with patch("app.tui.screens.progress.sync_playlists", _fake_sync(report=report)):
+        app = _Harness(library=object(), playlist_ids=[1])
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+
+            content = app.screen.query_one("#done-summary", Static).render()
+            assert any(span.style == "red" for span in content.spans)
+
+
+@pytest.mark.asyncio
+async def test_done_summary_is_red_on_a_hard_failure() -> None:
+    """A sync that raised outright is exactly as much of a problem."""
+    with patch(
+        "app.tui.screens.progress.sync_playlists",
+        _fake_sync(error=RuntimeError("stick unplugged")),
+    ):
+        app = _Harness(library=object(), playlist_ids=[1])
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+
+            content = app.screen.query_one("#done-summary", Static).render()
+            assert any(span.style == "red" for span in content.spans)
 
             await app.workers.wait_for_complete()

@@ -338,6 +338,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-219 — Progress screen: verbose per-track log, green/red colour instead of theme
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | User: "need verbose, i dont know what is happening on progress bar. green verbose, red on error" -- the single overwriting status line didn't say which track was being processed or whether any had failed |
+| Verification | ruff ✓ ruff format ✓ pytest 273 passed / 4 skipped (6 new: the failing-track case for `on_progress`'s new signature, two `RichLog` colour/content tests, three `DoneScreen` colour tests) |
+
+---
+
 ## Template (for future entries)
 
 ```markdown
