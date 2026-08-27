@@ -8,7 +8,6 @@ no ``LibraryDiscovery`` walk runs on this screen.
 from __future__ import annotations
 
 import asyncio
-import os
 import time
 from pathlib import Path
 
@@ -31,6 +30,7 @@ from app.services.library import (
 from app.tui.screens.library import LibraryScreen
 
 _NONE_FOUND = "Did not detect a valid DJ USB"
+_RETRY_HINT = "Press enter to retry auto-scan."
 _SCANNING = "Automatically detecting for a DJ USB…"
 _BANNER_ID = "banner"
 _SPINNER_ID = "spinner"
@@ -80,14 +80,18 @@ class _Spinner(Static):
         self.update(_scan_bar_frame(self._frame))
 
 
-def _complete_path(partial: str) -> str | None:
+def _match_candidates(partial: str) -> list[str]:
     """
-    Shell-style Tab completion for a filesystem path: complete to the
-    longest common prefix among matching entries, or nothing if that
-    prefix is no longer than what's already typed.
+    List every directory matching a partial path, for Tab-cycling.
+
+    Args:
+        partial: The path typed so far.
 
     Returns:
-        The completed path, or None if there is nothing to add.
+        Full path candidates, each with a trailing "/", sorted by name --
+        or an empty list if the parent directory can't be listed or
+        nothing matches. Directories only: the target is always a mount
+        root, and a file can never be one.
     """
     path = Path(partial)
     if partial == "" or partial.endswith("/"):
@@ -96,26 +100,26 @@ def _complete_path(partial: str) -> str | None:
         directory, prefix = path.parent, path.name
 
     try:
-        matches = sorted(
-            entry.name for entry in directory.iterdir() if entry.name.startswith(prefix)
-        )
+        entries = sorted(directory.iterdir(), key=lambda entry: entry.name)
     except OSError:
-        return None
-    if not matches:
-        return None
+        return []
 
-    common = os.path.commonprefix(matches)
-    if common == prefix and len(matches) != 1:
-        return None
-
-    completed = directory / common if str(directory) != "." else Path(common)
-    if len(matches) == 1 and (directory / matches[0]).is_dir():
-        return f"{completed}/"
-    return str(completed)
+    candidates = []
+    for entry in entries:
+        if entry.name.startswith(prefix) and entry.is_dir():
+            full = directory / entry.name if str(directory) != "." else Path(entry.name)
+            candidates.append(f"{full}/")
+    return candidates
 
 
 class _PathInput(Input):
-    """Path entry field with shell-style Tab completion.
+    """Path entry field with Tab-cycling through matching directories.
+
+    Each Tab press advances to the next matching directory, wrapping back
+    to the first after the last -- rather than completing to a common
+    prefix, which still leaves an ambiguous path needing to be finished by
+    hand. Retyping (the value no longer matching where the cycle left it)
+    starts a fresh cycle from whatever's typed now.
 
     A plain (non-priority) binding is enough to win over Screen's own
     default ``tab`` -> ``app.focus_next`` binding: Textual checks a
@@ -125,11 +129,28 @@ class _PathInput(Input):
 
     BINDINGS = [Binding("tab", "complete", "Complete path", show=False)]
 
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)
+        self._cycle: tuple[list[str], int] | None = None
+
     def action_complete(self) -> None:
-        completed = _complete_path(self.value)
-        if completed is not None:
-            self.value = completed
-            self.cursor_position = len(completed)
+        if self._cycle is not None:
+            matches, index = self._cycle
+            if self.value == matches[index]:
+                index = (index + 1) % len(matches)
+                self._set_value(matches[index])
+                self._cycle = (matches, index)
+                return
+
+        matches = _match_candidates(self.value)
+        if not matches:
+            return
+        self._set_value(matches[0])
+        self._cycle = (matches, 0)
+
+    def _set_value(self, value: str) -> None:
+        self.value = value
+        self.cursor_position = len(value)
 
 
 class HomeScreen(Screen):
@@ -187,7 +208,7 @@ class HomeScreen(Screen):
                 yield Static("", id=_STATUS_ID)
             with Center():
                 yield _PathInput(
-                    placeholder="Press enter to retry auto-scan, or enter an absolute path",
+                    placeholder="or enter an absolute path…",
                     id=_INPUT_ID,
                 )
 
@@ -272,8 +293,11 @@ class HomeScreen(Screen):
         status.display = True
         # Text(), not markup -- message can embed an arbitrary exception
         # string, which could itself contain "[...]" that markup parsing
-        # would misread as a tag.
-        status.update(Text(message, style="red"))
+        # would misread as a tag. The retry hint lives here, not in the
+        # input's placeholder: the status line has the whole screen's
+        # width to work with, while the input box has a fixed, narrow
+        # width and was truncating it.
+        status.update(Text(f"{message} {_RETRY_HINT}", style="red"))
         self._reveal_input()
 
     def _hide_input(self) -> None:

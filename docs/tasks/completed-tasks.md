@@ -398,6 +398,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-225 — Home screen: fix truncated placeholder, real Tab-cycling through directories
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | User: the input's placeholder text was visibly truncated ("... or enter (absolute path)."), and Tab only ever completed to a common prefix rather than actually stepping through the available directories |
+| Verification | ruff ✓ ruff format ✓ pytest 277 passed / 4 skipped (`_complete_path`'s 3 tests replaced with 3 for `_match_candidates`; the Tab pilot test replaced with a cycling one, plus a new one confirming a hand-edit mid-cycle starts fresh) |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

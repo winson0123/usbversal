@@ -12,7 +12,7 @@ from app.core.domain import MountPoint
 from app.storage.mount_watch import MountWatcher
 from app.storage.mounts import MountScanner
 from app.tui.app import UsbversalApp
-from app.tui.screens.home import HomeScreen, _complete_path, _PathInput
+from app.tui.screens.home import HomeScreen, _match_candidates, _PathInput
 
 
 class _FakeScanner(MountScanner):
@@ -245,29 +245,30 @@ async def test_a_rekordbox_only_stick_gets_a_serato_library_bootstrapped(tmp_pat
     assert (tmp_path / "_Serato_" / "Subcrates").is_dir()
 
 
-def test_complete_path_fills_the_common_prefix(tmp_path: Path) -> None:
-    """Ambiguous matches complete only as far as they agree, shell-style."""
-    (tmp_path / "usbstick1").mkdir()
+def test_match_candidates_lists_every_matching_directory(tmp_path: Path) -> None:
+    """All directories sharing the prefix come back, sorted, not just the
+    one nearest the front -- this is what Tab cycles through."""
     (tmp_path / "usbstick2").mkdir()
-
-    assert _complete_path(f"{tmp_path}/us") == f"{tmp_path}/usbstick"
-
-
-def test_complete_path_adds_a_trailing_slash_for_a_unique_directory(tmp_path: Path) -> None:
-    """A single unmistakable match completes all the way, plus a slash."""
-    (tmp_path / "onlyone").mkdir()
-
-    assert _complete_path(f"{tmp_path}/only") == f"{tmp_path}/onlyone/"
-
-
-def test_complete_path_returns_none_when_there_is_nothing_to_add(tmp_path: Path) -> None:
-    """No matches, or a prefix that's already maximally completed among
-    several still-ambiguous matches, is a no-op."""
     (tmp_path / "usbstick1").mkdir()
-    (tmp_path / "usbstick2").mkdir()
 
-    assert _complete_path(f"{tmp_path}/nope") is None
-    assert _complete_path(f"{tmp_path}/usbstick") is None
+    matches = _match_candidates(f"{tmp_path}/us")
+
+    assert matches == [f"{tmp_path}/usbstick1/", f"{tmp_path}/usbstick2/"]
+
+
+def test_match_candidates_excludes_files(tmp_path: Path) -> None:
+    """A file can never be a mount root, so it's never offered."""
+    (tmp_path / "usbstick").mkdir()
+    (tmp_path / "usbstick.txt").write_text("not a directory")
+
+    assert _match_candidates(f"{tmp_path}/usbstick") == [f"{tmp_path}/usbstick/"]
+
+
+def test_match_candidates_is_empty_when_nothing_matches(tmp_path: Path) -> None:
+    """No matching directory, or an unreadable parent, is an empty list,
+    not an error."""
+    assert _match_candidates(f"{tmp_path}/nope") == []
+    assert _match_candidates(f"{tmp_path}/nope/deeper") == []
 
 
 def _force_error_state(home: HomeScreen) -> None:
@@ -297,9 +298,12 @@ async def test_input_is_hidden_and_unfocused_while_still_searching() -> None:
 
 
 @pytest.mark.asyncio
-async def test_tab_completes_the_path_input(tmp_path: Path) -> None:
-    """Tab on the path field completes it, rather than moving focus away."""
-    (tmp_path / "usbstick").mkdir()
+async def test_tab_cycles_through_matching_directories(tmp_path: Path) -> None:
+    """Tab on the path field steps through every matching directory one at
+    a time, wrapping back to the first -- not moving focus away, and not
+    just completing to a common prefix that's still ambiguous."""
+    (tmp_path / "alpha").mkdir()
+    (tmp_path / "beta").mkdir()
     watcher = MountWatcher(_FakeScanner([]))
     app = UsbversalApp(watcher)
     async with app.run_test() as pilot:
@@ -309,14 +313,53 @@ async def test_tab_completes_the_path_input(tmp_path: Path) -> None:
         await pilot.pause()
 
         path_input = home.query_one(_PathInput)
-        path_input.value = f"{tmp_path}/usb"
+        path_input.value = f"{tmp_path}/"
+        path_input.cursor_position = len(path_input.value)
+
+        await pilot.press("tab")
+        await pilot.pause()
+        assert path_input.value == f"{tmp_path}/alpha/"
+        assert app.focused is path_input
+
+        await pilot.press("tab")
+        await pilot.pause()
+        assert path_input.value == f"{tmp_path}/beta/"
+
+        await pilot.press("tab")
+        await pilot.pause()
+        assert path_input.value == f"{tmp_path}/alpha/"
+
+
+@pytest.mark.asyncio
+async def test_typing_after_a_tab_cycle_starts_a_fresh_one(tmp_path: Path) -> None:
+    """Editing the value mid-cycle abandons the old candidate list rather
+    than continuing to step through matches for the path before it was
+    changed by hand."""
+    (tmp_path / "alpha").mkdir()
+    (tmp_path / "alphabet").mkdir()
+    watcher = MountWatcher(_FakeScanner([]))
+    app = UsbversalApp(watcher)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        home = app.screen
+        _force_error_state(home)
+        await pilot.pause()
+
+        path_input = home.query_one(_PathInput)
+        path_input.value = f"{tmp_path}/"
+        path_input.cursor_position = len(path_input.value)
+        await pilot.press("tab")
+        await pilot.pause()
+        assert path_input.value == f"{tmp_path}/alpha/"
+
+        # Simulate hand-editing: change the value without going through Tab.
+        path_input.value = f"{tmp_path}/alphabet"
         path_input.cursor_position = len(path_input.value)
 
         await pilot.press("tab")
         await pilot.pause()
 
-        assert path_input.value == f"{tmp_path}/usbstick/"
-        assert app.focused is path_input
+        assert path_input.value == f"{tmp_path}/alphabet/"
 
 
 @pytest.mark.asyncio

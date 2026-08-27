@@ -352,6 +352,11 @@
       "id": "TASK-224",
       "title": "Home screen: retry actually resumes scanning instead of re-printing the same error",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-225",
+      "title": "Home screen: fix truncated placeholder, real Tab-cycling through directories",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -760,6 +765,12 @@
     {
       "id": "TASK-224",
       "title": "Home screen: retry actually resumes scanning instead of re-printing the same error",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-225",
+      "title": "Home screen: fix truncated placeholder, real Tab-cycling through directories",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

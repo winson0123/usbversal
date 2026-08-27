@@ -10,41 +10,41 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-224` |
-| Objective | User: "pressing enter doesnt restart auto scanning" -- found immediately after TASK-223 (below) shortened the scan timeout enough to actually try retrying by hand |
+| Task ID | `TASK-225` |
+| Objective | User: the placeholder text was truncated ("... or enter (absolute path)."), and Tab only completed to a common prefix rather than letting them step through the available directories |
 | Completed | 2026-08-27 |
 
-### Scope (this pair of small, sequential fixes)
+### Scope
 
-**TASK-223** — `app/tui/screens/home.py`: `HomeScreen.SCAN_TIMEOUT_S`
-`15.0` -> `3.0`, per "can you change to 3 seconds? don't need that long."
-No test changes needed -- both timeout tests already read
-`home.SCAN_TIMEOUT_S` off the instance.
+Files touched:
 
-**TASK-224** — `on_input_submitted`'s empty-input branch now resets
-`self._seen_invalid = False` and `self._searching_since =
-time.monotonic()` before calling `poll_mounts()`. Root cause: once
-`_seen_invalid` is set it never resets anywhere else (that's what stops
-hopeful auto-checking after a real rejection) -- so a retry with nothing
-new to find fell straight back into `_show_error(_NONE_FOUND)`,
-re-printing the identical message with no visible change on screen.
-That's indistinguishable from Enter having done nothing at all, which is
-exactly what the user reported. `tests/test_tui_home.py` gained
-`test_enter_on_empty_input_visibly_resumes_scanning`, asserting the
-spinner reappears and `_seen_invalid` is actually `False` right after a
-retry.
-
-### Design decisions
-
-- **Reset happens only on the explicit user retry, not on the recurring
-  1s poll timer.** The timer must keep *confirming* the same failed
-  state without flickering the spinner back on every tick once genuinely
-  given up -- only a deliberate action (pressing Enter on an empty input)
-  should visibly restart the search.
-- **Committed together.** TASK-224 is a bug the shorter TASK-223 timeout
-  made practical to notice and fix in the same sitting; both are tiny,
-  sequential, and about the same retry flow, so splitting them into two
-  commits would have added ceremony without adding clarity.
+- `app/tui/screens/home.py`:
+  - **Truncation fix.** New `_RETRY_HINT = "Press enter to retry
+    auto-scan."` constant. `_show_error(message)` now renders
+    `f"{message} {_RETRY_HINT}"` -- the retry hint moved out of the
+    input's placeholder (which had a fixed `width: 46` and was
+    truncating it) and into the status line, which spans the whole
+    screen width. The placeholder shrank to just "or enter an absolute
+    path…".
+  - **Tab-cycling.** `_complete_path()` (common-prefix completion)
+    replaced by `_match_candidates(partial) -> list[str]`, which lists
+    every matching *directory* (not files -- a file can never be a
+    mount root, so they're excluded now rather than only incidentally
+    handled by the old trailing-slash check). `_PathInput` gained
+    `self._cycle: tuple[list[str], int] | None`: each Tab press advances
+    to the next candidate, wrapping back to the first after the last.
+    Typing something that doesn't match wherever the cycle last left
+    the value starts a fresh cycle from the new text -- detected simply
+    by comparing `self.value` against the candidate the previous Tab
+    press set (`if self.value == matches[index]`), no separate
+    "did the user type since" tracking needed.
+- `tests/test_tui_home.py`:
+  - `_complete_path`'s three unit tests replaced with three for
+    `_match_candidates` (lists all matches, excludes files, empty on no
+    match/bad parent).
+  - The Tab pilot test replaced with `test_tab_cycles_through_matching_directories`
+    (steps through two candidates and confirms the wrap), plus a new
+    `test_typing_after_a_tab_cycle_starts_a_fresh_one`.
 
 ### Verification log
 
@@ -52,14 +52,15 @@ retry.
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 276 passed, 4 skipped (1 new) |
-| Direct state inspection | Confirmed: after the timeout fires (spinner hidden, input shown), pressing Enter flips it back (spinner shown, input hidden, `_seen_invalid` false) instead of leaving the red message and input untouched |
+| `.venv/bin/pytest` | 277 passed, 4 skipped |
+| Direct render inspection | Confirmed the status line now reads `"Did not detect a valid DJ USB Press enter to retry auto-scan."` and the placeholder reads `"or enter an absolute path…"` |
 | Real terminal | **Not yet seen by the user.** Same as every other TUI change this session. |
 
 ## Next
 
-Ask the user to confirm retry now visibly restarts scanning (spinner
-resumes) rather than silently re-showing the same message.
+Ask the user to confirm: the placeholder/error text no longer looks cut
+off, and pressing Tab repeatedly now visibly steps through each matching
+directory one at a time rather than only filling a partial common prefix.
 
 **The large pending Library screen redesign is still not started** -- see
 [`docs/HANDOFF.md`](../HANDOFF.md)'s "Pending: Library screen redesign"
