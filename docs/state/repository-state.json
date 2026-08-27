@@ -71,6 +71,7 @@
     "sync_playlists_reachable_from_tui": true,
     "sync_playlists_progress_callback": true,
     "nested_playlist_folder_crate_naming": true,
+    "nested_crate_naming_confirmed_in_serato": true,
     "serato_library_bootstrap": true,
     "tui_bootstraps_serato_on_open": true,
     "backup_id_collision_safe": true,
@@ -187,8 +188,7 @@
     "MP3 GEOB write/read is unit-tested for ID3v2.3 and v2.4; still not confirmed live in Serato. 36/40 sampled USB MP3s are v2.3",
     "variable-tempo beatgrids encoded but unvalidated in Serato (33/500 tracks)",
     "79 files carry the broken +120s beatgrid from the abandoned attempt; repair not run",
-    "correct_index_bpm() exists but has not been run against the real stick's ~70 known-wrong rows yet",
-    "nested playlist folder crate naming (Parent%%Child) is implemented but its convention is still unverified against real Serato",
+    "correct_index_bpm() exists but has not been run against the real stick; a 2026-08-27 dry-run reported 211 rows that would change (79 half-tempo) of 794 candidates. NOKIA index rows already match first-beat tempo.",
     "the whole TUI test suite mocks/fakes the rekordbox adapter, so it cannot catch pyo3-level issues like the thread-affinity crash TASK-209 fixed -- that class of bug is only found by running against a real stick. TASK-209's fix is confirmed working on real hardware (user ran a real sync end to end after it); TASK-210, TASK-211, and TASK-212's fixes (refresh-on-resume, synced/total counts, true column alignment, the collapsible \"All playlists\" node, and the exit-time drop-on-wrong-thread crash) are not yet re-confirmed there -- verified in this environment only via Tree.render_line() output and Pilot tests, both against synthetic fixtures/fakes, never a real PyOneLibrary.",
     "TASK-213's Home screen banner/spinner/error layout was verified via direct widget.render_line() inspection in this environment (region/x-position checks proving each element is independently centered) but not yet seen by the user in a real terminal.",
     "TASK-217's MacVolumesScanner (real deployment target: /Volumes on macOS) and WindowsMountScanner are both verified only against monkeypatched directory trees in this environment -- neither has run on real macOS or Windows hardware. TASK-217 also removed the WSL-specific /mnt auto-scan (LinuxMntScanner) since real deployment is Windows/Linux/macOS, not WSL; this project's own dev/test sandbox now reaches its /mnt/usb test stick via the USBVERSAL_MOUNT env var override instead."

@@ -450,6 +450,11 @@
       "id": "TASK-244",
       "title": "Drop TASK-090; /mnt/usb out of operator docs",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-245",
+      "title": "Confirm Parent%%Child crate naming in Serato",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -978,6 +983,12 @@
     {
       "id": "TASK-244",
       "title": "Drop TASK-090; /mnt/usb out of operator docs",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-245",
+      "title": "Confirm Parent%%Child crate naming in Serato",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

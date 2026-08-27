@@ -598,6 +598,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-245 — Confirm `Parent%%Child` crate naming in Serato
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | `Gigs → Safety Day` sync shows as a parent-child crate; no empty parent file required |
+| Verification | ruff ✓ ruff format ✓ pytest; user confirmation in Serato |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

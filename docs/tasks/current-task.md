@@ -10,16 +10,15 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-244` |
-| Objective | Drop TASK-090; take `/mnt/usb` out of operator docs |
+| Task ID | `TASK-245` |
+| Objective | Confirm `Parent%%Child` crate naming in Serato |
 | Completed | 2026-08-27 |
 
 ### Scope
 
-- `TASK-090` removed from `pending_tasks`; marked dropped in the backlog.
-- Operator docs teach auto-detect (`/media/$USER`, `/Volumes`, drive letters).
-  `USBVERSAL_MOUNT` stays as a one-line WSL escape hatch.
-- `USBVERSAL_TEST_MOUNT` has no hardcoded default.
+- User synced Rekordbox `Gigs → Safety Day`; Serato showed it under Gigs.
+- No empty parent crate file is required.
+- Schema notes, adapter docs, and `crate_name_for` docstring marked confirmed.
 
 ### Verification log
 
@@ -28,7 +27,8 @@
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
 | `.venv/bin/pytest` | 276 passed, 4 skipped |
+| Serato UI | user: parent-child crate visible |
 
 ## Next
 
-Library two-pane redesign (see [docs/HANDOFF.md](../HANDOFF.md)).
+`correct_index_bpm` live write (if approved), variable-tempo deck check, then Library two-pane redesign.

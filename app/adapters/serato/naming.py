@@ -31,10 +31,9 @@ def crate_name_for(playlist: Playlist, by_id: dict[int, Playlist]) -> str:
     Serato's crate list is flat, so a nested Rekordbox folder is encoded into
     the filename: each ancestor folder's sanitized name, then the playlist's
     own, joined with "%%" -- "Techno / Peak Time" becomes
-    "Techno%%Peak Time.crate". This convention is documented in
-    docs/schemas/serato-schema-notes.md as **assumed, not verified against
-    real Serato** -- there was no nested-folder playlist in the stick used to
-    validate the rest of the write path.
+    "Techno%%Peak Time.crate". Confirmed in Serato (TASK-245): a synced
+    Rekordbox ``Gigs / Safety Day`` playlist appears as a child of Gigs. No
+    empty parent crate file is required.
 
     Sync state and the crate writer must agree on this mapping, so both call
     here rather than deriving names independently.

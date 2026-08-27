@@ -22,7 +22,7 @@ fixtures in [`tests/fixtures/serato/`](../../tests/fixtures/serato/).
 | `Serato Markers2` `CUE` layout | verified |
 | `Serato BeatGrid` / `Autotags` layout | verified format; no reference writer |
 | Path convention (drive-relative, no leading slash) | verified |
-| `%%` nested-crate naming | assumed, not exercised |
+| `%%` nested-crate naming | confirmed in Serato (`Gigs%%Safety Day`, 2026-08-27) |
 | MP3 ID3 container path | **untested** — fixtures are WAV |
 
 Vendor formats still change without notice; treat versions defensively.
@@ -68,7 +68,7 @@ See [../schemas/serato-schema-notes.md](../schemas/serato-schema-notes.md) and [
 | Back up `neworder.pref` with the rest of `_Serato_` | **gap** | TASK-071 |
 | `database V2` append `otrk` | implemented | TASK-112 |
 | `neworder.pref` merge / write | planned | TASK-074 |
-| `Parent%%Child` nested crate naming | planned | TASK-075 |
+| `Parent%%Child` nested crate naming | confirmed in Serato | TASK-075 / TASK-245 |
 | Bootstrap `_Serato_` on a rekordbox-only stick | planned | TASK-076 |
 | `Serato Markers2` hot cues | planned | TASK-082 |
 | `Serato BeatGrid` / `Autotags` | planned | TASK-083 |
