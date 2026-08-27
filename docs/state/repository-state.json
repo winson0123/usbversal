@@ -109,6 +109,7 @@
     "serato_beatgrid_write": true,
     "audio_tag_write_wav": true,
     "audio_tag_write_mp3": true,
+    "audio_tag_write_flac": true,
     "audio_tag_write_verified": true
   },
   "packaging": {
@@ -123,7 +124,7 @@
     "ruff_format": "pass",
     "pytest": "pass",
     "last_run": "2026-08-27T00:00:00Z",
-    "tests_passed": 271,
+    "tests_passed": 276,
     "tests_skipped": 4,
     "tests_failed": 0,
     "note": "run with no stick mounted and no dist/usbversal built; the 4 skips are 2 integration tests gated on USBVERSAL_TEST_MOUNT, the opt-in full PyInstaller build (USBVERSAL_PACKAGING_BUILD=1), and the binary-help smoke test that needs a prior ./scripts/build-release.sh -- a real build was run and verified during TASK-206, then cleaned up"

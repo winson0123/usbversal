@@ -10,13 +10,14 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-241` |
-| Objective | Confirm ID3v2.4 MP3 GEOB write/read; keep the v2.3 size branch honest |
+| Task ID | `TASK-242` |
+| Objective | Read and write Serato BeatGrid / Markers2 on FLAC via Vorbis comments |
 | Completed | 2026-08-27 |
 
 ### Scope
 
-- Added `tests/test_mp3_tags.py`: v2.4 synchsafe and v2.3 raw-size MP3 round-trips for BeatGrid and Markers2; audio after the tag unchanged.
+- FLAC path in `tags.py`: `SERATO_BEATGRID` / `SERATO_MARKERS_V2`, base64 wrap, STREAMINFO + audio unchanged.
+- Tests: round-trip, foreign comment, audio hash, named removal.
 
 ### Verification log
 
@@ -24,7 +25,7 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 271 passed, 4 skipped |
+| `.venv/bin/pytest` | 276 passed, 4 skipped |
 
 ## Next
 

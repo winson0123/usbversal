@@ -568,6 +568,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-242 — FLAC Vorbis-comment Serato tags
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | Same BeatGrid / Markers2 payloads on FLAC; STREAMINFO and audio unchanged |
+| Verification | ruff ✓ ruff format ✓ pytest 276 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

@@ -94,7 +94,7 @@ plus per-file backup required.** Sequenced strictly after M8.
 | ~~`TASK-081`~~ | ~~Rekordbox → Serato cue colour table~~ | Dropped — Rekordbox stores RGB in the ANLZ entry, so no table is needed |
 | ~~`TASK-082`~~ | ~~`Serato Markers2` GEOB writer (hot cues)~~ | Done — TASK-115, byte-exact against the fixture pair |
 | ~~`TASK-083`~~ | ~~`Serato BeatGrid` + `Autotags` GEOB writer~~ | Done — TASK-117/119; `Autotags` deliberately not written |
-| `TASK-084` | Container tag I/O — **MP3 only; WAV done** | **MP3 is untested and is the one that matters** (a rekordbox USB is all MP3). WAV needs RIFF `id3 ` chunk rewrite + RIFF size fixup; fixtures cover WAV only. Must preserve GEOB frames it does not own. FLAC/MP4 out of scope. |
+| ~~`TASK-084`~~ | ~~Container tag I/O — MP3 / WAV / FLAC~~ | Done — WAV fixtures, ID3v2.3/v2.4 MP3 unit tests (TASK-241), FLAC Vorbis comments (TASK-242). MP4 out of scope. Live Serato confirmation still outstanding. |
 | `TASK-085` | `sync-analysis` CLI (re-introduce) | Backup-gated, idempotent, must not clobber existing Serato analysis on partially analyzed libraries. Confirm with the user before writing. |
 
 ## M10 — Deferred
@@ -171,6 +171,7 @@ and none of them exist yet.
 | ~~`TASK-239`~~ | ~~Commit the leftover test trim~~ | Done — overlapping Home searching / Enter-retry / count-label tests folded; unique coverage (mid-timeout, stop-polling, Home bootstrap, `e` on a leaf, custom env var) kept. |
 | ~~`TASK-240`~~ | ~~Remove the CLI~~ | Done — `app/cli/` and CLI-only tests gone. `usbversal` / `python -m app.tui` launch the TUI. |
 | ~~`TASK-241`~~ | ~~Confirm ID3v2.3 and v2.4 MP3 GEOB writes~~ | Done — `tests/test_mp3_tags.py` round-trips BeatGrid/Markers2 on hand-built MP3s; audio after the tag unchanged. Not yet confirmed live in Serato. |
+| ~~`TASK-242`~~ | ~~FLAC Vorbis-comment Serato tags~~ | Done — `SERATO_BEATGRID` / `SERATO_MARKERS_V2` via base64-wrapped payloads. STREAMINFO and audio frames stay byte-identical. MP4 still out of scope. |
 
 ---
 

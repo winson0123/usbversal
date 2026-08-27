@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import struct
 from pathlib import Path
@@ -13,6 +14,17 @@ logger = structlog.get_logger(__name__)
 # Serato writes GEOB frames with this header: encoding byte, mime type, an
 # empty filename, then the description.
 _GEOB_MIME = b"application/octet-stream"
+
+# FLAC Vorbis comment names for the same Serato payloads. After base64 decode
+# the value is mime + empty filename + description + payload.
+_FLAC_FIELDS = {
+    "Serato BeatGrid": "SERATO_BEATGRID",
+    "Serato Markers2": "SERATO_MARKERS_V2",
+}
+_FLAC_DESCRIPTIONS = {field: description for description, field in _FLAC_FIELDS.items()}
+_FLAC_STREAMINFO = 0
+_FLAC_VORBIS_COMMENT = 4
+_FLAC_B64_WRAP = 72
 
 
 class TagFormatError(ValueError):
@@ -118,8 +130,344 @@ def _audio_span(data: bytes) -> tuple[int, int]:
     raise TagFormatError("Unrecognised audio container")
 
 
+def _flac_block_header(last: bool, block_type: int, length: int) -> bytes:
+    """
+    Build one FLAC metadata-block header.
+
+    Args:
+        last: True when this is the last metadata block.
+        block_type: STREAMINFO, VORBIS_COMMENT, etc.
+        length: Body length in bytes.
+
+    Returns:
+        Four-byte header.
+    """
+    first = (0x80 if last else 0) | (block_type & 0x7F)
+    return bytes([first]) + length.to_bytes(3, "big")
+
+
+def _iter_flac_blocks(data: bytes) -> list[tuple[int, bytes]]:
+    """
+    Return every FLAC metadata block as ``(type, body)``.
+
+    Args:
+        data: Whole file contents starting with ``fLaC``.
+
+    Returns:
+        Blocks in file order.
+
+    Raises:
+        TagFormatError: The file is not FLAC or a block overruns the file.
+    """
+    if data[:4] != b"fLaC":
+        raise TagFormatError("Not a FLAC file")
+    offset = 4
+    blocks: list[tuple[int, bytes]] = []
+    while offset + 4 <= len(data):
+        last = bool(data[offset] & 0x80)
+        block_type = data[offset] & 0x7F
+        length = int.from_bytes(data[offset + 1 : offset + 4], "big")
+        start = offset + 4
+        end = start + length
+        if end > len(data):
+            raise TagFormatError("Truncated FLAC metadata block")
+        blocks.append((block_type, data[start:end]))
+        offset = end
+        if last:
+            break
+    if not blocks:
+        raise TagFormatError("FLAC file has no metadata blocks")
+    return blocks
+
+
+def _flac_audio_start(data: bytes) -> int:
+    """
+    Return the byte offset of the first audio frame.
+
+    Args:
+        data: Whole FLAC file contents.
+
+    Returns:
+        Offset immediately after the last metadata block.
+    """
+    offset = 4
+    while offset + 4 <= len(data):
+        last = bool(data[offset] & 0x80)
+        length = int.from_bytes(data[offset + 1 : offset + 4], "big")
+        offset += 4 + length
+        if last:
+            return offset
+    raise TagFormatError("FLAC file has no last metadata block")
+
+
+def _parse_vorbis_comment(body: bytes) -> tuple[bytes, list[tuple[str, str]]]:
+    """
+    Parse a Vorbis comment block into vendor string and key/value pairs.
+
+    Args:
+        body: VORBIS_COMMENT block body.
+
+    Returns:
+        Vendor bytes and ``(key, value)`` pairs in file order.
+
+    Raises:
+        TagFormatError: The block is truncated or not UTF-8.
+    """
+    if len(body) < 8:
+        raise TagFormatError("Truncated Vorbis comment")
+    vendor_len = struct.unpack_from("<I", body, 0)[0]
+    vendor_end = 4 + vendor_len
+    if vendor_end + 4 > len(body):
+        raise TagFormatError("Truncated Vorbis comment vendor")
+    vendor = body[4:vendor_end]
+    count = struct.unpack_from("<I", body, vendor_end)[0]
+    offset = vendor_end + 4
+    pairs: list[tuple[str, str]] = []
+    for _ in range(count):
+        if offset + 4 > len(body):
+            raise TagFormatError("Truncated Vorbis comment length")
+        length = struct.unpack_from("<I", body, offset)[0]
+        offset += 4
+        if offset + length > len(body):
+            raise TagFormatError("Truncated Vorbis comment value")
+        raw = body[offset : offset + length].decode("utf-8")
+        offset += length
+        key, _, value = raw.partition("=")
+        pairs.append((key, value))
+    return vendor, pairs
+
+
+def _build_vorbis_comment(vendor: bytes, pairs: list[tuple[str, str]]) -> bytes:
+    """
+    Serialise a Vorbis comment block body.
+
+    Args:
+        vendor: Vendor string bytes.
+        pairs: Comments to write, in order.
+
+    Returns:
+        Block body, without the FLAC metadata header.
+    """
+    body = bytearray()
+    body += struct.pack("<I", len(vendor)) + vendor
+    body += struct.pack("<I", len(pairs))
+    for key, value in pairs:
+        raw = f"{key}={value}".encode()
+        body += struct.pack("<I", len(raw)) + raw
+    return bytes(body)
+
+
+def _flac_b64_encode(payload: bytes) -> str:
+    """
+    Encode a Serato FLAC field: base64, no padding, newline every 72 characters.
+
+    Args:
+        payload: Bytes after the ``application/octet-stream`` wrapper.
+
+    Returns:
+        The Vorbis comment value.
+    """
+    encoded = base64.b64encode(payload).decode("ascii").rstrip("=")
+    return "\n".join(
+        encoded[index : index + _FLAC_B64_WRAP] for index in range(0, len(encoded), _FLAC_B64_WRAP)
+    )
+
+
+def _flac_b64_decode(value: str) -> bytes:
+    """
+    Decode a Serato FLAC field value.
+
+    Args:
+        value: Base64 text, possibly wrapped.
+
+    Returns:
+        The decoded wrapper + payload.
+
+    Raises:
+        TagFormatError: The value is not valid base64.
+    """
+    compact = "".join(value.split())
+    padding = (-len(compact)) % 4
+    try:
+        return base64.b64decode(compact + ("=" * padding), validate=True)
+    except ValueError as exc:
+        raise TagFormatError("Malformed Serato FLAC field") from exc
+
+
+def _wrap_flac_payload(description: str, payload: bytes) -> bytes:
+    """
+    Wrap a Serato payload the way FLAC Vorbis comments store it.
+
+    Args:
+        description: GEOB description (``Serato BeatGrid``, ``Serato Markers2``).
+        payload: The same bytes ID3 GEOB would carry.
+
+    Returns:
+        Bytes to base64-encode into the comment value.
+    """
+    return _GEOB_MIME + b"\x00\x00" + description.encode("latin1") + b"\x00" + payload
+
+
+def _unwrap_flac_payload(wrapped: bytes) -> tuple[str, bytes]:
+    """
+    Split a decoded FLAC Serato field into description and payload.
+
+    Args:
+        wrapped: Decoded ``application/octet-stream`` wrapper.
+
+    Returns:
+        Description and payload.
+
+    Raises:
+        TagFormatError: The wrapper is missing its mime or description.
+    """
+    if not wrapped.startswith(_GEOB_MIME + b"\x00"):
+        raise TagFormatError("Serato FLAC field is not an octet-stream wrapper")
+    rest = wrapped[len(_GEOB_MIME) + 1 :]
+    if not rest.startswith(b"\x00"):
+        raise TagFormatError("Serato FLAC field is missing the empty filename")
+    rest = rest[1:]
+    end = rest.find(b"\x00")
+    if end < 0:
+        raise TagFormatError("Serato FLAC field is missing the description")
+    description = rest[:end].decode("latin1", "replace")
+    return description, rest[end + 1 :]
+
+
+def _read_flac_geob(data: bytes) -> dict[str, bytes]:
+    """
+    Read Serato payloads from a FLAC Vorbis comment block.
+
+    Args:
+        data: Whole FLAC file contents.
+
+    Returns:
+        Mapping of GEOB description to payload bytes.
+    """
+    frames: dict[str, bytes] = {}
+    for block_type, body in _iter_flac_blocks(data):
+        if block_type != _FLAC_VORBIS_COMMENT:
+            continue
+        _, pairs = _parse_vorbis_comment(body)
+        for key, value in pairs:
+            description = _FLAC_DESCRIPTIONS.get(key)
+            if description is None:
+                continue
+            _decoded_name, payload = _unwrap_flac_payload(_flac_b64_decode(value))
+            frames[description] = payload
+    return frames
+
+
+def _write_flac_bytes(data: bytes, updates: dict[str, bytes], dropped_geob: set[str]) -> bytes:
+    """
+    Rebuild a FLAC file with updated Serato Vorbis comments.
+
+    STREAMINFO and every byte after the last metadata block stay identical.
+    Other comment keys are preserved. File size may change when comments grow.
+
+    Args:
+        data: Original FLAC file contents.
+        updates: GEOB description to new payload.
+        dropped_geob: GEOB descriptions to delete.
+
+    Returns:
+        Rebuilt file bytes.
+    """
+    blocks = _iter_flac_blocks(data)
+    audio = data[_flac_audio_start(data) :]
+    vendor = b""
+    pairs: list[tuple[str, str]] = []
+    other_blocks: list[tuple[int, bytes]] = []
+    saw_comment = False
+    for block_type, body in blocks:
+        if block_type == _FLAC_VORBIS_COMMENT:
+            vendor, pairs = _parse_vorbis_comment(body)
+            saw_comment = True
+            continue
+        other_blocks.append((block_type, body))
+
+    drop_fields = {_FLAC_FIELDS[name] for name in dropped_geob if name in _FLAC_FIELDS}
+    replace_fields = {_FLAC_FIELDS[name]: name for name in updates if name in _FLAC_FIELDS}
+    kept: list[tuple[str, str]] = []
+    written: set[str] = set()
+    for key, value in pairs:
+        if key in drop_fields:
+            continue
+        description = replace_fields.get(key)
+        if description is not None:
+            wrapped = _wrap_flac_payload(description, updates[description])
+            kept.append((key, _flac_b64_encode(wrapped)))
+            written.add(description)
+            continue
+        kept.append((key, value))
+    for description, payload in updates.items():
+        if description in written or description not in _FLAC_FIELDS:
+            continue
+        kept.append(
+            (_FLAC_FIELDS[description], _flac_b64_encode(_wrap_flac_payload(description, payload)))
+        )
+
+    comment_body = _build_vorbis_comment(vendor, kept)
+    rebuilt_blocks = list(other_blocks)
+    if saw_comment or updates or drop_fields:
+        rebuilt_blocks.append((_FLAC_VORBIS_COMMENT, comment_body))
+    if not rebuilt_blocks:
+        raise TagFormatError("FLAC rewrite produced no metadata blocks")
+
+    out = bytearray(b"fLaC")
+    last_index = len(rebuilt_blocks) - 1
+    for index, (block_type, body) in enumerate(rebuilt_blocks):
+        out += _flac_block_header(index == last_index, block_type, len(body))
+        out += body
+    out += audio
+    return bytes(out)
+
+
+def _verify_flac_rewrite(
+    original: bytes,
+    rebuilt: bytes,
+    updates: dict[str, bytes],
+    remove_geob: set[str],
+) -> None:
+    """
+    Confirm a FLAC rewrite kept STREAMINFO and audio, and the frames took.
+
+    Args:
+        original: File contents before the rewrite.
+        rebuilt: File contents about to be written.
+        updates: GEOB description to the payload it was supposed to become.
+        remove_geob: GEOB descriptions that were supposed to be deleted.
+
+    Raises:
+        TagFormatError: STREAMINFO moved, audio changed, or a frame is wrong.
+    """
+    original_info = next(
+        body for kind, body in _iter_flac_blocks(original) if kind == _FLAC_STREAMINFO
+    )
+    rebuilt_info = next(
+        body for kind, body in _iter_flac_blocks(rebuilt) if kind == _FLAC_STREAMINFO
+    )
+    if original_info != rebuilt_info:
+        raise TagFormatError("Write would alter FLAC STREAMINFO")
+
+    original_audio = original[_flac_audio_start(original) :]
+    rebuilt_audio = rebuilt[_flac_audio_start(rebuilt) :]
+    if hashlib.sha256(original_audio).digest() != hashlib.sha256(rebuilt_audio).digest():
+        raise TagFormatError("Write would alter the audio stream")
+
+    frames = _read_flac_geob(rebuilt)
+    for description, payload in updates.items():
+        if frames.get(description) != payload:
+            raise TagFormatError(f"{description!r} did not read back as written")
+    for description in remove_geob:
+        if description in frames:
+            raise TagFormatError(f"{description!r} was supposed to be removed")
+
+
 def _read_geob_bytes(data: bytes) -> dict[str, bytes]:
     """Parse GEOB payloads out of whole file contents already in memory."""
+    if data[:4] == b"fLaC":
+        return _read_flac_geob(data)
     start, size = _tag_span(data)
     tag = data[start : start + size]
     if tag[:3] != b"ID3":
@@ -147,7 +495,7 @@ def read_geob(path: str | Path) -> dict[str, bytes]:
     Read Serato GEOB payloads from an audio file.
 
     Args:
-        path: Path to a .wav file carrying an ID3 tag.
+        path: Path to an .mp3, .wav, or .flac file.
 
     Returns:
         Mapping of GEOB description to payload bytes.
@@ -182,10 +530,13 @@ def verify_geob_rewrite(
         remove_geob: GEOB descriptions that were supposed to be deleted.
 
     Raises:
-        TagFormatError: The file size changed, the audio payload moved or its
-            content changed, a written frame does not read back as requested,
-            or a frame meant for removal is still present.
+        TagFormatError: The file size changed (ID3 only), the audio payload
+            moved or its content changed, a written frame does not read back
+            as requested, or a frame meant for removal is still present.
     """
+    if original[:4] == b"fLaC":
+        _verify_flac_rewrite(original, rebuilt, updates, remove_geob or set())
+        return
     if len(rebuilt) != len(original):
         raise TagFormatError(
             f"Write would change the file size ({len(original)} -> {len(rebuilt)} bytes)"
@@ -372,13 +723,13 @@ def write_geob(
     Replace or remove frames in an audio file's ID3 tag, in place.
 
     Only the named frames are touched. Every other frame and all audio data are
-    preserved byte for byte, and the tag keeps its original size. Before
-    anything reaches disk, the rebuilt file is verified against the original:
-    same size, same audio stream, and every requested frame reads back exactly
-    as written. The original file is untouched if verification fails.
+    preserved byte for byte. ID3 tags keep their original size; FLAC Vorbis
+    comments may grow, but STREAMINFO and the audio frames stay identical.
+    Before anything reaches disk, the rebuilt file is verified against the
+    original. The original file is untouched if verification fails.
 
     Args:
-        path: Path to an .mp3 or .wav file carrying an ID3 tag.
+        path: Path to an .mp3, .wav, or .flac file.
         updates: GEOB description to new payload.
         remove_geob: GEOB descriptions to delete entirely.
         remove_frames: Frame ids to delete entirely, such as ``b"TKEY"``.
@@ -392,6 +743,14 @@ def write_geob(
     dropped_frames = remove_frames or set()
     target = Path(path)
     data = target.read_bytes()
+    if data[:4] == b"fLaC":
+        new_data = _write_flac_bytes(data, updates, dropped_geob)
+        verify_geob_rewrite(data, new_data, updates, remove_geob=dropped_geob)
+        temporary = target.with_suffix(target.suffix + ".tmp")
+        temporary.write_bytes(new_data)
+        temporary.replace(target)
+        logger.info("audio_tags_written", path=str(target), frames=sorted(updates))
+        return
     start, size = _tag_span(data)
     tag = data[start : start + size]
     version = tag[3]

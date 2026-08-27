@@ -425,21 +425,21 @@ for why this is being revisited.
 
 ---
 
-## Tag container: MP3 vs WAV [verified for WAV, untested for MP3]
+## Tag container: MP3, WAV, FLAC
 
-| Container | Where the ID3 stream lives |
-|-----------|----------------------------|
-| **MP3** | Standard ID3v2 tag at the head of the file. Write GEOB frames directly. |
+| Container | Where the Serato payload lives |
+|-----------|-------------------------------|
+| **MP3** | ID3v2 GEOB at the head of the file. Frame sizes are synchsafe on v2.4, raw 32-bit on v2.3. |
 | **WAV** | The ID3 stream is wrapped in a RIFF chunk with id `id3 `. The chunk must be rewritten **and the RIFF size field fixed**. |
+| **FLAC** | Vorbis comments `SERATO_BEATGRID` / `SERATO_MARKERS_V2`. Value is base64 (no padding, newline every 72 characters) of `application/octet-stream\\0\\0` + description + payload. |
 
-Chunk order observed in the fixtures: `fmt ` / `data` / `DISP` / `iXML` / `_PMX` / `LIST` / `id3 `.
+Chunk order observed in the WAV fixtures: `fmt ` / `data` / `DISP` / `iXML` / `_PMX` / `LIST` / `id3 `.
 
 The Serato **marker payloads are identical across containers** — only the
-wrapper differs. FLAC uses Vorbis comments and MP4 uses atoms; neither is
-implemented or observed.
+wrapper differs. MP4 atoms are out of scope.
 
-**A rekordbox USB export is all MP3, and the MP3 path is the untested one.**
-The retained fixtures only exercise WAV.
+ID3 writes are size-preserving. FLAC comment blocks may grow; STREAMINFO and
+the audio frames stay byte-identical.
 
 ---
 

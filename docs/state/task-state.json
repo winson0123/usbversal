@@ -437,6 +437,11 @@
       "id": "TASK-241",
       "title": "Confirm ID3v2.3 and v2.4 MP3 GEOB write/read",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-242",
+      "title": "FLAC Vorbis-comment Serato tag read/write",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -947,6 +952,12 @@
     {
       "id": "TASK-241",
       "title": "Confirm ID3v2.3 and v2.4 MP3 GEOB write/read",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-242",
+      "title": "FLAC Vorbis-comment Serato tag read/write",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }
