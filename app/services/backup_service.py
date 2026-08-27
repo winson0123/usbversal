@@ -28,7 +28,7 @@ def rekordbox_files_on_mount(mount_path: Path) -> list[Path]:
     Resolve existing Rekordbox database files under a mount.
 
     Args:
-        mount_path: USB or library root (e.g. /mnt/usb).
+        mount_path: USB or library root (e.g. /media/$USER/MY_USB).
 
     Returns:
         List of absolute paths that exist on disk.
@@ -47,7 +47,7 @@ def serato_files_on_mount(mount_path: Path) -> list[Path]:
     Resolve Serato database and crate files under a mount for backup.
 
     Args:
-        mount_path: USB or library root (e.g. /mnt/usb).
+        mount_path: USB or library root (e.g. /media/$USER/MY_USB).
 
     Returns:
         List of absolute paths that exist on disk.

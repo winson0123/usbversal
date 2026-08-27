@@ -143,7 +143,7 @@ def build_migration_plan(
     Build a Rekordbox→Serato migration plan without writing.
 
     Args:
-        mount: Mount path (e.g. /mnt/usb).
+        mount: Mount path (e.g. /media/$USER/MY_USB).
         playlist_id: Rekordbox playlist id.
         playlist_name: Rekordbox playlist name (exact match).
 

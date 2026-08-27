@@ -28,7 +28,7 @@ def rollback_mount_libraries(
     Restore library files on a mount from a prior backup.
 
     Args:
-        mount: Mount path (e.g. /mnt/usb).
+        mount: Mount path (e.g. /media/$USER/MY_USB).
         backup_id: Backup directory name under backups/ (e.g. 20260525T075946Z).
         backup_root: Parent of backup dirs; default <mount>/backups.
         pre_rollback: Copy current files before overwriting.

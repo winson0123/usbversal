@@ -17,7 +17,7 @@ def resolve_rekordbox_database(mount_path: Path) -> tuple[Path, RekordboxDbForma
     Prefers One Library (exportLibrary.db) over classic DeviceSQL (export.pdb).
 
     Args:
-        mount_path: Mount root (e.g. /mnt/usb).
+        mount_path: Mount root (e.g. /media/$USER/MY_USB).
 
     Returns:
         Tuple of (database file path, format enum), or None if not found.

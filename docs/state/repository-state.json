@@ -17,9 +17,10 @@
     "app.tui"
   ],
   "features_implemented": {
-    "mount_scanner_linux": true,
+    "mount_scanner_linux_media_dollar_user": true,
     "mount_scanner_windows_stub": true,
-    "mount_scanner_macos_stub": true,
+    "mount_scanner_macos": true,
+    "mount_scanner_env_override": true,
     "library_discovery_rekordbox": true,
     "library_discovery_serato": true,
     "event_system_minimal": true,
@@ -84,8 +85,8 @@
     "tui_home_screen_ascii_banner_and_spinner": true,
     "tui_uses_native_terminal_colours": true,
     "tui_home_manual_path_entry_and_retry": true,
-    "mount_scanner_linux_media_dollar_user": true,
     "library_screen_shows_mount_path": true,
+    "mount_scanner_wsl_mnt_removed": true,
     "json_output_stdout_only": true,
     "discovery_skips_backup_trees": true,
     "sync_playlists": true,
@@ -109,7 +110,7 @@
     "ruff_format": "pass",
     "pytest": "pass",
     "last_run": "2026-08-27T00:00:00Z",
-    "tests_passed": 259,
+    "tests_passed": 266,
     "tests_skipped": 4,
     "tests_failed": 0,
     "note": "run with no stick mounted and no dist/usbversal built; the 4 skips are 2 integration tests gated on USBVERSAL_TEST_MOUNT, the opt-in full PyInstaller build (USBVERSAL_PACKAGING_BUILD=1), and the binary-help smoke test that needs a prior ./scripts/build-release.sh -- a real build was run and verified during TASK-206, then cleaned up"
@@ -131,7 +132,7 @@
     "serato_write_formats_verified": true
   },
   "primary_test_usb": {
-    "linux_wsl": "/mnt/usb (bind-mounted to /mnt/wsl/usb for sandboxed access)",
+    "linux_wsl": "/mnt/usb (bind-mounted to /mnt/wsl/usb for sandboxed access) -- this dev sandbox's own test rig only, not a deployment target; TASK-217 removed the automatic /mnt scan this relied on, so this session now reaches it via USBVERSAL_MOUNT=/mnt/usb instead",
     "last_validated": "2026-08-21",
     "rekordbox_playlists": 72,
     "rekordbox_tracks": 1625,
@@ -175,6 +176,7 @@
     "correct_index_bpm() exists but has not been run against the real stick's ~70 known-wrong rows yet",
     "nested playlist folder crate naming (Parent%%Child) is implemented but its convention is still unverified against real Serato",
     "the whole TUI test suite mocks/fakes the rekordbox adapter, so it cannot catch pyo3-level issues like the thread-affinity crash TASK-209 fixed -- that class of bug is only found by running against a real stick. TASK-209's fix is confirmed working on real hardware (user ran a real sync end to end after it); TASK-210, TASK-211, and TASK-212's fixes (refresh-on-resume, synced/total counts, true column alignment, the collapsible \"All playlists\" node, and the exit-time drop-on-wrong-thread crash) are not yet re-confirmed there -- verified in this environment only via Tree.render_line() output and Pilot tests, both against synthetic fixtures/fakes, never a real PyOneLibrary.",
-    "TASK-213's Home screen banner/spinner/error layout was verified via direct widget.render_line() inspection in this environment (region/x-position checks proving each element is independently centered) but not yet seen by the user in a real terminal."
+    "TASK-213's Home screen banner/spinner/error layout was verified via direct widget.render_line() inspection in this environment (region/x-position checks proving each element is independently centered) but not yet seen by the user in a real terminal.",
+    "TASK-217's MacVolumesScanner (real deployment target: /Volumes on macOS) and WindowsMountScanner are both verified only against monkeypatched directory trees in this environment -- neither has run on real macOS or Windows hardware. TASK-217 also removed the WSL-specific /mnt auto-scan (LinuxMntScanner) since real deployment is Windows/Linux/macOS, not WSL; this project's own dev/test sandbox now reaches its /mnt/usb test stick via the USBVERSAL_MOUNT env var override instead."
   ]
 }

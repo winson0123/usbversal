@@ -12,7 +12,7 @@ def serato_root_for(mount_path: Path) -> Path:
     Return where _Serato_ belongs under a mount, whether or not it exists yet.
 
     Args:
-        mount_path: Mount root (e.g. /mnt/usb).
+        mount_path: Mount root (e.g. /media/$USER/MY_USB).
 
     Returns:
         Path to _Serato_.
@@ -38,7 +38,7 @@ def resolve_serato_library(mount_path: Path) -> tuple[Path, Path] | None:
     Find the Serato library root and database V2 on a mount.
 
     Args:
-        mount_path: Mount root (e.g. /mnt/usb).
+        mount_path: Mount root (e.g. /media/$USER/MY_USB).
 
     Returns:
         Tuple of (serato_root, database_v2_path), or None if not found.

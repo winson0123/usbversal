@@ -318,6 +318,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-217 — Remove WSL-only /mnt scanning, add a real macOS scanner and USBVERSAL_MOUNT override
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | User: remove WSL artifacts, since real deployment is Windows/Linux/macOS (not WSL); also add an environment-variable override for a setup none of the automatic scanners cover |
+| Verification | ruff ✓ ruff format ✓ pytest 266 passed / 4 skipped (7 new: `MacVolumesScanner` listing + empty-root cases, `EnvMountScanner` set/unset/missing-path/custom-var-name cases, `get_mount_scanner` composite checks for all three platforms; `LinuxMntScanner`'s own test removed along with the class) |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

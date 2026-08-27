@@ -58,7 +58,7 @@ def _build_parser() -> argparse.ArgumentParser:
     list_parser.add_argument(
         "--mount",
         required=True,
-        help="Mount path (e.g. /mnt/usb)",
+        help="Mount path (e.g. /media/$USER/MY_USB)",
     )
     list_parser.add_argument(
         "--json",
@@ -73,7 +73,7 @@ def _build_parser() -> argparse.ArgumentParser:
     backup_parser.add_argument(
         "--mount",
         required=True,
-        help="Mount path (e.g. /mnt/usb)",
+        help="Mount path (e.g. /media/$USER/MY_USB)",
     )
     backup_parser.add_argument(
         "--target",
@@ -93,7 +93,7 @@ def _build_parser() -> argparse.ArgumentParser:
     rollback_parser.add_argument(
         "--mount",
         required=True,
-        help="Mount path (e.g. /mnt/usb)",
+        help="Mount path (e.g. /media/$USER/MY_USB)",
     )
     rollback_parser.add_argument(
         "--backup-id",
@@ -120,14 +120,18 @@ def _build_parser() -> argparse.ArgumentParser:
         "probe",
         help="Report what DJ library sits on a mount (stat-only)",
     )
-    probe_parser.add_argument("--mount", required=True, help="Mount path (e.g. /mnt/usb)")
+    probe_parser.add_argument(
+        "--mount", required=True, help="Mount path (e.g. /media/$USER/MY_USB)"
+    )
     probe_parser.add_argument("--json", action="store_true", help="Output machine-readable JSON")
 
     status_parser = sub.add_parser(
         "status",
         help="Show per-playlist sync state (red/yellow/green)",
     )
-    status_parser.add_argument("--mount", required=True, help="Mount path (e.g. /mnt/usb)")
+    status_parser.add_argument(
+        "--mount", required=True, help="Mount path (e.g. /media/$USER/MY_USB)"
+    )
     status_parser.add_argument("--json", action="store_true", help="Output machine-readable JSON")
 
     crates_parser = sub.add_parser(
@@ -137,7 +141,7 @@ def _build_parser() -> argparse.ArgumentParser:
     crates_parser.add_argument(
         "--mount",
         required=True,
-        help="Mount path (e.g. /mnt/usb)",
+        help="Mount path (e.g. /media/$USER/MY_USB)",
     )
     crates_parser.add_argument(
         "--json",
@@ -152,7 +156,7 @@ def _build_parser() -> argparse.ArgumentParser:
     migrate_parser.add_argument(
         "--mount",
         required=True,
-        help="Mount path (e.g. /mnt/usb)",
+        help="Mount path (e.g. /media/$USER/MY_USB)",
     )
     migrate_group = migrate_parser.add_mutually_exclusive_group(required=True)
     migrate_group.add_argument(

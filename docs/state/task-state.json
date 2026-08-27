@@ -312,6 +312,11 @@
       "id": "TASK-216",
       "title": "Detect USB sticks under /media/$USER, show the mount on the Library screen",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-217",
+      "title": "Remove WSL-only /mnt scanning, add a real macOS scanner and USBVERSAL_MOUNT override",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -672,6 +677,12 @@
     {
       "id": "TASK-216",
       "title": "Detect USB sticks under /media/$USER, show the mount on the Library screen",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-217",
+      "title": "Remove WSL-only /mnt scanning, add a real macOS scanner and USBVERSAL_MOUNT override",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

@@ -1,6 +1,7 @@
 """Cross-platform mount point enumeration."""
 
 import getpass
+import os
 import platform
 import string
 from abc import ABC, abstractmethod
@@ -8,8 +9,9 @@ from pathlib import Path
 
 from app.core.domain import MountPoint
 
-# WSL/system binds that are not DJ USB targets (avoids full-drive walks).
-_DEFAULT_EXCLUDED_MNT_NAMES = frozenset({"wsl", "wslg", "c"})
+# Manual override for a setup none of the automatic scanners cover -- an
+# unusual auto-mount daemon, a container, a path the user just prefers.
+MOUNT_ENV_VAR = "USBVERSAL_MOUNT"
 
 
 def resolve_mount_path(mount: str | Path) -> Path:
@@ -17,7 +19,7 @@ def resolve_mount_path(mount: str | Path) -> Path:
     Resolve and validate a user-supplied mount path.
 
     Args:
-        mount: Mount path as given by the caller (e.g. /mnt/usb).
+        mount: Mount path as given by the caller (e.g. /media/$USER/MY_USB).
 
     Returns:
         Resolved absolute path to an existing directory.
@@ -47,50 +49,12 @@ class MountScanner(ABC):
         """
 
 
-class LinuxMntScanner(MountScanner):
-    """Enumerate mount points under /mnt (Linux and WSL)."""
-
-    def __init__(self, excluded_names: frozenset[str] | None = None) -> None:
-        """
-        Initialize scanner with optional excluded mount directory names.
-
-        Args:
-            excluded_names: Basenames under /mnt to skip (defaults to WSL/system binds).
-        """
-        self._excluded = (
-            excluded_names if excluded_names is not None else _DEFAULT_EXCLUDED_MNT_NAMES
-        )
-
-    def list_mounts(self) -> list[MountPoint]:
-        """
-        Scan /mnt/* for directory mounts.
-
-        Returns:
-            MountPoint entries for each immediate child directory of /mnt,
-            excluding configured system bind names.
-        """
-        mnt_root = Path("/mnt")
-        if not mnt_root.is_dir():
-            return []
-
-        mounts: list[MountPoint] = []
-        for entry in sorted(mnt_root.iterdir()):
-            if entry.is_dir() and not entry.name.startswith("."):
-                if entry.name in self._excluded:
-                    continue
-                mounts.append(
-                    MountPoint(path=entry.resolve(), source="linux_mnt"),
-                )
-        return mounts
-
-
 class LinuxMediaScanner(MountScanner):
     """Enumerate auto-mounted removable media under /media/$USER.
 
     This is where udisks2/gvfs -- the auto-mount machinery behind most
     desktop Linux distros (GNOME, KDE, ...) -- puts a USB stick the moment
-    it's plugged in, one subdirectory per device. /mnt (LinuxMntScanner) is
-    the WSL/manual-mount case; a real desktop session needs this one too.
+    it's plugged in, one subdirectory per device.
     """
 
     def list_mounts(self) -> list[MountPoint]:
@@ -115,16 +79,32 @@ class LinuxMediaScanner(MountScanner):
         return mounts
 
 
-class _CompositeScanner(MountScanner):
-    """Merges mount points from several scanners into one list."""
+class MacVolumesScanner(MountScanner):
+    """Enumerate mounted volumes under /Volumes (macOS).
 
-    def __init__(self, scanners: list[MountScanner]) -> None:
-        self._scanners = scanners
+    macOS mounts every disk, including a plugged-in USB stick, as an
+    immediate child of /Volumes -- no per-user subdirectory the way
+    /media/$USER has one on Linux.
+    """
 
     def list_mounts(self) -> list[MountPoint]:
+        """
+        Scan /Volumes/* for directory mounts.
+
+        Returns:
+            MountPoint entries for each immediate child directory of
+            /Volumes, excluding the boot volume ("Macintosh HD").
+        """
+        volumes_root = Path("/Volumes")
+        if not volumes_root.is_dir():
+            return []
+
         mounts: list[MountPoint] = []
-        for scanner in self._scanners:
-            mounts.extend(scanner.list_mounts())
+        for entry in sorted(volumes_root.iterdir()):
+            if entry.is_dir() and not entry.name.startswith(".") and entry.name != "Macintosh HD":
+                mounts.append(
+                    MountPoint(path=entry.resolve(), source="macos_volumes"),
+                )
         return mounts
 
 
@@ -146,13 +126,64 @@ class WindowsMountScanner(MountScanner):
         return mounts
 
 
+class EnvMountScanner(MountScanner):
+    """Mount path from the `USBVERSAL_MOUNT` environment variable.
+
+    An escape hatch for whatever the automatic scanners don't cover --
+    exists as a real, ordinary MountScanner rather than special-cased
+    elsewhere, so it goes through the exact same discover-probe-open path
+    (MountWatcher, then services.library.probe_mount) as anything the
+    other scanners find.
+    """
+
+    def __init__(self, env_var: str = MOUNT_ENV_VAR) -> None:
+        self._env_var = env_var
+
+    def list_mounts(self) -> list[MountPoint]:
+        """
+        Read the configured environment variable, if set.
+
+        Returns:
+            A single MountPoint for its value, or an empty list if the
+            variable is unset or doesn't point at an existing directory.
+        """
+        value = os.environ.get(self._env_var)
+        if not value:
+            return []
+        path = Path(value)
+        if not path.is_dir():
+            return []
+        return [MountPoint(path=path.resolve(), source="env_override")]
+
+
+class _CompositeScanner(MountScanner):
+    """Merges mount points from several scanners into one list."""
+
+    def __init__(self, scanners: list[MountScanner]) -> None:
+        self._scanners = scanners
+
+    def list_mounts(self) -> list[MountPoint]:
+        mounts: list[MountPoint] = []
+        for scanner in self._scanners:
+            mounts.extend(scanner.list_mounts())
+        return mounts
+
+
 def get_mount_scanner() -> MountScanner:
     """
     Return the platform-appropriate mount scanner.
 
+    `USBVERSAL_MOUNT` is checked on every platform, alongside whatever the
+    platform's automatic scanner finds -- for a setup it doesn't cover.
+
     Returns:
         MountScanner implementation for the current platform.
     """
-    if platform.system() == "Windows":
-        return WindowsMountScanner()
-    return _CompositeScanner([LinuxMntScanner(), LinuxMediaScanner()])
+    system = platform.system()
+    if system == "Windows":
+        platform_scanner: MountScanner = WindowsMountScanner()
+    elif system == "Darwin":
+        platform_scanner = MacVolumesScanner()
+    else:
+        platform_scanner = LinuxMediaScanner()
+    return _CompositeScanner([platform_scanner, EnvMountScanner()])

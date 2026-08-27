@@ -60,7 +60,7 @@ def list_serato_crates(mount: str | Path) -> CrateListResult:
     needs no open Rekordbox database.
 
     Args:
-        mount: Mount path (e.g. /mnt/usb).
+        mount: Mount path (e.g. /media/$USER/MY_USB).
 
     Returns:
         CrateListResult with library metadata and crates.
