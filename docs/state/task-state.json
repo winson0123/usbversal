@@ -332,6 +332,11 @@
       "id": "TASK-220",
       "title": "Home screen: show what/where is being scanned, not just a bare spinner",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-221",
+      "title": "Home screen: sweeping scan-bar spinner instead of a pulsing dot",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -716,6 +721,12 @@
     {
       "id": "TASK-220",
       "title": "Home screen: show what/where is being scanned, not just a bare spinner",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-221",
+      "title": "Home screen: sweeping scan-bar spinner instead of a pulsing dot",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

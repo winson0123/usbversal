@@ -358,6 +358,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-221 — Home screen: sweeping scan-bar spinner instead of a pulsing dot
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | User asked to replace the single pulsing dot with a `[···••●]`-style bar where the bright point sweeps left to right, repeating; then asked for the bar's resting fill to be the smallest dot rather than blank space, and for the whole bar to be narrower |
+| Verification | ruff ✓ ruff format ✓ pytest 273 passed / 4 skipped (no behavioural test changes needed -- `_Spinner`'s public shape, id, and CSS are unchanged, only its internal frame content) |
+
+---
+
 ## Template (for future entries)
 
 ```markdown
