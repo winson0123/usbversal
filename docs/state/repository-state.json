@@ -13,7 +13,6 @@
     "app.core",
     "app.jobs",
     "app.services",
-    "app.services.sync_analysis",
     "app.storage",
     "app.tui"
   ],
@@ -86,7 +85,6 @@
     "tui_quit_parks_library_then_drops": true,
     "tui_skips_alt_screen_on_conpty": true,
     "sync_playlists_steps_named": true,
-    "sync_analysis_module": true,
     "tui_home_screen_ascii_banner_and_spinner": true,
     "tui_uses_native_terminal_colours": true,
     "tui_home_manual_path_entry_and_retry": true,

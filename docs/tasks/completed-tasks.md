@@ -528,6 +528,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-238 — Fold sync_analysis.py back into sync_service.py
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | Restore the TASK-235 module shape; keep CLI table and shared backup helpers |
+| Verification | ruff ✓ ruff format ✓ pytest 284 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

@@ -10,15 +10,16 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-237` |
-| Objective | Flatten the TASK-236 helper explosion: inline one-off extracts, keep only splits that still earn their name |
+| Task ID | `TASK-238` |
+| Objective | Fold `sync_analysis.py` back into `sync_service.py` — restore the TASK-235 module shape |
 | Completed | 2026-08-27 |
 
 ### Scope
 
-- Inlined one-off CC-split helpers back into their callers across CLI, TUI, adapters, storage, and services.
-- Kept the splits that still do real work: `_COMMANDS` / `_emit_json`, `sync_analysis.py`, shared backup extra/unique helpers, and the TASK-234/235 named steps.
-- Public signatures unchanged.
+- Merged analysis write / BPM correction back into `sync_service.py` (`_analysis_dat_path`, `_write_track_tags`, `_sync_analysis`, `correct_index_bpm`).
+- Deleted `app/services/sync_analysis.py`.
+- Kept `_COMMANDS` / `_emit_json` and the shared backup extra/unique helpers.
+- File is 933 lines. Public signatures unchanged.
 
 ### Verification log
 

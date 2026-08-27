@@ -417,6 +417,11 @@
       "id": "TASK-237",
       "title": "Flatten the TASK-236 helper explosion",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-238",
+      "title": "Fold sync_analysis.py back into sync_service.py",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -903,6 +908,12 @@
     {
       "id": "TASK-237",
       "title": "Flatten the TASK-236 helper explosion",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-238",
+      "title": "Fold sync_analysis.py back into sync_service.py",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }
