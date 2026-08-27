@@ -252,5 +252,5 @@ class UsbversalApp(RekordboxThreadMixin, App):
 
 
 def run() -> None:
-    """Launch the TUI. Entry point for ``usbversal tui`` / ``python -m app.tui``."""
+    """Launch the TUI. Entry point for ``usbversal`` / ``python -m app.tui``."""
     UsbversalApp().run()

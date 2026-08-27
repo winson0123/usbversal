@@ -1,7 +1,7 @@
 [project]
 name = "usbversal"
 version = "0.1.0"
-description = "Safe DJ database CLI for USB-mounted Rekordbox and Serato libraries"
+description = "Safe TUI for USB-mounted Rekordbox to Serato library sync"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-usbversal = "app.cli.main:main"
+usbversal = "app.tui.app:run"
 
 [project.optional-dependencies]
 dev = [

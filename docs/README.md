@@ -15,7 +15,7 @@ Entry point for humans and autonomous agents.
 
 | Directory | Contents |
 |-----------|----------|
-| [`architecture/`](architecture/) | System design, async, events, CLI flow |
+| [`architecture/`](architecture/) | System design, async, events |
 | [`adapters/`](adapters/) | Rekordbox and Serato adapter specs |
 | [`jobs/`](jobs/) | Job lifecycle, cancel, resume, progress |
 | [`storage/`](storage/) | USB detection, backup, rollback |

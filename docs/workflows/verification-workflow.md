@@ -14,19 +14,16 @@ Run from repo root using **`.venv`** (create via `./scripts/setup-dev.sh`):
 
 Or after `source .venv/bin/activate`, use `ruff`, `pytest`, and `python` directly.
 
-## CLI Smoke
+## TUI smoke
 
 ```bash
-.venv/bin/python -m app.cli --help
-.venv/bin/python -m app.cli scan --help
+.venv/bin/python -m app.tui
 ```
 
 ## Integration (scoped tasks only)
 
-```bash
-# Requires /mnt/usb mounted — do not run in CI by default
-.venv/bin/python -m app.cli scan --mount /mnt/usb --json
-```
+Requires a live DJ USB on an auto-detected mount (or `USBVERSAL_MOUNT` as an
+escape hatch). Do not run in CI by default.
 
 Full checklist and recorded results: [usb-integration-validation.md](usb-integration-validation.md).
 

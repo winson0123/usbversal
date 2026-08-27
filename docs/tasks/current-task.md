@@ -10,15 +10,15 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-239` |
-| Objective | Commit the leftover test trim; restore tests that still earn their keep |
+| Task ID | `TASK-240` |
+| Objective | Remove the argparse CLI; `usbversal` launches the TUI |
 | Completed | 2026-08-27 |
 
 ### Scope
 
-- Merged overlapping Home searching tests into one; dropped the Enter-retry mock covered by the visible-resume test.
-- Folded playlist count assertions into the existing tree-state test.
-- Restored unique coverage: mid-timeout spin, stop-polling-once-open, Home bootstrap, `e` on a leaf, custom `USBVERSAL_MOUNT` name.
+- Deleted `app/cli/` and CLI-only tests.
+- Entry point is `app.tui.app:run`; packaging spec points at `app/tui/__main__.py`.
+- Layer rules no longer mention `cli`.
 
 ### Verification log
 
@@ -26,7 +26,7 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 281 passed, 4 skipped |
+| `.venv/bin/pytest` | 269 passed, 4 skipped |
 
 ## Next
 

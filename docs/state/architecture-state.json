@@ -3,7 +3,7 @@
   "updated_at": "2026-08-27T00:00:00Z",
   "allowed_patterns": [
     "adapter_per_vendor",
-    "thin_cli",
+    "tui_thin_presentation",
     "asyncio_job_runner",
     "event_bus_in_process",
     "backup_before_write",
@@ -16,13 +16,13 @@
     "audio_file_writes_require_explicit_optin",
     "vendor_imports_confined_to_adapters",
     "verify_rewrite_before_disk_commit",
-    "tui_thin_same_as_cli"
+    "tui_is_the_product"
   ],
   "forbidden_patterns": [
-    "cli_business_logic",
+    "tui_business_logic",
     "write_without_backup",
     "schema_rebuild_wholesale",
-    "adapter_imports_cli",
+    "adapter_imports_tui",
     "core_imports_vendor_sql_directly",
     "parallel_agent_tasks",
     "silent_drop_unknown_fields",
@@ -48,12 +48,6 @@
     "audio_tag_writes": "stage_2_only_explicit_optin"
   },
   "layer_dependencies": {
-    "cli": [
-      "jobs",
-      "services",
-      "core",
-      "tui"
-    ],
     "tui": [
       "jobs",
       "services",

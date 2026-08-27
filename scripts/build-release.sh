@@ -14,4 +14,4 @@ fi
 
 echo ""
 echo "Built: $ROOT/dist/usbversal"
-echo "Smoke: $ROOT/dist/usbversal --help"
+echo "Smoke: $ROOT/dist/usbversal  (launches the TUI)"

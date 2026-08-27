@@ -7,7 +7,7 @@
 1. Bump version in `pyproject.toml` if needed
 2. Run full verification workflow (`pytest`, `ruff`)
 3. Build Linux binary: `./scripts/build-release.sh`
-4. Smoke test: `./dist/usbversal --help`
+4. Smoke test: `./dist/usbversal` launches the TUI
 5. Attach `dist/usbversal` to GitHub release (Windows build on native runner when available)
 6. Update `repository-state.json` `packaging.readiness`
 

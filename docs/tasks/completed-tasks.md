@@ -548,6 +548,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-240 — Remove the CLI
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | Delete argparse harness; `usbversal` launches the TUI |
+| Verification | ruff ✓ ruff format ✓ pytest 269 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

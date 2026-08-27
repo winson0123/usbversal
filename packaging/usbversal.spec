@@ -1,4 +1,4 @@
-# PyInstaller spec for Usbversal CLI (ADR 0003).
+# PyInstaller spec for Usbversal TUI (ADR 0003).
 # Build from repo root: ./scripts/build-release.sh
 
 from pathlib import Path
@@ -8,7 +8,7 @@ from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs, co
 block_cipher = None
 
 ROOT = Path(SPECPATH).resolve().parent
-ENTRY = ROOT / "app" / "cli" / "__main__.py"
+ENTRY = ROOT / "app" / "tui" / "__main__.py"
 
 # Usbversal only uses crate + database_v2 from serato-tools (not librosa analysis tools).
 hiddenimports = [

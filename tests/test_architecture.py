@@ -10,9 +10,6 @@ VENDOR_MODULES = {"rbox", "serato_tools"}
 
 # Layer -> packages it is allowed to import from (plus itself and stdlib/3rd-party).
 ALLOWED_LAYER_IMPORTS = {
-    # cli's dependency on tui is a single thin delegation (`usbversal tui`
-    # launches the TUI app) -- not a general license to reach into it.
-    "cli": {"jobs", "services", "core", "tui"},
     "tui": {"jobs", "services", "core"},
     "jobs": {"services", "core", "storage", "adapters"},
     "services": {"core", "adapters", "storage"},
@@ -74,9 +71,7 @@ def test_layers_only_import_allowed_layers() -> None:
     assert not offenders, "layer violations:\n  " + "\n  ".join(offenders)
 
 
-def test_no_adapter_imports_cli() -> None:
-    """Adapters must never depend on the CLI."""
+def test_no_app_imports_removed_cli() -> None:
+    """The argparse CLI is gone; nothing under app/ may import app.cli."""
     for path in _source_files():
-        if _layer_of(path) != "adapters":
-            continue
         assert not any(m.startswith("app.cli") for m in _imported_modules(path)), path

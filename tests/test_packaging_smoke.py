@@ -23,31 +23,24 @@ def test_packaging_spec_exists() -> None:
     not BINARY.is_file(),
     reason="Run ./scripts/build-release.sh to build dist/usbversal",
 )
-def test_usbversal_binary_help() -> None:
+def test_usbversal_binary_is_built() -> None:
     """
-    Built executable responds to --help.
+    Built executable exists and is non-empty.
 
-    Requires a prior PyInstaller build at dist/usbversal.
+    Requires a prior PyInstaller build at dist/usbversal. The binary
+    launches the TUI; there is no --help command list to assert.
     """
-    result = subprocess.run(
-        [str(BINARY), "--help"],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    assert result.returncode == 0
-    assert "migrate-playlist" in result.stdout
-    assert "tui" in result.stdout
+    assert BINARY.is_file()
+    assert BINARY.stat().st_size > 0
 
 
 @pytest.mark.skipif(
     os.environ.get("USBVERSAL_PACKAGING_BUILD") != "1",
     reason="Set USBVERSAL_PACKAGING_BUILD=1 to run full PyInstaller build in CI",
 )
-def test_pyinstaller_build_and_help() -> None:
+def test_pyinstaller_build() -> None:
     """
-    Build usbversal with PyInstaller and verify --help (slow; opt-in).
+    Build usbversal with PyInstaller (slow; opt-in).
 
     Intended for release validation, not default pytest runs.
     """
@@ -58,11 +51,4 @@ def test_pyinstaller_build_and_help() -> None:
         timeout=600,
     )
     assert BINARY.is_file()
-    result = subprocess.run(
-        [str(BINARY), "--help"],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    assert result.returncode == 0
+    assert BINARY.stat().st_size > 0

@@ -4,7 +4,7 @@ This document is the **mandatory execution harness** for all autonomous coding a
 
 ## Project Context
 
-Usbversal is a **Python CLI** for safe, metadata-only manipulation of DJ library databases (Rekordbox, Serato) on USB-mounted media. Agents must respect scaffolding boundaries defined in `ARCHITECTURE.md` and machine-readable state under `docs/state/`.
+Usbversal is a **Python TUI** for safe, metadata-only Rekordbox → Serato library sync on USB-mounted media. Agents must respect scaffolding boundaries defined in `ARCHITECTURE.md` and machine-readable state under `docs/state/`.
 
 ---
 
@@ -43,7 +43,7 @@ Document in `docs/tasks/current-task.md`:
 
 - Smallest diff that satisfies the objective.
 - Match existing conventions in touched modules.
-- **CLI layer must remain thin** — delegate to domain, adapters, and jobs.
+- **TUI layer must remain thin** — delegate to domain, adapters, and jobs.
 - Do not expand scope beyond the scoped files.
 
 ### 4. Verify
@@ -54,8 +54,6 @@ Run all applicable checks before marking complete:
 .venv/bin/ruff check .
 .venv/bin/ruff format --check .
 .venv/bin/pytest
-# CLI smoke (when CLI exists):
-# .venv/bin/python -m app.cli --help
 ```
 
 Record results in the verification log section of `current-task.md`.

@@ -1,13 +1,13 @@
 # Usbversal Architecture
 
-High-level architecture for the Python DJ database CLI. Implementation details live under `docs/architecture/`.
+High-level architecture for the Python DJ-library TUI. Implementation details live under `docs/architecture/`.
 
 ## System Overview
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│                         CLI (thin)                          │
-│              scan | list | backup | apply | jobs            │
+│                         TUI (thin)                          │
+│           Home → Library → Progress → Done                  │
 └────────────────────────────┬────────────────────────────────┘
                              │
 ┌────────────────────────────▼────────────────────────────────┐
@@ -34,7 +34,7 @@ High-level architecture for the Python DJ database CLI. Implementation details l
 └──────────────────────────┬───────────────────────────────┘
                            │
                     ┌──────▼──────┐
-                    │  /mnt/usb   │
+                    │  USB mount  │
                     │  DJ DB files│
                     └─────────────┘
 ```
@@ -43,26 +43,20 @@ High-level architecture for the Python DJ database CLI. Implementation details l
 
 | Layer | Responsibility | Must not |
 |-------|----------------|----------|
-| CLI | Args, dispatch, output | Parse DB formats, run backups |
 | TUI | Screens, rendering, key handling | Parse DB formats, run backups |
 | Core | Domain models, validation, plans | Touch vendor-specific bytes |
 | Adapters | Vendor read/write, schema mapping | Manage mount detection |
-| Jobs | Long-running work, cancellation | Embed vendor SQL in CLI |
+| Jobs | Long-running work, cancellation | Embed vendor SQL in the TUI |
 | Storage | Paths, backup, rollback, USB | Interpret playlist semantics |
 
-Dependencies flow **inward**: CLI/TUI → Jobs → Services → Adapters → Storage → Core.
-`core` holds domain types and imports nothing from the other layers. TUI is
-the same kind of thin presentation layer as CLI, permitted the same imports
-(`jobs`, `services`, `core`) and enforced by the same `test_architecture.py`
-check — see [ADR 0009](docs/decisions/0009-use-textual-for-the-tui.md). CLI's
-one exception is a single thin delegation to `tui` (`usbversal tui` launches
-it), not a general license to reach into its internals.
+Dependencies flow **inward**: TUI → Jobs → Services → Adapters → Storage → Core.
+`core` holds domain types and imports nothing from the other layers. TUI is a
+thin presentation layer, permitted `jobs`, `services`, and `core`, enforced by
+`test_architecture.py` — see [ADR 0009](docs/decisions/0009-use-textual-for-the-tui.md).
 
 **Vendor libraries (`rbox`, `serato-tools`) may only be imported inside `app/adapters/`.**
 Services that need vendor data call an adapter function instead, which keeps schema
 handling in one place and gives tests a seam that is not a vendor class.
-
-No adapter imports CLI.
 
 ## Adapter Pattern (Rekordbox / Serato)
 
@@ -82,7 +76,7 @@ See `docs/adapters/rekordbox.md` and `docs/adapters/serato.md`.
 
 ## Event System Concept
 
-Operations emit structured events for logging, CLI progress bars, and future GUI:
+Operations emit structured events for logging, TUI progress, and subscribers:
 
 | Event type | Examples |
 |------------|----------|
@@ -123,7 +117,7 @@ Details: `docs/storage/backup-strategy.md`, `docs/storage/rollback-flow.md`.
 
 | Decision | ADR |
 |----------|-----|
-| Python CLI | [0001-use-python-cli.md](docs/decisions/0001-use-python-cli.md) |
+| Python | [0001-use-python-cli.md](docs/decisions/0001-use-python-cli.md) |
 | asyncio jobs | [0002-use-asyncio.md](docs/decisions/0002-use-asyncio.md) |
 | PyInstaller packaging | [0003-use-pyinstaller.md](docs/decisions/0003-use-pyinstaller.md) |
 | Textual for the TUI | [0009-use-textual-for-the-tui.md](docs/decisions/0009-use-textual-for-the-tui.md) |
@@ -135,5 +129,4 @@ Constraints and allowed patterns: `docs/state/architecture-state.json`.
 ## Further Reading
 
 - [docs/architecture/system-overview.md](docs/architecture/system-overview.md)
-- [docs/architecture/cli-flow.md](docs/architecture/cli-flow.md)
 - [docs/workflows/](docs/workflows/)

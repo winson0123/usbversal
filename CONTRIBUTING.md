@@ -34,7 +34,7 @@ Thank you for contributing. This project uses a **single-task execution model** 
 Read state → Scope task → Minimal implement → Verify → Update docs/state → One commit
 ```
 
-Parallel feature work across adapters, CLI, and jobs is **not allowed**.
+Parallel feature work across adapters, TUI, and jobs is **not allowed**.
 
 ## Testing Requirements
 
@@ -42,8 +42,7 @@ Parallel feature work across adapters, CLI, and jobs is **not allowed**.
 |-------|-------------|
 | Unit | `pytest` for domain, storage, adapter helpers |
 | Integration | Fixture-based DB files under `tests/fixtures/` |
-| USB validation | `/mnt/usb` only when task explicitly requires it |
-| CLI smoke | `--help` and command stubs once CLI exists |
+| USB validation | Auto-detected mounts only when a task explicitly requires a live stick |
 
 All tests must pass before marking a task complete. Record commands in `current-task.md` verification log.
 
@@ -55,14 +54,13 @@ All tests must pass before marking a task complete. Record commands in `current-
 - Do not mix refactors with feature work in the same commit.
 - Do not commit secrets, real DJ databases, or `/mnt/usb` snapshots.
 
-## CLI Thin-Layer Requirement
+## TUI Thin-Layer Requirement
 
-The CLI (`app/cli/`) must:
+The TUI (`app/tui/`) must:
 
-- Parse arguments and validate paths
-- Construct domain/job contexts
-- Dispatch to services — **no business logic in CLI modules**
-- Format output and exit codes only
+- Render screens and handle keys
+- Dispatch to services — **no business logic in TUI modules**
+- Stay off vendor parsers and backup internals
 
 Parsing, schema mapping, backup logic, and job orchestration belong in `app/core/`, `app/adapters/`, `app/services/`, and `app/storage/`.
 

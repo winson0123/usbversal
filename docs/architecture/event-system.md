@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Decouple operation progress from CLI rendering and enable future GUI subscribers without changing job or adapter internals.
+Decouple operation progress from presentation and enable subscribers without changing job or adapter internals.
 
 ## Event Shape
 
@@ -23,11 +23,11 @@ Implemented in `app/core/event_envelope.py`. Dataclass events from `app/core/eve
 
 | Category | Examples | Consumers |
 |----------|----------|-----------|
-| `job.*` | started, progress, completed, failed, cancelled | CLI, logs |
-| `scan.*` | started, library_found, completed | CLI |
+| `job.*` | started, progress, completed, failed, cancelled | TUI, logs |
+| `scan.*` | started, library_found, completed | TUI |
 | `adapter.*` | unknown_field, schema_version | logs, docs (planned) |
-| `storage.*` | backup_created, rollback_done | CLI, audit (planned) |
-| `warning.*` | db_locked, process_running | CLI stderr (planned) |
+| `storage.*` | backup_created, rollback_done | TUI, audit (planned) |
+| `warning.*` | db_locked, process_running | TUI (planned) |
 
 ## Delivery Model
 
@@ -36,9 +36,10 @@ Implemented in `app/core/event_envelope.py`. Dataclass events from `app/core/eve
 - Subscribers must not raise; failures logged and ignored.
 - No guaranteed ordering across job types unless documented per job.
 
-## CLI Integration
+## TUI Integration
 
-`usbversal scan` attaches `CliProgressRenderer` to stderr when not using `--json` (see `app/cli/progress.py`).
+`ProgressScreen` drives `sync_playlists` and renders per-step progress. The
+argparse `CliProgressRenderer` is gone with the CLI.
 
 ## Forbidden
 

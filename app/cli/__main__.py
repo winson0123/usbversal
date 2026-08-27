@@ -1,6 +1,0 @@
-"""Allow ``python -m app.cli`` invocation."""
-
-from app.cli.main import main
-
-if __name__ == "__main__":
-    raise SystemExit(main())
