@@ -418,6 +418,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-227 — Home screen: explicit HomePhase instead of _seen_invalid
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | Replace the `_seen_invalid` flag pile with `HomePhase` |
+| Verification | ruff ✓ ruff format ✓ pytest 278 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

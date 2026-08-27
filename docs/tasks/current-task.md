@@ -1,7 +1,7 @@
 # Current Task
 
 **Status:** `complete`
-**Task ID:** TASK-226
+**Task ID:** TASK-227
 **Last updated:** 2026-08-27
 
 ---
@@ -10,20 +10,14 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-226` |
-| Objective | Move TUI session-open (bootstrap + open + readability check) into `prepare_library` |
+| Task ID | `TASK-227` |
+| Objective | Replace Home's `_seen_invalid` flag pile with an explicit `HomePhase` |
 | Completed | 2026-08-27 |
 
 ### Scope
 
-Files touched:
-
-- `app/services/library.py`: new `prepare_library(mount)` — bootstrap Serato if needed, `open_library`, then `list_playlists()` so a database that opens but cannot be read fails before the Library screen takes over. `open_library` itself is unchanged (CLI must not create `_Serato_`).
-- `app/tui/screens/home.py`: `_open` is one `run_rekordbox(prepare_library, mount)` call.
-- `tests/test_tui_home.py`: retargeted dual bootstrap/open patches to `prepare_library`. The real-bootstrap test still runs unpatched bootstrap by patching `open_library` on the service module.
-- `tests/test_library.py`: contract test that prepare bootstraps then opens.
-
-The discarded `list_playlists()` call on Home originally displayed "Ready: N playlists" (TASK-206). That UI is gone, but Home still catches a failed read before push — kept as the readability check inside `prepare_library`.
+- `app/tui/screens/home.py`: `SEARCHING | FAILED | OPENING | READY`. `poll_mounts` only transitions. `_show_phase` (not `_render` — that name is Textual's) paints widgets on change. Timeout only applies while `SEARCHING`. Hidden path input stays disabled (Textual focus rule).
+- `tests/test_tui_home.py`: `_force_error_state` / `_seen_invalid` retargeted to `_enter` / `HomePhase`. Under-timeout fixture is `SCAN_TIMEOUT_S - 0.5`.
 
 ### Verification log
 
@@ -35,4 +29,4 @@ The discarded `list_playlists()` call on Home originally displayed "Ready: N pla
 
 ## Next
 
-TASK-227 — Home phase machine (`HomePhase` instead of `_seen_invalid`).
+TASK-228 — Extract PathInput to `app/tui/widgets/path_input.py`.

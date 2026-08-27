@@ -8,6 +8,7 @@ no ``LibraryDiscovery`` walk runs on this screen.
 from __future__ import annotations
 
 import time
+from enum import StrEnum
 from pathlib import Path
 
 from rich.text import Text
@@ -151,6 +152,15 @@ class _PathInput(Input):
         self.cursor_position = len(value)
 
 
+class HomePhase(StrEnum):
+    """Visible Home screen phase. Polling only transitions; render follows."""
+
+    SEARCHING = "searching"
+    FAILED = "failed"
+    OPENING = "opening"
+    READY = "ready"
+
+
 class HomeScreen(Screen):
     """
     Poll for a mount to appear, check it, then push the Library screen.
@@ -160,10 +170,9 @@ class HomeScreen(Screen):
     exist yet -- ``prepare_library`` creates an empty one first when
     it doesn't, so a plain rekordbox stick is never a dead end.
 
-    Nothing plugged in at all still gets a way out: once ``SCAN_TIMEOUT_S``
-    passes with no mount ever appearing, this is treated exactly like a
-    mount that was found and rejected -- the manual-path input appears,
-    rather than leaving a bare spinner running forever with no way to act.
+    ``SEARCHING`` lasts until a mount is accepted, rejected, or
+    ``SCAN_TIMEOUT_S`` passes with nothing to find. ``FAILED`` shows the
+    manual-path input so the user can retry or type a path.
     """
 
     DEFAULT_CSS = """
@@ -192,7 +201,8 @@ class HomeScreen(Screen):
         """
         super().__init__()
         self._watcher = watcher or MountWatcher()
-        self._seen_invalid = False
+        self._phase = HomePhase.SEARCHING
+        self._error = _NONE_FOUND
         self._searching_since = time.monotonic()
         self.library: UsbLibrary | None = None
 
@@ -211,30 +221,22 @@ class HomeScreen(Screen):
                 )
 
     def on_mount(self) -> None:
-        self._show_spinner()
+        self._show_phase()
         self.set_interval(self.POLL_INTERVAL_S, self.poll_mounts)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         event.stop()
         value = event.value.strip()
         if not value:
-            # An explicit retry gets a fresh look, not an instant re-print
-            # of the same failure: _seen_invalid stays true forever once
-            # set (that's what stops hopeful auto-checking after a real
-            # rejection), so without resetting it here, poll_mounts()
-            # would just show the identical error again with nothing on
-            # screen ever changing -- indistinguishable from Enter having
-            # done nothing at all.
-            self._seen_invalid = False
-            self._searching_since = time.monotonic()
+            self._enter(HomePhase.SEARCHING)
             self.poll_mounts()
             return
-        self._show_spinner()
+        self._enter(HomePhase.OPENING)
         self.run_worker(self._open(Path(value)), exclusive=True)
 
     def poll_mounts(self) -> None:
         """One watch tick: check for new mounts and probe any that appeared."""
-        if self.library is not None:
+        if self._phase in (HomePhase.OPENING, HomePhase.READY):
             return
 
         for change in self._watcher.poll():
@@ -242,77 +244,72 @@ class HomeScreen(Screen):
                 continue
             probe = probe_mount(change.path)
             if probe is not None and probe.is_dj_usb and probe.is_supported:
-                self._show_spinner()
+                self._enter(HomePhase.OPENING)
                 self.run_worker(self._open(change.path), exclusive=True)
                 return
-            self._seen_invalid = True
+            self._enter(HomePhase.FAILED)
 
-        timed_out = time.monotonic() - self._searching_since >= self.SCAN_TIMEOUT_S
-        if not self._seen_invalid and timed_out:
-            # Nothing has ever appeared to reject -- there's simply nothing
-            # to find. Give up on quiet auto-scanning the same way an
-            # actual rejection would, rather than spinning forever with no
-            # way for the user to act.
-            self._seen_invalid = True
-
-        if self._seen_invalid:
-            self._show_error(_NONE_FOUND)
-        else:
-            self._show_spinner()
+        if self._phase is HomePhase.SEARCHING and (
+            time.monotonic() - self._searching_since >= self.SCAN_TIMEOUT_S
+        ):
+            self._enter(HomePhase.FAILED)
 
     async def _open(self, mount: Path) -> None:
         """Prepare the session handle, then hand off to the Library screen."""
-        self.query_one(_PathInput).disabled = True
         try:
             # prepare_library opens Rekordbox, so it must stay on the app's
             # one dedicated thread -- see UsbversalApp.run_rekordbox.
             library = await self.app.run_rekordbox(prepare_library, mount)
         except (OSError, DatabaseNotFoundError, UnsupportedDatabaseError) as exc:
-            self._seen_invalid = True
-            self._show_error(f"{_NONE_FOUND} ({exc})")
+            self._enter(HomePhase.FAILED, f"{_NONE_FOUND} ({exc})")
             return
         self.library = library
+        self._enter(HomePhase.READY)
         self.app.push_screen(LibraryScreen(library))
 
-    def _show_spinner(self) -> None:
-        self.query_one(f"#{_SPINNER_ID}", _Spinner).display = True
-        status = self.query_one(f"#{_STATUS_ID}", Static)
-        status.display = True
-        # Dim, not red -- this is routine "still looking" information, not
-        # a problem.
-        status.update(Text(_SCANNING, style="dim"))
-        self._hide_input()
+    def _enter(self, phase: HomePhase, error: str = _NONE_FOUND) -> None:
+        """
+        Move to `phase` and render only when the visible state changes.
 
-    def _show_error(self, message: str) -> None:
-        self.query_one(f"#{_SPINNER_ID}", _Spinner).display = False
-        status = self.query_one(f"#{_STATUS_ID}", Static)
-        status.display = True
-        # Text(), not markup -- message can embed an arbitrary exception
-        # string, which could itself contain "[...]" that markup parsing
-        # would misread as a tag. The retry hint lives here, not in the
-        # input's placeholder: the status line has the whole screen's
-        # width to work with, while the input box has a fixed, narrow
-        # width and was truncating it.
-        status.update(Text(f"{message} {_RETRY_HINT}", style="red"))
-        self._reveal_input()
+        Args:
+            phase: Next Home phase.
+            error: Status text used when entering ``FAILED``.
+        """
+        if phase is HomePhase.SEARCHING and self._phase is not HomePhase.SEARCHING:
+            self._searching_since = time.monotonic()
+        if phase is self._phase and (phase is not HomePhase.FAILED or error == self._error):
+            return
+        self._phase = phase
+        self._error = error
+        if phase is not HomePhase.READY:
+            self._show_phase()
 
-    def _hide_input(self) -> None:
-        """Manual entry only makes sense once auto-scanning has actually
-        failed at something, not while it's still quietly searching --
-        disabled, not just hidden, so a hidden field can't silently eat
-        keystrokes (Textual still auto-focuses a hidden-but-enabled widget
-        when it's the only focusable one on screen)."""
+    def _show_phase(self) -> None:
+        """Apply spinner, status, and path-input widgets from ``self._phase``."""
+        spinner = self.query_one(f"#{_SPINNER_ID}", _Spinner)
+        status = self.query_one(f"#{_STATUS_ID}", Static)
         path_input = self.query_one(_PathInput)
+
+        if self._phase is HomePhase.FAILED:
+            spinner.display = False
+            status.display = True
+            # Text(), not markup -- the message can embed an arbitrary
+            # exception string, which could itself contain "[...]" that
+            # markup parsing would misread as a tag. The retry hint lives
+            # here, not in the input's placeholder: the status line has
+            # the whole screen's width, while the input box is fixed and
+            # narrow.
+            status.update(Text(f"{self._error} {_RETRY_HINT}", style="red"))
+            path_input.display = True
+            path_input.disabled = False
+            path_input.focus()
+            return
+
+        spinner.display = True
+        status.display = True
+        # Dim, not red -- this is routine "still looking" information.
+        status.update(Text(_SCANNING, style="dim"))
+        # Disabled, not just hidden: Textual still auto-focuses a
+        # hidden-but-enabled widget when it is the only focusable one.
         path_input.display = False
         path_input.disabled = True
-
-    def _reveal_input(self) -> None:
-        """Show and focus the input, but only on the transition into this
-        state -- not on every later poll tick that re-confirms the same
-        failure, which would otherwise steal focus back on a 1s timer."""
-        path_input = self.query_one(_PathInput)
-        if path_input.display:
-            return
-        path_input.display = True
-        path_input.disabled = False
-        path_input.focus()

@@ -12,7 +12,7 @@ from app.core.domain import MountPoint
 from app.storage.mount_watch import MountWatcher
 from app.storage.mounts import MountScanner
 from app.tui.app import UsbversalApp
-from app.tui.screens.home import HomeScreen, _match_candidates, _PathInput
+from app.tui.screens.home import HomePhase, HomeScreen, _match_candidates, _PathInput
 
 
 class _FakeScanner(MountScanner):
@@ -75,7 +75,7 @@ async def test_still_within_the_timeout_keeps_spinning() -> None:
     async with app.run_test() as pilot:
         await pilot.pause()
         home = app.screen
-        home._searching_since = time.monotonic() - (home.SCAN_TIMEOUT_S - 5)
+        home._searching_since = time.monotonic() - (home.SCAN_TIMEOUT_S - 0.5)
 
         home.poll_mounts()
         await pilot.pause()
@@ -272,7 +272,7 @@ def _force_error_state(home: HomeScreen) -> None:
     """Drive the screen into its failed/error state directly, the way a
     real failed auto-scan or a failed manual open would -- which is the
     only way the path input becomes visible and interactive at all."""
-    home._show_error("forced for test setup")
+    home._enter(HomePhase.FAILED, "forced for test setup")
 
 
 @pytest.mark.asyncio
@@ -397,7 +397,7 @@ async def test_enter_on_empty_input_visibly_resumes_scanning() -> None:
 
         assert home.query_one("#spinner").display is True
         assert home.query_one(_PathInput).display is False
-        assert home._seen_invalid is False
+        assert home._phase is HomePhase.SEARCHING
 
 
 @pytest.mark.asyncio
