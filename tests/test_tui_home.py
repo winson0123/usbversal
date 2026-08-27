@@ -49,43 +49,6 @@ def _status_text(screen: HomeScreen) -> str:
 
 
 @pytest.mark.asyncio
-async def test_shows_searching_with_nothing_mounted() -> None:
-    """Nothing plugged in yet is the initial, and steady, state: the spinner
-    runs under the banner, alongside a caption saying it's looking -- not
-    silence, and not the red not-found error."""
-    watcher = MountWatcher(_FakeScanner([]))
-    app = UsbversalApp(watcher)
-    async with app.run_test() as pilot:
-        await pilot.pause()
-        home = app.screen
-        home.poll_mounts()
-        await pilot.pause()
-
-        assert home.query_one("#spinner").display is True
-        status = home.query_one("#status", Static)
-        assert status.display is True
-        assert "Automatically detecting" in _status_text(home)
-
-
-@pytest.mark.asyncio
-async def test_still_within_the_timeout_keeps_spinning() -> None:
-    """Nothing found yet, but well under SCAN_TIMEOUT_S, is not a failure --
-    still just quietly searching."""
-    watcher = MountWatcher(_FakeScanner([]))
-    app = UsbversalApp(watcher)
-    async with app.run_test() as pilot:
-        await pilot.pause()
-        home = app.screen
-        home._searching_since = time.monotonic() - (home.SCAN_TIMEOUT_S - 0.5)
-
-        home.poll_mounts()
-        await pilot.pause()
-
-        assert home.query_one("#spinner").display is True
-        assert home.query_one(PathInput).display is False
-
-
-@pytest.mark.asyncio
 async def test_search_times_out_and_reveals_manual_entry() -> None:
     """Nothing plugged in at all, ever, is not a permanent bare spinner --
     past SCAN_TIMEOUT_S it gives up the same way an actual rejection
@@ -105,6 +68,24 @@ async def test_search_times_out_and_reveals_manual_entry() -> None:
         path_input = home.query_one(PathInput)
         assert path_input.display is True
         assert path_input.disabled is False
+
+
+@pytest.mark.asyncio
+async def test_still_within_the_timeout_keeps_spinning() -> None:
+    """Nothing found yet, but well under SCAN_TIMEOUT_S, is not a failure --
+    still just quietly searching."""
+    watcher = MountWatcher(_FakeScanner([]))
+    app = UsbversalApp(watcher)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        home = app.screen
+        home._searching_since = time.monotonic() - (home.SCAN_TIMEOUT_S - 0.5)
+
+        home.poll_mounts()
+        await pilot.pause()
+
+        assert home.query_one("#spinner").display is True
+        assert home.query_one(PathInput).display is False
 
 
 @pytest.mark.asyncio
@@ -277,10 +258,9 @@ def _force_error_state(home: HomeScreen) -> None:
 
 
 @pytest.mark.asyncio
-async def test_input_is_hidden_and_unfocused_while_still_searching() -> None:
-    """The path input only makes sense once auto-scanning has failed at
-    something -- it must not be visible, focusable, or interactive while
-    the spinner is still quietly searching."""
+async def test_searching_shows_spinner_and_hides_the_path_input() -> None:
+    """Nothing plugged in yet is SEARCHING: caption plus spinner, path
+    input hidden and disabled so it cannot eat keystrokes."""
     watcher = MountWatcher(_FakeScanner([]))
     app = UsbversalApp(watcher)
     async with app.run_test() as pilot:
@@ -289,6 +269,8 @@ async def test_input_is_hidden_and_unfocused_while_still_searching() -> None:
         home.poll_mounts()
         await pilot.pause()
 
+        assert home.query_one("#spinner").display is True
+        assert "Automatically detecting" in _status_text(home)
         path_input = home.query_one(PathInput)
         assert path_input.display is False
         assert path_input.disabled is True
@@ -358,25 +340,6 @@ async def test_typing_after_a_tab_cycle_starts_a_fresh_one(tmp_path: Path) -> No
         await pilot.pause()
 
         assert path_input.value == f"{tmp_path}/alphabet/"
-
-
-@pytest.mark.asyncio
-async def test_enter_on_an_empty_input_retries_the_scan_immediately() -> None:
-    """Enter with nothing typed re-polls right away, instead of waiting for
-    the next tick -- the "insert it now and press enter" path."""
-    watcher = MountWatcher(_FakeScanner([]))
-    app = UsbversalApp(watcher)
-    async with app.run_test() as pilot:
-        await pilot.pause()
-        home = app.screen
-        _force_error_state(home)
-        await pilot.pause()
-
-        with patch.object(home, "poll_mounts") as poll_mounts:
-            await pilot.press("enter")
-            await pilot.pause()
-
-            poll_mounts.assert_called_once()
 
 
 @pytest.mark.asyncio

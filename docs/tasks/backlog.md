@@ -168,6 +168,7 @@ and none of them exist yet.
 | ~~`TASK-236`~~ | ~~Bring remaining `app/` functions under CC 6~~ | Done — every remaining CC 6–10 function split into named steps. Analysis write / BPM correction live in `sync_analysis.py`. `sync_service.py` is 725 lines. Public signatures unchanged. No function left at 6+. |
 | ~~`TASK-237`~~ | ~~Flatten the TASK-236 helper explosion~~ | Done — one-off CC helpers inlined back into their callers. Kept `_COMMANDS` / `_emit_json`, `sync_analysis.py`, shared backup helpers, and the TASK-234/235 named steps. |
 | ~~`TASK-238`~~ | ~~Fold `sync_analysis.py` back into `sync_service.py`~~ | Done — TASK-235 (`ddcb66c`) was the best state along 233–237: named steps that earn their keep, no extra module. Folded analysis write / BPM correction back into `sync_service.py`. Kept `_COMMANDS` / `_emit_json` and shared backup helpers. File under 1000 lines. |
+| ~~`TASK-239`~~ | ~~Commit the leftover test trim~~ | Done — overlapping Home searching / Enter-retry / count-label tests folded; unique coverage (mid-timeout, stop-polling, Home bootstrap, `e` on a leaf, custom env var) kept. |
 
 ---
 

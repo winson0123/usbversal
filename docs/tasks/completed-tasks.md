@@ -538,6 +538,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-239 — Commit the leftover test trim
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | Keep consolidations that still cover the same behaviour; restore tests that still earn their keep |
+| Verification | ruff ✓ ruff format ✓ pytest 281 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

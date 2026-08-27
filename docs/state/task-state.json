@@ -422,6 +422,11 @@
       "id": "TASK-238",
       "title": "Fold sync_analysis.py back into sync_service.py",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-239",
+      "title": "Commit the leftover test trim; restore tests that still earn their keep",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -914,6 +919,12 @@
     {
       "id": "TASK-238",
       "title": "Fold sync_analysis.py back into sync_service.py",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-239",
+      "title": "Commit the leftover test trim; restore tests that still earn their keep",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

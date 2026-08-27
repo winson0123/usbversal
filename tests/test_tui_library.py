@@ -110,7 +110,7 @@ def _library_with_two_playlists(tmp_path: Path):
 
 @pytest.mark.asyncio
 async def test_tree_shows_every_playlist_with_its_state(tmp_path: Path) -> None:
-    """Each playlist appears in the tree labelled with its sync state."""
+    """Each playlist appears labelled with its sync state and synced/total counts."""
     library = _library_with_two_playlists(tmp_path)
     app = _Harness(library)
     async with app.run_test() as pilot:
@@ -119,8 +119,10 @@ async def test_tree_shows_every_playlist_with_its_state(tmp_path: Path) -> None:
         tree = app.screen.query_one(Tree)
         labels = [str(node.label) for node in _playlist_nodes(tree)]
 
-        assert any("Techno" in label and "synced" in label for label in labels)
-        assert any("Trance" in label and "not synced" in label for label in labels)
+        assert any("Techno" in label and "synced" in label and "1/1" in label for label in labels)
+        assert any(
+            "Trance" in label and "not synced" in label and "0/1" in label for label in labels
+        )
 
 
 @pytest.mark.asyncio
@@ -176,21 +178,6 @@ async def test_e_does_nothing_on_a_leaf(tmp_path: Path) -> None:
         # Still there, still showing everything -- nothing broke.
         tree = app.screen.query_one(Tree)
         assert {child.data.name for child in _playlist_nodes(tree)} == {"Techno", "Trance"}
-
-
-@pytest.mark.asyncio
-async def test_tree_labels_show_synced_over_total_counts(tmp_path: Path) -> None:
-    """Each row shows how many tracks are synced, not just the state word."""
-    library = _library_with_two_playlists(tmp_path)
-    app = _Harness(library)
-    async with app.run_test() as pilot:
-        await pilot.pause()
-
-        tree = app.screen.query_one(Tree)
-        labels = {node.data.name: str(node.label) for node in _playlist_nodes(tree)}
-
-        assert "1/1" in labels["Techno"]
-        assert "0/1" in labels["Trance"]
 
 
 @pytest.mark.asyncio
