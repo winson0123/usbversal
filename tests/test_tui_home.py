@@ -1,5 +1,6 @@
 """Tests for the TUI Home screen (steps 1-2 of the target flow: Waiting/Detect)."""
 
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -63,6 +64,46 @@ async def test_shows_searching_with_nothing_mounted() -> None:
         status = home.query_one("#status", Static)
         assert status.display is True
         assert "Automatically detecting" in _status_text(home)
+
+
+@pytest.mark.asyncio
+async def test_still_within_the_timeout_keeps_spinning() -> None:
+    """Nothing found yet, but well under SCAN_TIMEOUT_S, is not a failure --
+    still just quietly searching."""
+    watcher = MountWatcher(_FakeScanner([]))
+    app = UsbversalApp(watcher)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        home = app.screen
+        home._searching_since = time.monotonic() - (home.SCAN_TIMEOUT_S - 5)
+
+        home.poll_mounts()
+        await pilot.pause()
+
+        assert home.query_one("#spinner").display is True
+        assert home.query_one(_PathInput).display is False
+
+
+@pytest.mark.asyncio
+async def test_search_times_out_and_reveals_manual_entry() -> None:
+    """Nothing plugged in at all, ever, is not a permanent bare spinner --
+    past SCAN_TIMEOUT_S it gives up the same way an actual rejection
+    would, so the user isn't stuck with no way to act."""
+    watcher = MountWatcher(_FakeScanner([]))
+    app = UsbversalApp(watcher)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        home = app.screen
+        home._searching_since = time.monotonic() - home.SCAN_TIMEOUT_S - 1
+
+        home.poll_mounts()
+        await pilot.pause()
+
+        assert home.query_one("#spinner").display is False
+        assert "Did not detect a valid DJ USB" in _status_text(home)
+        path_input = home.query_one(_PathInput)
+        assert path_input.display is True
+        assert path_input.disabled is False
 
 
 @pytest.mark.asyncio

@@ -368,6 +368,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-222 — Home screen: scan timeout so nothing plugged in does not spin forever
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | User: "now stuck on the screen? when usb not plugged in, should have retry/timeout" -- if nothing was ever plugged in at all (as opposed to something invalid being found), the screen would spin indefinitely with no way to reach the manual-path input |
+| Verification | ruff ✓ ruff format ✓ pytest 275 passed / 4 skipped (2 new: still spinning well under the timeout, and the timeout firing reveals the same error/input state a rejection would) |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

@@ -10,8 +10,8 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-221` |
-| Objective | User asked to replace TASK-220's single pulsing dot with a `[···••●]`-style bar sweeping left to right, then refined the fill and width twice more in the same sitting |
+| Task ID | `TASK-222` |
+| Objective | User: "now stuck on the screen? when usb not plugged in, should have retry/timeout" |
 | Completed | 2026-08-27 |
 
 ### Scope
@@ -19,40 +19,53 @@
 Files touched:
 
 - `app/tui/screens/home.py`:
-  - `_scan_bar_frame(head: int) -> str` (new, module-level) -- renders a
-    fixed-width bar with `●` at the head position, `•` one cell behind
-    it, and `·` everywhere else (both the run ahead of the head not yet
-    reached, and the trail behind it once it's faded past one step).
-    `_BAR_WIDTH = 4` (started at 8, narrowed to 6 on request to match the
-    width of the user's own example, then the user edited it down to 4
-    directly).
-  - `_Spinner.on_mount`/`_tick` now call `_scan_bar_frame` instead of
-    indexing a fixed frame tuple; frame count is `_BAR_WIDTH + 2` (one
-    full sweep across, plus the two extra frames needed for the trailing
-    `•` to clear before the head re-enters at position 0).
-  - `_Spinner`'s id (`#spinner`), CSS, and mount lifecycle are unchanged
-    -- only what it renders each tick changed, so nothing downstream
-    (`_show_spinner`/`_show_error`'s show/hide toggling, the layout CSS)
-    needed touching.
+  - `HomeScreen.SCAN_TIMEOUT_S = 15.0` (new class attribute, alongside
+    the existing `POLL_INTERVAL_S`).
+  - `self._searching_since = time.monotonic()`, set once in `__init__`.
+  - `poll_mounts()`: after the existing appeared/rejected loop, if
+    `_seen_invalid` is still `False` but `SCAN_TIMEOUT_S` has elapsed
+    since `_searching_since`, set `_seen_invalid = True` anyway. From
+    there it falls into the exact same `_show_error(_NONE_FOUND)` branch
+    a real rejection already used -- no second message, no second state
+    to keep in sync with the first.
+  - Class docstring updated to describe this: nothing plugged in at all
+    now behaves identically to something invalid being found, once the
+    timeout passes.
+- `tests/test_tui_home.py` -- two new tests, both driving the timeout by
+  setting `home._searching_since` into the past rather than sleeping:
+  `test_still_within_the_timeout_keeps_spinning` (well under the
+  threshold, still spinner + hidden input) and
+  `test_search_times_out_and_reveals_manual_entry` (past the threshold,
+  spinner hidden, red `_NONE_FOUND` message, input visible/enabled).
 
-### Sequence within this task
+### Root cause
 
-Landed in three small refinements against the same feature, in direct
-response to the user watching it and reacting:
+`poll_mounts()`'s only path to `_seen_invalid = True` was "a mount
+appeared and got rejected." Nothing ever appearing at all -- no stick
+plugged in, or `USBVERSAL_MOUNT` unset and no platform auto-mount --
+never took that branch, so the screen stayed in the quiet-searching state
+(spinner + dim caption) indefinitely, with the manual-path input staying
+hidden the entire time. There was no path out of that state without
+plugging something in.
 
-1. First cut: bright point sweeping over a *blank* background --
-   `[  ·•●   ]`-style, empty space everywhere the trail hadn't reached.
-2. User: "i want the blank space to be the smallest dot" -- resting fill
-   changed from `" "` to `"·"`, so untouched cells read as the same
-   smallest dot the trail fades into rather than a gap.
-3. User: "smaller in width?" -- `_BAR_WIDTH` 8 -> 6.
-4. User edited `_BAR_WIDTH` to 4 directly ("i changed it to 4") -- left
-   as is; the comment's inline example was the only thing that needed
-   fixing to match (was still showing the width-6 shape).
+### Design decisions
 
-No test changes were needed at any point -- the existing TUI test suite
-never asserted on the spinner's exact rendered characters, only on
-`display`/visibility toggling, which this never touched.
+- **Reused `_seen_invalid` and `_NONE_FOUND` rather than adding a
+  distinct "timed out" state.** "Did not detect a valid DJ USB" is
+  equally true whether the cause was a rejected mount or nothing showing
+  up at all, and the UI response (reveal the input, stop assuming
+  something will still turn up) is identical either way -- a second
+  parallel flag/message would only be able to drift from the first, not
+  add anything a user needs to see differently.
+- **15 seconds, not shorter.** Long enough that a real stick's OS-level
+  auto-mount (which can itself take a couple of seconds) has clearly had
+  its chance before giving up, short enough that a user who genuinely has
+  nothing plugged in isn't left watching a bare spinner for an
+  uncomfortably long stretch.
+- **Tests set `_searching_since` into the past instead of sleeping.**
+  15 real seconds per test (times however many) would make the suite
+  noticeably slower for no benefit -- the thing under test is the
+  comparison against `time.monotonic()`, not real wall-clock delay.
 
 ### Verification log
 
@@ -60,15 +73,15 @@ never asserted on the spinner's exact rendered characters, only on
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 273 passed, 4 skipped (unchanged count -- no test touched this) |
-| Direct render inspection | Printed all 8 frames of a full cycle at each width, confirmed the sweep is continuous (`[●·····]` -> `[•●····]` -> ... -> `[······]` -> wraps to `[●·····]`) with no blank gaps and no double-bright cells |
+| `.venv/bin/pytest` | 275 passed, 4 skipped (2 new) |
+| Direct state inspection | Confirmed: just before the timeout, spinner shown and input hidden; just past it, spinner hidden, status reads "Did not detect a valid DJ USB", and the input is visible, enabled, and focused |
 | Real terminal | **Not yet seen by the user.** Same as every other TUI change this session. |
 
 ## Next
 
-Ask the user to confirm the scan bar reads clearly as "actively scanning,
-sweeping" rather than a decorative flicker, at its current width and
-speed (0.1s per frame, ~0.8s per full sweep at width 6).
+Ask the user to confirm: with nothing plugged in, the Home screen now
+gives up after ~15 seconds and offers the manual-path input, instead of
+spinning forever.
 
 **The large pending Library screen redesign is still not started** -- see
 [`docs/HANDOFF.md`](../HANDOFF.md)'s "Pending: Library screen redesign"

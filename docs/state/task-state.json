@@ -337,6 +337,11 @@
       "id": "TASK-221",
       "title": "Home screen: sweeping scan-bar spinner instead of a pulsing dot",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-222",
+      "title": "Home screen: scan timeout so nothing plugged in does not spin forever",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -727,6 +732,12 @@
     {
       "id": "TASK-221",
       "title": "Home screen: sweeping scan-bar spinner instead of a pulsing dot",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-222",
+      "title": "Home screen: scan timeout so nothing plugged in does not spin forever",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

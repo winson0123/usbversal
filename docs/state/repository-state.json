@@ -86,6 +86,7 @@
     "tui_uses_native_terminal_colours": true,
     "tui_home_manual_path_entry_and_retry": true,
     "tui_home_manual_entry_only_shown_on_failure": true,
+    "tui_home_scan_timeout": true,
     "tui_progress_verbose_per_track_log": true,
     "sync_progress_callback_reports_track_and_error": true,
     "tui_home_shows_scanning_caption": true,
@@ -114,7 +115,7 @@
     "ruff_format": "pass",
     "pytest": "pass",
     "last_run": "2026-08-27T00:00:00Z",
-    "tests_passed": 273,
+    "tests_passed": 275,
     "tests_skipped": 4,
     "tests_failed": 0,
     "note": "run with no stick mounted and no dist/usbversal built; the 4 skips are 2 integration tests gated on USBVERSAL_TEST_MOUNT, the opt-in full PyInstaller build (USBVERSAL_PACKAGING_BUILD=1), and the binary-help smoke test that needs a prior ./scripts/build-release.sh -- a real build was run and verified during TASK-206, then cleaned up"

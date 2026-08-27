@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 from pathlib import Path
 
 from rich.text import Text
@@ -139,6 +140,11 @@ class HomeScreen(Screen):
     (``MountProbe.is_dj_usb and MountProbe.is_supported``). Serato need not
     exist yet -- ``bootstrap_serato_library`` creates an empty one first when
     it doesn't, so a plain rekordbox stick is never a dead end.
+
+    Nothing plugged in at all still gets a way out: once ``SCAN_TIMEOUT_S``
+    passes with no mount ever appearing, this is treated exactly like a
+    mount that was found and rejected -- the manual-path input appears,
+    rather than leaving a bare spinner running forever with no way to act.
     """
 
     DEFAULT_CSS = """
@@ -156,6 +162,7 @@ class HomeScreen(Screen):
     """
 
     POLL_INTERVAL_S = 1.0
+    SCAN_TIMEOUT_S = 15.0
 
     def __init__(self, watcher: MountWatcher | None = None) -> None:
         """
@@ -167,6 +174,7 @@ class HomeScreen(Screen):
         super().__init__()
         self._watcher = watcher or MountWatcher()
         self._seen_invalid = False
+        self._searching_since = time.monotonic()
         self.library: UsbLibrary | None = None
 
     def compose(self) -> ComposeResult:
@@ -209,6 +217,14 @@ class HomeScreen(Screen):
                 self._show_spinner()
                 self.run_worker(self._open(change.path), exclusive=True)
                 return
+            self._seen_invalid = True
+
+        timed_out = time.monotonic() - self._searching_since >= self.SCAN_TIMEOUT_S
+        if not self._seen_invalid and timed_out:
+            # Nothing has ever appeared to reject -- there's simply nothing
+            # to find. Give up on quiet auto-scanning the same way an
+            # actual rejection would, rather than spinning forever with no
+            # way for the user to act.
             self._seen_invalid = True
 
         if self._seen_invalid:
