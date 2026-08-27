@@ -115,16 +115,49 @@ def _find_playlist(
         ValueError: Neither id nor name provided.
     """
     if playlist_id is not None:
-        for playlist in playlists:
-            if playlist.id == playlist_id:
-                if playlist.is_folder:
-                    raise PlaylistNotFoundError(f"Playlist {playlist_id} is a folder")
-                return playlist
-        raise PlaylistNotFoundError(f"Playlist not found: {playlist_id}")
-
+        return _playlist_by_id(playlists, playlist_id)
     if playlist_name is None:
         raise ValueError("Either playlist_id or playlist_name is required")
+    return _playlist_by_name(playlists, playlist_name)
 
+
+def _playlist_by_id(playlists: tuple[Playlist, ...], playlist_id: int) -> Playlist:
+    """
+    Resolve a non-folder playlist by id.
+
+    Args:
+        playlists: All playlists from Rekordbox.
+        playlist_id: Rekordbox playlist id.
+
+    Returns:
+        The matching leaf playlist.
+
+    Raises:
+        PlaylistNotFoundError: Missing, or the id is a folder.
+    """
+    for playlist in playlists:
+        if playlist.id != playlist_id:
+            continue
+        if playlist.is_folder:
+            raise PlaylistNotFoundError(f"Playlist {playlist_id} is a folder")
+        return playlist
+    raise PlaylistNotFoundError(f"Playlist not found: {playlist_id}")
+
+
+def _playlist_by_name(playlists: tuple[Playlist, ...], playlist_name: str) -> Playlist:
+    """
+    Resolve a non-folder playlist by exact name.
+
+    Args:
+        playlists: All playlists from Rekordbox.
+        playlist_name: Exact display name.
+
+    Returns:
+        The one matching leaf playlist.
+
+    Raises:
+        PlaylistNotFoundError: None match, or more than one does.
+    """
     matches = [p for p in playlists if not p.is_folder and p.name == playlist_name]
     if not matches:
         raise PlaylistNotFoundError(f"Playlist not found: {playlist_name!r}")

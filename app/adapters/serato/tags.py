@@ -210,6 +210,157 @@ def verify_geob_rewrite(
             raise TagFormatError(f"{description!r} was supposed to be removed")
 
 
+def _rewritten_frame(
+    frame_id: bytes,
+    header: bytes,
+    body: bytes,
+    version: int,
+    updates: dict[str, bytes],
+    dropped_geob: set[str],
+    dropped_frames: set[bytes],
+) -> tuple[bytes, bytes, str | None] | None:
+    """
+    Return the header, body, and GEOB description to keep, or None to drop.
+
+    Args:
+        frame_id: Four-byte ID3 frame id.
+        header: Original 10-byte frame header.
+        body: Original frame body.
+        version: ID3 major version (size encoding).
+        updates: GEOB description to replacement payload.
+        dropped_geob: GEOB descriptions to delete.
+        dropped_frames: Frame ids to delete.
+    """
+    if frame_id in dropped_frames:
+        return None
+    if frame_id != b"GEOB":
+        return header, body, None
+    description, cursor = _geob_description(body)
+    if description in dropped_geob:
+        return None
+    if description in updates:
+        body = body[:cursor] + updates[description]
+        header = frame_id + _encode_frame_size(len(body), version) + header[8:10]
+    return header, body, description
+
+
+def _copy_existing_frames(
+    tag: bytes,
+    version: int,
+    end: int,
+    updates: dict[str, bytes],
+    dropped_geob: set[str],
+    dropped_frames: set[bytes],
+) -> tuple[bytearray, set[str]]:
+    """
+    Walk the existing tag and rebuild its frames with the requested edits.
+
+    Args:
+        tag: Full ID3 tag bytes.
+        version: ID3 major version.
+        end: Exclusive offset of the last declared frame byte.
+        updates: GEOB description to replacement payload.
+        dropped_geob: GEOB descriptions to delete.
+        dropped_frames: Frame ids to delete.
+
+    Returns:
+        Rebuilt frame bytes and the GEOB descriptions already written.
+    """
+    rebuilt = bytearray()
+    written: set[str] = set()
+    offset = 10
+    while offset + 10 <= min(end, len(tag)):
+        frame_id = tag[offset : offset + 4]
+        if frame_id == b"\x00\x00\x00\x00":
+            break
+        frame_size = _frame_size(tag[offset + 4 : offset + 8], version)
+        header = tag[offset : offset + 10]
+        body = tag[offset + 10 : offset + 10 + frame_size]
+        offset += 10 + frame_size
+        next_frame = _rewritten_frame(
+            frame_id, header, body, version, updates, dropped_geob, dropped_frames
+        )
+        if next_frame is None:
+            continue
+        header, body, description = next_frame
+        if description is not None:
+            written.add(description)
+        rebuilt += header + body
+    return rebuilt, written
+
+
+def _append_missing_geob(
+    rebuilt: bytearray,
+    updates: dict[str, bytes],
+    written: set[str],
+    version: int,
+) -> None:
+    """
+    Append GEOB frames the file has never carried.
+
+    Args:
+        rebuilt: Frame bytes being assembled.
+        updates: GEOB description to new payload.
+        written: Descriptions already copied from the original tag.
+        version: ID3 major version.
+    """
+    for description, payload in updates.items():
+        if description in written:
+            continue
+        body = b"\x00" + _GEOB_MIME + b"\x00\x00" + description.encode("latin1") + b"\x00" + payload
+        rebuilt += b"GEOB" + _encode_frame_size(len(body), version) + b"\x00\x00" + body
+
+
+def _padded_tag(tag: bytes, rebuilt: bytearray, declared: int) -> bytes:
+    """
+    Keep the tag the same size by absorbing the edit into its padding.
+
+    Args:
+        tag: Original ID3 tag.
+        rebuilt: New frame bytes, without padding.
+        declared: Original declared tag body size.
+
+    Returns:
+        A full ID3 tag of the original length.
+
+    Raises:
+        TagFormatError: The new frames no longer fit.
+    """
+    padding = declared - len(rebuilt)
+    if padding < 0:
+        raise TagFormatError(
+            f"New frames exceed the tag's {declared} bytes by {-padding}; "
+            "growing the tag would move the audio stream"
+        )
+    body_bytes = bytes(rebuilt) + b"\x00" * padding
+    return tag[:6] + _synchsafe(len(body_bytes)) + body_bytes
+
+
+def _splice_tag(data: bytes, start: int, size: int, new_tag: bytes) -> bytearray:
+    """
+    Put ``new_tag`` back into the file at the original tag's location.
+
+    Args:
+        data: Original file contents.
+        start: Tag offset (0 for MP3, chunk payload for WAV).
+        size: Original tag length.
+        new_tag: Replacement tag of the same length.
+
+    Returns:
+        A mutable copy of the file with the tag swapped in.
+    """
+    new_data = bytearray(data)
+    if start == 0:
+        new_data[0:size] = new_tag
+        return new_data
+    pad = size & 1
+    new_data[start - 8 : start + size + pad] = (
+        b"id3 " + struct.pack("<I", len(new_tag)) + new_tag + b"\x00" * (len(new_tag) & 1)
+    )
+    new_data[4:8] = struct.pack("<I", len(new_data) - 8)
+    return new_data
+
+
 def write_geob(
     path: str | Path,
     updates: dict[str, bytes],
@@ -245,63 +396,16 @@ def write_geob(
     tag = data[start : start + size]
     version = tag[3]
     declared = _unsynchsafe(tag[6:10])
-    end = 10 + declared
-
-    rebuilt = bytearray()
-    written: set[str | None] = set()
-    offset = 10
-    while offset + 10 <= min(end, len(tag)):
-        frame_id = tag[offset : offset + 4]
-        if frame_id == b"\x00\x00\x00\x00":
-            break
-        frame_size = _frame_size(tag[offset + 4 : offset + 8], version)
-        header = tag[offset : offset + 10]
-        body = tag[offset + 10 : offset + 10 + frame_size]
-        offset += 10 + frame_size
-
-        description = None
-        if frame_id in dropped_frames:
-            continue
-        if frame_id == b"GEOB":
-            description, cursor = _geob_description(body)
-            if description in dropped_geob:
-                continue
-            if description in updates:
-                body = body[:cursor] + updates[description]
-                header = frame_id + _encode_frame_size(len(body), version) + header[8:10]
-            written.add(description)
-        rebuilt += header + body
-
+    rebuilt, written = _copy_existing_frames(
+        tag, version, 10 + declared, updates, dropped_geob, dropped_frames
+    )
     # A frame the file has never carried is appended rather than replaced.
-    for description, payload in updates.items():
-        if description in written:
-            continue
-        body = b"\x00" + _GEOB_MIME + b"\x00\x00" + description.encode("latin1") + b"\x00" + payload
-        rebuilt += b"GEOB" + _encode_frame_size(len(body), version) + b"\x00\x00" + body
-
+    _append_missing_geob(rebuilt, updates, written, version)
     # Keep the tag the same size by absorbing the change into its padding.
     # Serato Offsets_ addresses the audio by byte position, so moving the
     # stream invalidates it and the waveform preview renders wrong.
-    padding = declared - len(rebuilt)
-    if padding < 0:
-        raise TagFormatError(
-            f"New frames exceed the tag's {declared} bytes by {-padding}; "
-            "growing the tag would move the audio stream"
-        )
-    body_bytes = bytes(rebuilt) + b"\x00" * padding
-    new_tag = tag[:6] + _synchsafe(len(body_bytes)) + body_bytes
-
-    new_data = bytearray(data)
-    if start == 0:
-        # MP3: the tag sits at the head, followed by the audio stream.
-        new_data[0:size] = new_tag
-    else:
-        # WAV: the tag lives in a RIFF chunk whose size, and the file's, follow.
-        pad = size & 1
-        new_data[start - 8 : start + size + pad] = (
-            b"id3 " + struct.pack("<I", len(new_tag)) + new_tag + b"\x00" * (len(new_tag) & 1)
-        )
-        new_data[4:8] = struct.pack("<I", len(new_data) - 8)
+    new_tag = _padded_tag(tag, rebuilt, declared)
+    new_data = _splice_tag(data, start, size, new_tag)
 
     verify_geob_rewrite(bytes(data), bytes(new_data), updates, remove_geob=dropped_geob)
 

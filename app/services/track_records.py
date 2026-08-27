@@ -79,6 +79,70 @@ def _duration(seconds: int | None) -> str | None:
     return f"{seconds // 60:02d}:{seconds % 60:02d}.00"
 
 
+def _release_year(content: Any) -> str | None:
+    """
+    Prefer Rekordbox's date string, else the year alone.
+
+    Args:
+        content: rbox content row.
+
+    Returns:
+        A year/date string, or None when Rekordbox has neither.
+    """
+    if content.release_date:
+        return content.release_date
+    if content.release_year:
+        return str(content.release_year)
+    return None
+
+
+def _optional_track_fields(content: Any, lookups: RekordboxLookups) -> TrackRecord:
+    """
+    Text fields that are omitted when Rekordbox has no value.
+
+    Args:
+        content: rbox content row.
+        lookups: Id-to-name tables from the same library.
+
+    Returns:
+        ``(tag, value)`` pairs that should appear on the record.
+    """
+    optional: list[tuple[str, Any]] = [
+        ("tsng", content.title),
+        ("tart", lookups.artists.get(content.artist_id)),
+        ("talb", lookups.albums.get(content.album_id)),
+        ("tgen", lookups.genres.get(content.genre_id)),
+        ("tlen", _duration(content.length)),
+        ("tsiz", f"{content.file_size / 1048576:.1f}MB" if content.file_size else None),
+        ("tbit", f"{content.bitrate}.0kbps" if content.bitrate else None),
+        ("tsmp", f"{content.sampling_rate / 1000:.1f}k" if content.sampling_rate else None),
+        ("tbpm", f"{content.bpmx100 / 100:.2f}" if content.bpmx100 else None),
+        ("tkey", lookups.keys.get(content.key_id)),
+        ("ttyr", _release_year(content)),
+    ]
+    return [(tag, value) for tag, value in optional if value]
+
+
+def _size_and_added_fields(content: Any) -> TrackRecord:
+    """
+    Numeric file-size and date-added fields, when present.
+
+    Args:
+        content: rbox content row.
+
+    Returns:
+        ``ufsb`` / ``tadd`` / ``uadd`` pairs, or an empty list.
+    """
+    fields: TrackRecord = []
+    if content.file_size:
+        fields.append(("ufsb", int(content.file_size)))
+    if content.date_added is not None:
+        stamp = int(content.date_added.timestamp())
+        fields.append(("tadd", str(stamp)))
+        fields.append(("uadd", stamp))
+    return fields
+
+
 def build_track_record(content: Any, lookups: RekordboxLookups) -> TrackRecord:
     """
     Build the Serato database fields for one Rekordbox track.
@@ -95,35 +159,12 @@ def build_track_record(content: Any, lookups: RekordboxLookups) -> TrackRecord:
     """
     path = serato_path(content.path or "")
     suffix = Path(path).suffix.lstrip(".").lower()
-
     fields: TrackRecord = [
         ("ttyp", _TYPE_BY_SUFFIX.get(suffix, suffix or "mp3")),
         ("pfil", path),
     ]
-
-    year = content.release_date or (str(content.release_year) if content.release_year else None)
-    optional: list[tuple[str, Any]] = [
-        ("tsng", content.title),
-        ("tart", lookups.artists.get(content.artist_id)),
-        ("talb", lookups.albums.get(content.album_id)),
-        ("tgen", lookups.genres.get(content.genre_id)),
-        ("tlen", _duration(content.length)),
-        ("tsiz", f"{content.file_size / 1048576:.1f}MB" if content.file_size else None),
-        ("tbit", f"{content.bitrate}.0kbps" if content.bitrate else None),
-        ("tsmp", f"{content.sampling_rate / 1000:.1f}k" if content.sampling_rate else None),
-        ("tbpm", f"{content.bpmx100 / 100:.2f}" if content.bpmx100 else None),
-        ("tkey", lookups.keys.get(content.key_id)),
-        ("ttyr", year),
-    ]
-    fields.extend((tag, value) for tag, value in optional if value)
-
-    if content.file_size:
-        fields.append(("ufsb", int(content.file_size)))
-    if content.date_added is not None:
-        stamp = int(content.date_added.timestamp())
-        fields.append(("tadd", str(stamp)))
-        fields.append(("uadd", stamp))
-
+    fields.extend(_optional_track_fields(content, lookups))
+    fields.extend(_size_and_added_fields(content))
     # Serato has not analysed these files, so neither flag is set.
     fields.append(("bbgl", False))
     fields.append(("bovc", False))

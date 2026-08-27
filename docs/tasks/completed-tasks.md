@@ -498,6 +498,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-235 — Split write_geob, build_track_record, and _find_playlist
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | Clear the last CC 11+ functions in app/ |
+| Verification | ruff ✓ ruff format ✓ pytest 284 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

@@ -10,13 +10,17 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-234` |
-| Objective | Split `sync_playlists` (CC 27) and the other sync_service functions over CC 11 so each step has a name |
+| Task ID | `TASK-235` |
+| Objective | Split the remaining CC 11+ functions: `write_geob`, `build_track_record`, `_find_playlist` |
 | Completed | 2026-08-27 |
 
 ### Scope
 
-- `app/services/sync_service.py`: extracted named steps from `sync_playlists`, `_sync_analysis`, and the nested `_walk`. Public signatures unchanged. File stays under 1000 lines (995).
+- `app/adapters/serato/tags.py`: `write_geob` is now copy / append / pad / splice.
+- `app/services/track_records.py`: optional fields and size/date fields named separately.
+- `app/services/migration_service.py`: `_find_playlist` dispatches to by-id and by-name.
+
+Public signatures unchanged. No function in `app/` is left at CC 11+.
 
 ### Verification log
 
@@ -28,4 +32,4 @@
 
 ## Next
 
-Ask the user. Remaining CC 11+ lives outside this module (`build_track_record`, `write_geob`, `_find_playlist`). The Library two-pane redesign is still not started — see `docs/HANDOFF.md`.
+Ask the user. The Library two-pane redesign is still not started — see `docs/HANDOFF.md`.

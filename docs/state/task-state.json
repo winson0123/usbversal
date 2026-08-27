@@ -402,6 +402,11 @@
       "id": "TASK-234",
       "title": "Split sync_playlists and the other CC>11 functions in sync_service",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-235",
+      "title": "Split write_geob, build_track_record, and _find_playlist",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -870,6 +875,12 @@
     {
       "id": "TASK-234",
       "title": "Split sync_playlists and the other CC>11 functions in sync_service",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-235",
+      "title": "Split write_geob, build_track_record, and _find_playlist",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }
