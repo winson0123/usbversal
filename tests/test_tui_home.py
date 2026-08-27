@@ -226,6 +226,32 @@ def test_complete_path_returns_none_when_there_is_nothing_to_add(tmp_path: Path)
     assert _complete_path(f"{tmp_path}/usbstick") is None
 
 
+def _force_error_state(home: HomeScreen) -> None:
+    """Drive the screen into its failed/error state directly, the way a
+    real failed auto-scan or a failed manual open would -- which is the
+    only way the path input becomes visible and interactive at all."""
+    home._show_error("forced for test setup")
+
+
+@pytest.mark.asyncio
+async def test_input_is_hidden_and_unfocused_while_still_searching() -> None:
+    """The path input only makes sense once auto-scanning has failed at
+    something -- it must not be visible, focusable, or interactive while
+    the spinner is still quietly searching."""
+    watcher = MountWatcher(_FakeScanner([]))
+    app = UsbversalApp(watcher)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        home = app.screen
+        home.poll_mounts()
+        await pilot.pause()
+
+        path_input = home.query_one(_PathInput)
+        assert path_input.display is False
+        assert path_input.disabled is True
+        assert app.focused is not path_input
+
+
 @pytest.mark.asyncio
 async def test_tab_completes_the_path_input(tmp_path: Path) -> None:
     """Tab on the path field completes it, rather than moving focus away."""
@@ -234,7 +260,11 @@ async def test_tab_completes_the_path_input(tmp_path: Path) -> None:
     app = UsbversalApp(watcher)
     async with app.run_test() as pilot:
         await pilot.pause()
-        path_input = app.screen.query_one(_PathInput)
+        home = app.screen
+        _force_error_state(home)
+        await pilot.pause()
+
+        path_input = home.query_one(_PathInput)
         path_input.value = f"{tmp_path}/usb"
         path_input.cursor_position = len(path_input.value)
 
@@ -254,7 +284,7 @@ async def test_enter_on_an_empty_input_retries_the_scan_immediately() -> None:
     async with app.run_test() as pilot:
         await pilot.pause()
         home = app.screen
-        home.poll_mounts()
+        _force_error_state(home)
         await pilot.pause()
 
         with patch.object(home, "poll_mounts") as poll_mounts:
@@ -283,6 +313,8 @@ async def test_enter_with_a_typed_path_opens_that_library(tmp_path: Path) -> Non
         async with app.run_test() as pilot:
             await pilot.pause()
             home = app.screen
+            _force_error_state(home)
+            await pilot.pause()
             path_input = home.query_one(_PathInput)
             path_input.value = str(tmp_path)
 
@@ -310,6 +342,8 @@ async def test_a_typed_path_that_fails_to_open_re_enables_the_input(tmp_path: Pa
         async with app.run_test() as pilot:
             await pilot.pause()
             home = app.screen
+            _force_error_state(home)
+            await pilot.pause()
             path_input = home.query_one(_PathInput)
             path_input.value = str(tmp_path / "nope")
 
@@ -321,3 +355,4 @@ async def test_a_typed_path_that_fails_to_open_re_enables_the_input(tmp_path: Pa
             assert home.library is None
             assert "Did not detect a valid DJ USB" in _status_text(home)
             assert path_input.disabled is False
+            assert path_input.display is True

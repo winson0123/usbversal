@@ -328,6 +328,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-218 — Home screen: only show manual path entry after auto-scan fails
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | User: the "insert a USB and press enter to retry" input should only appear once auto-scanning has actually failed, not by default -- the default should just be the spinner, quietly scanning, until it fails |
+| Verification | ruff ✓ ruff format ✓ pytest 267 passed / 4 skipped (1 new, 4 rewritten to force the error state first since that's now the only way the input becomes reachable) |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

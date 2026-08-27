@@ -317,6 +317,11 @@
       "id": "TASK-217",
       "title": "Remove WSL-only /mnt scanning, add a real macOS scanner and USBVERSAL_MOUNT override",
       "completed_at": "2026-08-27T00:00:00Z"
+    },
+    {
+      "id": "TASK-218",
+      "title": "Home screen: only show manual path entry after auto-scan fails",
+      "completed_at": "2026-08-27T00:00:00Z"
     }
   ],
   "history": [
@@ -683,6 +688,12 @@
     {
       "id": "TASK-217",
       "title": "Remove WSL-only /mnt scanning, add a real macOS scanner and USBVERSAL_MOUNT override",
+      "completed_at": "2026-08-27T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-218",
+      "title": "Home screen: only show manual path entry after auto-scan fails",
       "completed_at": "2026-08-27T00:00:00Z",
       "status": "completed"
     }

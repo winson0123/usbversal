@@ -156,13 +156,13 @@ class HomeScreen(Screen):
                 yield Static("", id=_STATUS_ID)
             with Center():
                 yield _PathInput(
-                    placeholder="insert a USB and press enter to retry, or type a path",
+                    placeholder="Press enter to retry auto-scan, or enter an absolute path",
                     id=_INPUT_ID,
                 )
 
     def on_mount(self) -> None:
         self.query_one(f"#{_STATUS_ID}", Static).display = False
-        self.query_one(_PathInput).focus()
+        self._hide_input()
         self.set_interval(self.POLL_INTERVAL_S, self.poll_mounts)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
@@ -196,8 +196,7 @@ class HomeScreen(Screen):
 
     async def _open(self, mount: Path) -> None:
         """Bootstrap a Serato library if needed, open it, then hand off."""
-        path_input = self.query_one(_PathInput)
-        path_input.disabled = True
+        self.query_one(_PathInput).disabled = True
         try:
             await asyncio.to_thread(bootstrap_serato_library, mount)
             # open_library, and every later touch of library.rekordbox, must
@@ -207,8 +206,6 @@ class HomeScreen(Screen):
         except (OSError, DatabaseNotFoundError, UnsupportedDatabaseError) as exc:
             self._seen_invalid = True
             self._show_error(f"{_NONE_FOUND} ({exc})")
-            path_input.disabled = False
-            path_input.focus()
             return
         self.library = library
         self.app.push_screen(LibraryScreen(library))
@@ -216,9 +213,32 @@ class HomeScreen(Screen):
     def _show_spinner(self) -> None:
         self.query_one(f"#{_SPINNER_ID}", _Spinner).display = True
         self.query_one(f"#{_STATUS_ID}", Static).display = False
+        self._hide_input()
 
     def _show_error(self, message: str) -> None:
         self.query_one(f"#{_SPINNER_ID}", _Spinner).display = False
         status = self.query_one(f"#{_STATUS_ID}", Static)
         status.display = True
         status.update(f"[red]{message}[/red]")
+        self._reveal_input()
+
+    def _hide_input(self) -> None:
+        """Manual entry only makes sense once auto-scanning has actually
+        failed at something, not while it's still quietly searching --
+        disabled, not just hidden, so a hidden field can't silently eat
+        keystrokes (Textual still auto-focuses a hidden-but-enabled widget
+        when it's the only focusable one on screen)."""
+        path_input = self.query_one(_PathInput)
+        path_input.display = False
+        path_input.disabled = True
+
+    def _reveal_input(self) -> None:
+        """Show and focus the input, but only on the transition into this
+        state -- not on every later poll tick that re-confirms the same
+        failure, which would otherwise steal focus back on a 1s timer."""
+        path_input = self.query_one(_PathInput)
+        if path_input.display:
+            return
+        path_input.display = True
+        path_input.disabled = False
+        path_input.focus()
