@@ -10,15 +10,13 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-240` |
-| Objective | Remove the argparse CLI; `usbversal` launches the TUI |
+| Task ID | `TASK-241` |
+| Objective | Confirm ID3v2.4 MP3 GEOB write/read; keep the v2.3 size branch honest |
 | Completed | 2026-08-27 |
 
 ### Scope
 
-- Deleted `app/cli/` and CLI-only tests.
-- Entry point is `app.tui.app:run`; packaging spec points at `app/tui/__main__.py`.
-- Layer rules no longer mention `cli`.
+- Added `tests/test_mp3_tags.py`: v2.4 synchsafe and v2.3 raw-size MP3 round-trips for BeatGrid and Markers2; audio after the tag unchanged.
 
 ### Verification log
 
@@ -26,7 +24,7 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 269 passed, 4 skipped |
+| `.venv/bin/pytest` | 271 passed, 4 skipped |
 
 ## Next
 

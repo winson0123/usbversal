@@ -170,6 +170,7 @@ and none of them exist yet.
 | ~~`TASK-238`~~ | ~~Fold `sync_analysis.py` back into `sync_service.py`~~ | Done — TASK-235 (`ddcb66c`) was the best state along 233–237: named steps that earn their keep, no extra module. Folded analysis write / BPM correction back into `sync_service.py`. Kept `_COMMANDS` / `_emit_json` and shared backup helpers. File under 1000 lines. |
 | ~~`TASK-239`~~ | ~~Commit the leftover test trim~~ | Done — overlapping Home searching / Enter-retry / count-label tests folded; unique coverage (mid-timeout, stop-polling, Home bootstrap, `e` on a leaf, custom env var) kept. |
 | ~~`TASK-240`~~ | ~~Remove the CLI~~ | Done — `app/cli/` and CLI-only tests gone. `usbversal` / `python -m app.tui` launch the TUI. |
+| ~~`TASK-241`~~ | ~~Confirm ID3v2.3 and v2.4 MP3 GEOB writes~~ | Done — `tests/test_mp3_tags.py` round-trips BeatGrid/Markers2 on hand-built MP3s; audio after the tag unchanged. Not yet confirmed live in Serato. |
 
 ---
 

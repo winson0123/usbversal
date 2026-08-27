@@ -558,6 +558,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-241 — Confirm ID3v2.3 and v2.4 MP3 GEOB writes
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-27 |
+| Objective | Hand-built MP3 round-trips for both ID3 size encodings |
+| Verification | ruff ✓ ruff format ✓ pytest 271 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown
