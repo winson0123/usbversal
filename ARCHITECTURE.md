@@ -121,6 +121,7 @@ Details: `docs/storage/backup-strategy.md`, `docs/storage/rollback-flow.md`.
 | asyncio jobs | [0002-use-asyncio.md](docs/decisions/0002-use-asyncio.md) |
 | PyInstaller packaging | [0003-use-pyinstaller.md](docs/decisions/0003-use-pyinstaller.md) |
 | Textual for the TUI | [0009-use-textual-for-the-tui.md](docs/decisions/0009-use-textual-for-the-tui.md) |
+| Tolerate leftover Markers2 base64 | [0010-tolerate-leftover-markers2-base64.md](docs/decisions/0010-tolerate-leftover-markers2-base64.md) |
 
 ## Machine-Readable Architecture State
 

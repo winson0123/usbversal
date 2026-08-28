@@ -315,8 +315,11 @@ Payload wrapper:
 [0x01][0x01][ base64 ASCII, may contain \n and trailing NULs ]
 ```
 
-Strip `\r`, `\n`, `\x00`, re-pad to a multiple of 4, base64-decode. The decoded
-blob is:
+Strip `\r`, `\n`, `\x00`. If the remaining alphabet length is `4n+1`, drop
+the last character — that leftover cannot encode a byte and is not a
+truncated field (see [ADR 0010](../decisions/0010-tolerate-leftover-markers2-base64.md)).
+Re-pad to a multiple of 4, base64-decode. Do not cut at 64 characters;
+that would truncate `BPMLOCK`. The decoded blob is:
 
 ```text
 [0x01][0x01] then repeated entries:

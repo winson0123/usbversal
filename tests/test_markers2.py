@@ -108,6 +108,24 @@ def test_replacing_cues_keeps_other_entries_and_drops_old_cues() -> None:
     assert marker_to_cue(replaced[-1]) == Cue(slot=0, position_ms=1234, colour="#112233")
 
 
+def test_a_69_character_base64_body_does_not_raise() -> None:
+    """Python 3.11+ rejects len % 4 == 1; an existing tag must not abort sync."""
+    payload = b"\x01\x01" + b"A" * 69 + b"\x00"
+
+    assert decode_markers(payload) == []
+
+
+def test_one_extra_base64_character_is_dropped() -> None:
+    """A valid Markers2 body plus one leftover character still decodes."""
+    from app.adapters.serato.markers2 import cue_to_marker
+
+    clean = encode_markers([cue_to_marker(Cue(slot=0, position_ms=100, colour="#112233"))])
+    encoded = bytes(c for c in clean[2:] if c not in b"\r\n\x00")
+    dirty = clean[:2] + encoded + b"A"
+
+    assert decode_markers(dirty) == decode_markers(clean)
+
+
 def test_cue_round_trips_through_encoding() -> None:
     """A cue survives encoding and decoding unchanged."""
     from app.adapters.serato.markers2 import cue_to_marker

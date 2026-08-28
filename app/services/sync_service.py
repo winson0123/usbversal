@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import binascii
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -534,7 +535,7 @@ def _sync_analysis(
                 if not beats and not cues:
                     continue
                 _write_track_tags(audio_path, beats, cues)
-            except (AnlzError, TagFormatError, OSError) as exc:
+            except (AnlzError, TagFormatError, OSError, binascii.Error) as exc:
                 track_error = str(exc)
                 errors.append(f"{raw}: {track_error}")
                 continue

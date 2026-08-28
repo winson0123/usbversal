@@ -628,6 +628,18 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-249 — Do not abort sync on leftover Markers2 base64
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-28 |
+| Objective | Drop one leftover `4n+1` Markers2 base64 character; one dirty tag must not abort the run |
+| Verification | ruff ✓ ruff format ✓ pytest 285 passed / 4 skipped |
+
+**Decision:** [ADR 0010](../decisions/0010-tolerate-leftover-markers2-base64.md) — the extra character is junk after a complete `COLOR`/`CUE`/`BPMLOCK`, already on the file's Serato GEOB. Drop one character (`69 → 68`), do not cut at 64.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

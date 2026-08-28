@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import struct
 from dataclasses import dataclass
 
 _HEADER = b"\x01\x01"
 _LINE_LENGTH = 72
+_B64_ALPHABET = frozenset(b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
 _CUE = b"CUE"
 _CUE_BODY_LENGTH = 13
 
@@ -57,7 +59,10 @@ def decode_markers(payload: bytes) -> list[Marker]:
     encoded = bytes(c for c in payload[2:] if c not in b"\r\n\x00")
     if not encoded:
         return []
-    blob = base64.b64decode(encoded + b"=" * ((-len(encoded)) % 4))
+    try:
+        blob = _decode_serato_b64(encoded)
+    except (binascii.Error, ValueError):
+        return []
 
     markers: list[Marker] = []
     offset = 2
@@ -74,6 +79,32 @@ def decode_markers(payload: bytes) -> list[Marker]:
         markers.append(Marker(name=name, body=blob[offset : offset + length]))
         offset += length
     return markers
+
+
+def _decode_serato_b64(raw: bytes) -> bytes:
+    """
+    Decode Serato's wrapped, often unpadded base64.
+
+    Python 3.11+ rejects a data length of 1 more than a multiple of 4
+    (``AAAAA`` plus padding). Real tags sometimes have that leftover after
+    newlines and NULs are stripped, so one impossible character is dropped
+    rather than failing the whole sync.
+
+    Args:
+        raw: Base64 bytes, possibly including wrap or junk.
+
+    Returns:
+        Decoded payload bytes.
+
+    Raises:
+        binascii.Error: The remaining text is still not valid base64.
+    """
+    encoded = bytes(character for character in raw if character in _B64_ALPHABET)
+    if len(encoded) % 4 == 1:
+        encoded = encoded[:-1]
+    if not encoded:
+        return b""
+    return base64.b64decode(encoded + b"=" * ((-len(encoded)) % 4))
 
 
 def encode_markers(markers: list[Marker], *, payload_size: int | None = None) -> bytes:

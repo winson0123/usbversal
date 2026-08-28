@@ -1,5 +1,6 @@
 """Tests for the TUI Progress and Done screens (steps 4-5)."""
 
+import threading
 import time
 from pathlib import Path
 from unittest.mock import patch
@@ -170,28 +171,32 @@ async def test_enter_on_done_returns_to_the_screen_under_progress() -> None:
 async def test_progress_bar_reflects_the_last_sample() -> None:
     """_update_progress sets the bar's total/progress and a rate-bearing status line.
 
-    Called directly rather than through the real worker/thread hop: the sync
-    itself is synchronous and near-instant once faked, leaving no reliable
-    window to catch the screen still on Progress rather than Done.
+    The worker is held until after the assertions so ``pilot.pause()`` cannot
+    race into Done before the bar is inspected.
     """
 
-    def _slow_sync(library, playlist_ids, *, dry_run=False, backup_root=None, on_progress=None):
-        time.sleep(0.2)  # keeps the screen on Progress long enough to inspect
+    hold = threading.Event()
+
+    def _held_sync(library, playlist_ids, *, dry_run=False, backup_root=None, on_progress=None):
+        hold.wait(timeout=5)
         return _fake_report()
 
-    with patch("app.tui.screens.progress.sync_playlists", _slow_sync):
+    with patch("app.tui.screens.progress.sync_playlists", _held_sync):
         app = _Harness(library=object(), playlist_ids=[1])
         async with app.run_test() as pilot:
             await pilot.pause()
             screen = app.screen
-            assert isinstance(screen, ProgressScreen)
+            try:
+                assert isinstance(screen, ProgressScreen)
 
-            screen._update_progress(SyncProgress("analysis", 1, 4, "Contents/a.mp3"))
-            screen._update_progress(SyncProgress("analysis", 3, 4, "Contents/b.mp3"))
+                screen._update_progress(SyncProgress("analysis", 1, 4, "Contents/a.mp3"))
+                screen._update_progress(SyncProgress("analysis", 3, 4, "Contents/b.mp3"))
 
-            bar = screen.query_one(ProgressBar)
-            assert bar.total == 4
-            assert bar.progress == 3
+                bar = screen.query_one(ProgressBar)
+                assert bar.total == 4
+                assert bar.progress == 3
+            finally:
+                hold.set()
 
 
 def _log_line_styles(log: RichLog, index: int) -> tuple[str, list]:

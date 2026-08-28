@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import struct
 from pathlib import Path
 
 import structlog
+
+from app.adapters.serato.markers2 import _decode_serato_b64
 
 logger = structlog.get_logger(__name__)
 
@@ -286,11 +289,9 @@ def _flac_b64_decode(value: str) -> bytes:
     Raises:
         TagFormatError: The value is not valid base64.
     """
-    compact = "".join(value.split())
-    padding = (-len(compact)) % 4
     try:
-        return base64.b64decode(compact + ("=" * padding), validate=True)
-    except ValueError as exc:
+        return _decode_serato_b64(value.encode("ascii", "replace"))
+    except (ValueError, binascii.Error) as exc:
         raise TagFormatError("Malformed Serato FLAC field") from exc
 
 

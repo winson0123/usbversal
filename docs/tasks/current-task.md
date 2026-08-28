@@ -10,15 +10,16 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-247` |
-| Objective | Host-side audio tag deltas instead of full songs on the USB |
+| Task ID | `TASK-249` |
+| Objective | A leftover-character Markers2 tag must not abort the whole sync |
 | Completed | 2026-08-28 |
 
 ### Scope
 
-- Default backup root is on the host (`~/.local/share/usbversal/backups/<volume>/`), not `backups/` on the stick.
-- Audio files are stored as a `UVSD1` tag-region delta. Databases and crates stay full copies.
-- `USBVERSAL_BACKUP_ROOT` overrides the host path.
+- `_decode_serato_b64` drops one `4n+1` leftover character; remaining decode errors return no markers.
+- FLAC Serato fields use the same helper.
+- Per-track `binascii.Error` is skipped, not fatal.
+- Findings recorded in ADR 0010 and `serato-schema-notes.md`.
 
 ### Verification log
 
@@ -26,8 +27,8 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 283 passed, 4 skipped |
+| `.venv/bin/pytest` | 285 passed, 4 skipped |
 
 ## Next
 
-`correct_index_bpm` live write (if approved), variable-tempo deck check, then Library two-pane redesign.
+`TASK-250` — run `correct_index_bpm` on a real stick (backup-gated). Then variable-tempo deck check, then Library two-pane.

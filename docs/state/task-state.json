@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-27T00:00:00Z",
+  "updated_at": "2026-08-28T00:00:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -464,6 +464,11 @@
     {
       "id": "TASK-247",
       "title": "Host-side audio tag deltas instead of full songs on the USB",
+      "completed_at": "2026-08-28T00:00:00Z"
+    },
+    {
+      "id": "TASK-249",
+      "title": "Do not abort sync on malformed Markers2 base64",
       "completed_at": "2026-08-28T00:00:00Z"
     }
   ],
@@ -1011,6 +1016,12 @@
     {
       "id": "TASK-247",
       "title": "Host-side audio tag deltas instead of full songs on the USB",
+      "completed_at": "2026-08-28T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-249",
+      "title": "Do not abort sync on malformed Markers2 base64",
       "completed_at": "2026-08-28T00:00:00Z",
       "status": "completed"
     }

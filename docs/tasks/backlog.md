@@ -95,7 +95,8 @@ plus per-file backup required.** Sequenced strictly after M8.
 | ~~`TASK-082`~~ | ~~`Serato Markers2` GEOB writer (hot cues)~~ | Done — TASK-115, byte-exact against the fixture pair |
 | ~~`TASK-083`~~ | ~~`Serato BeatGrid` + `Autotags` GEOB writer~~ | Done — TASK-117/119; `Autotags` deliberately not written |
 | ~~`TASK-084`~~ | ~~Container tag I/O — MP3 / WAV / FLAC~~ | Done — WAV fixtures, ID3v2.3/v2.4 MP3 unit tests (TASK-241), FLAC Vorbis comments (TASK-242). MP4 out of scope. Live Serato confirmation still outstanding. |
-| `TASK-085` | `sync-analysis` CLI (re-introduce) | Backup-gated, idempotent, must not clobber existing Serato analysis on partially analyzed libraries. Confirm with the user before writing. |
+| ~~`TASK-085`~~ | ~~`sync-analysis` CLI (re-introduce)~~ | Dropped — CLI removed in TASK-240. Analysis already runs from the TUI. |
+| ~~`TASK-249`~~ | ~~Do not abort sync on leftover Markers2 base64~~ | Done — drop one `4n+1` character; remaining decode errors skip the track. Findings in ADR 0010. |
 
 ## M10 — Deferred
 
@@ -173,6 +174,9 @@ and none of them exist yet.
 | ~~`TASK-241`~~ | ~~Confirm ID3v2.3 and v2.4 MP3 GEOB writes~~ | Done — `tests/test_mp3_tags.py` round-trips BeatGrid/Markers2 on hand-built MP3s; audio after the tag unchanged. Not yet confirmed live in Serato. |
 | ~~`TASK-242`~~ | ~~FLAC Vorbis-comment Serato tags~~ | Done — `SERATO_BEATGRID` / `SERATO_MARKERS_V2` via base64-wrapped payloads. STREAMINFO and audio frames stay byte-identical. MP4 still out of scope. |
 | ~~`TASK-243`~~ | ~~Progress covers index and crate writes~~ | Done — `SyncProgress` with `index` / `analysis` / `crates`. Progress screen labels each phase; backup is the opening status line. |
+| `TASK-250` | Run `correct_index_bpm` on a real stick | Function exists, not in the TUI, not run live. Writes `location.sqlite`; backup-gated. Dry-run 2026-08-27: 211 of 794 candidates. |
+| `TASK-251` | Confirm a variable-tempo grid in Serato | Apt X Blue already has a 4-marker grid on disk. Deck check still missing. |
+| `TASK-252` | Library two-pane window | Last. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green: not in crate / crate but analysis not ported / fully ported. Spec in HANDOFF.md. |
 
 ---
 
