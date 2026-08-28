@@ -2,7 +2,7 @@
 
 **Status:** `idle`
 **Task ID:** none
-**Last updated:** 2026-08-27
+**Last updated:** 2026-08-28
 
 ---
 
@@ -10,15 +10,15 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-246` |
-| Objective | Record the three-level `Gigs%%Played%%safety day` crate path |
-| Completed | 2026-08-27 |
+| Task ID | `TASK-247` |
+| Objective | Host-side audio tag deltas instead of full songs on the USB |
+| Completed | 2026-08-28 |
 
 ### Scope
 
-- User synced Rekordbox `Gigs → Played → safety day`; Serato showed the three-level tree. On disk: `Gigs%%Played%%safety day.crate` (11 tracks). No `Gigs.crate` or `Gigs%%Played.crate`.
-- No empty parent crate file is required.
-- Schema notes, adapter docs, and `crate_name_for` docstring marked confirmed.
+- Default backup root is on the host (`~/.local/share/usbversal/backups/<volume>/`), not `backups/` on the stick.
+- Audio files are stored as a `UVSD1` tag-region delta. Databases and crates stay full copies.
+- `USBVERSAL_BACKUP_ROOT` overrides the host path.
 
 ### Verification log
 
@@ -26,8 +26,7 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 276 passed, 4 skipped |
-| Serato UI | user: parent-child crate visible |
+| `.venv/bin/pytest` | 283 passed, 4 skipped |
 
 ## Next
 

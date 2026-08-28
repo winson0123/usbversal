@@ -9,6 +9,18 @@ import pytest
 from app.services.library import UsbLibrary, probe_mount
 from app.storage.backup import BackupResult, create_backup
 
+
+@pytest.fixture(autouse=True)
+def isolate_host_backups(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    Keep test backups off the real user data directory.
+
+    Production writes to ~/.local/share/usbversal/backups (or
+    USBVERSAL_BACKUP_ROOT). Tests must not pollute that tree.
+    """
+    monkeypatch.setenv("USBVERSAL_BACKUP_ROOT", str(tmp_path / "host-backups"))
+
+
 INTEGRATION_MOUNT_ENV = "USBVERSAL_TEST_MOUNT"
 
 _DB_V2_VERSION = "2.0/Serato Scratch LIVE Database".encode("utf-16-be")

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -13,7 +14,18 @@ from typing import Any
 
 import structlog
 
+from app.storage.audio_delta import (
+    AudioDeltaError,
+    encode_audio_delta,
+    is_audio_backup_path,
+)
+
 logger = structlog.get_logger(__name__)
+
+BACKUP_ROOT_ENV = "USBVERSAL_BACKUP_ROOT"
+_KIND_FULL = "full"
+_KIND_DELTA = "delta"
+_VOLUME_KEY = re.compile(r"[^A-Za-z0-9._-]+")
 
 
 @dataclass(frozen=True)
@@ -23,13 +35,32 @@ class BackupFileEntry:
 
     Attributes:
         relative_path: Path relative to source mount root.
-        sha256: Hex digest of file contents after copy.
-        size: File size in bytes.
+        sha256: Hex digest of the stored artifact (full copy or delta).
+        size: Stored artifact size in bytes.
+        kind: ``full`` for a byte-identical copy, ``delta`` for an audio
+            tag-region snapshot.
+        stored_as: Path of the artifact inside the backup directory. Defaults
+            to ``relative_path`` for full copies.
+        original_sha256: Source file hash before the write, when known.
+        original_size: Source file size before the write, when known.
     """
 
     relative_path: str
     sha256: str
     size: int
+    kind: str = _KIND_FULL
+    stored_as: str | None = None
+    original_sha256: str | None = None
+    original_size: int | None = None
+
+    def artifact_path(self) -> str:
+        """
+        Return the path of the stored artifact inside the backup directory.
+
+        Returns:
+            ``stored_as`` when set, otherwise ``relative_path``.
+        """
+        return self.stored_as or self.relative_path
 
 
 @dataclass(frozen=True)
@@ -99,6 +130,12 @@ class BackupManifest:
                 relative_path=str(item["relative_path"]),
                 sha256=str(item["sha256"]),
                 size=int(item["size"]),
+                kind=str(item.get("kind", _KIND_FULL)),
+                stored_as=(str(item["stored_as"]) if item.get("stored_as") else None),
+                original_sha256=(
+                    str(item["original_sha256"]) if item.get("original_sha256") else None
+                ),
+                original_size=(int(item["original_size"]) if item.get("original_size") else None),
             )
             for item in data.get("files", [])
         )
@@ -124,6 +161,46 @@ class BackupResult:
     backup_id: str
     backup_dir: Path
     manifest: BackupManifest
+
+
+def default_backup_root(mount: Path) -> Path:
+    """
+    Return the host directory where backups for ``mount`` are stored.
+
+    Uses ``USBVERSAL_BACKUP_ROOT`` when set, otherwise the platform user-data
+    directory. Never defaults to a folder on the USB.
+
+    Args:
+        mount: Mount root; its name namespaces backups from different sticks.
+
+    Returns:
+        Absolute backup parent directory (created by the caller as needed).
+    """
+    override = os.environ.get(BACKUP_ROOT_ENV)
+    if override:
+        base = Path(override)
+    elif os.name == "nt":
+        local = os.environ.get("LOCALAPPDATA")
+        base = Path(local) if local else Path.home() / "AppData" / "Local"
+        base = base / "usbversal" / "backups"
+    else:
+        base = Path.home() / ".local/share/usbversal/backups"
+    return (base / _volume_key(mount)).resolve()
+
+
+def _volume_key(mount: Path) -> str:
+    """
+    Return a filesystem-safe directory name for a mount.
+
+    Args:
+        mount: Mount root.
+
+    Returns:
+        Label derived from the mount folder name.
+    """
+    name = mount.resolve().name.strip() or "usb"
+    cleaned = _VOLUME_KEY.sub("_", name).strip("._")
+    return cleaned or "usb"
 
 
 def sha256_file(path: Path) -> str:
@@ -168,6 +245,60 @@ def atomic_copy_file(source: Path, destination: Path) -> None:
             temporary.unlink(missing_ok=True)
 
 
+def _store_backup_file(source: Path, backup_dir: Path, relative: str) -> BackupFileEntry:
+    """
+    Store one source file as a full copy or an audio tag delta.
+
+    Args:
+        source: File on the mount.
+        backup_dir: Timestamped backup directory.
+        relative: Path relative to the mount root.
+
+    Returns:
+        Manifest entry describing the stored artifact.
+    """
+    if is_audio_backup_path(source):
+        try:
+            payload = encode_audio_delta(source.read_bytes())
+        except AudioDeltaError:
+            payload = None
+        if payload is not None:
+            stored_as = f"{relative}.delta"
+            destination = backup_dir / stored_as
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(payload)
+            with destination.open("rb") as handle:
+                os.fsync(handle.fileno())
+            logger.info(
+                "backup_delta",
+                source=str(source),
+                destination=str(destination),
+                original_size=source.stat().st_size,
+                delta_size=len(payload),
+            )
+            return BackupFileEntry(
+                relative_path=relative,
+                sha256=sha256_file(destination),
+                size=destination.stat().st_size,
+                kind=_KIND_DELTA,
+                stored_as=stored_as,
+                original_sha256=sha256_file(source),
+                original_size=source.stat().st_size,
+            )
+    destination = backup_dir / relative
+    logger.info("backup_copy", source=str(source), destination=str(destination))
+    atomic_copy_file(source, destination)
+    digest = sha256_file(destination)
+    return BackupFileEntry(
+        relative_path=relative,
+        sha256=digest,
+        size=destination.stat().st_size,
+        kind=_KIND_FULL,
+        original_sha256=digest,
+        original_size=destination.stat().st_size,
+    )
+
+
 def create_backup(
     *,
     source_mount: Path,
@@ -181,7 +312,8 @@ def create_backup(
     Args:
         source_mount: Mount root; relative paths in manifest are from here.
         files: Absolute or mount-relative file paths to copy.
-        backup_root: Parent directory for backups; defaults to mount/backups.
+        backup_root: Parent directory for backups; defaults to a host
+            directory from ``default_backup_root``, not the USB.
         backup_id: Optional directory name; defaults to UTC timestamp.
 
     Returns:
@@ -196,7 +328,7 @@ def create_backup(
 
     mount = source_mount.resolve()
     created_at = datetime.now(UTC)
-    root = (backup_root or (mount / "backups")).resolve()
+    root = (backup_root or default_backup_root(mount)).resolve()
 
     if backup_id is not None:
         backup_dir = root / backup_id
@@ -228,16 +360,7 @@ def create_backup(
             relative = source.relative_to(mount).as_posix()
         except ValueError:
             relative = source.name
-        destination = backup_dir / relative
-        logger.info("backup_copy", source=str(source), destination=str(destination))
-        atomic_copy_file(source, destination)
-        entries.append(
-            BackupFileEntry(
-                relative_path=relative,
-                sha256=sha256_file(destination),
-                size=destination.stat().st_size,
-            ),
-        )
+        entries.append(_store_backup_file(source, backup_dir, relative))
 
     manifest = BackupManifest(
         backup_id=backup_id,

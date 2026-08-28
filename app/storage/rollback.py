@@ -7,10 +7,12 @@ from pathlib import Path
 
 import structlog
 
+from app.storage.audio_delta import AudioDeltaError, apply_audio_delta
 from app.storage.backup import (
     BackupManifest,
     atomic_copy_file,
     create_backup,
+    default_backup_root,
     sha256_file,
 )
 
@@ -89,7 +91,7 @@ def verify_backup_integrity(backup_dir: Path, manifest: BackupManifest) -> None:
         BackupVerificationError: If a file is missing or checksum/size mismatch.
     """
     for entry in manifest.files:
-        path = backup_dir / entry.relative_path
+        path = backup_dir / entry.artifact_path()
         if not path.is_file():
             raise BackupVerificationError(f"Backup file missing: {path}")
         actual_size = path.stat().st_size
@@ -108,6 +110,33 @@ def verify_backup_integrity(backup_dir: Path, manifest: BackupManifest) -> None:
         backup_id=manifest.backup_id,
         file_count=len(manifest.files),
     )
+
+
+def _restore_audio_delta(delta_path: Path, target: Path) -> None:
+    """
+    Rewrite ``target`` by splicing a stored tag-region delta onto its audio.
+
+    Args:
+        delta_path: ``.delta`` artifact in the backup directory.
+        target: Audio file on the mount.
+
+    Raises:
+        FileNotFoundError: The mount file is gone -- a tag delta cannot
+            recreate missing audio.
+        BackupVerificationError: The current audio stream no longer matches
+            the backup, or the delta cannot be applied.
+    """
+    if not target.is_file():
+        raise FileNotFoundError(
+            f"Cannot restore {target}: the audio file is missing and a tag delta cannot recreate it"
+        )
+    try:
+        restored = apply_audio_delta(target.read_bytes(), delta_path.read_bytes())
+    except AudioDeltaError as exc:
+        raise BackupVerificationError(str(exc)) from exc
+    temporary = target.with_suffix(target.suffix + ".restore-tmp")
+    temporary.write_bytes(restored)
+    temporary.replace(target)
 
 
 def _manifest_targets_on_mount(mount: Path, manifest: BackupManifest) -> list[Path]:
@@ -139,7 +168,8 @@ def rollback_from_backup(
         source_mount: Mount root where files should be restored.
         backup_dir: Timestamped backup directory with manifest and copies.
         pre_rollback: When True, copy current mount files to pre-rollback-<ts> first.
-        backup_root: Parent for pre-rollback backup; defaults to mount/backups.
+        backup_root: Parent for pre-rollback backup; defaults to the host
+            backup root for this mount.
 
     Returns:
         RollbackResult describing restored paths and optional pre-rollback dir.
@@ -165,7 +195,7 @@ def rollback_from_backup(
     if pre_rollback:
         existing = [path for path in _manifest_targets_on_mount(mount, manifest) if path.is_file()]
         if existing:
-            root = (backup_root or (mount / "backups")).resolve()
+            root = (backup_root or default_backup_root(mount)).resolve()
             pre_result = create_backup(
                 source_mount=mount,
                 files=existing,
@@ -181,12 +211,15 @@ def rollback_from_backup(
 
     restored: list[str] = []
     for entry in manifest.files:
-        backup_copy = resolved_backup / entry.relative_path
+        backup_copy = resolved_backup / entry.artifact_path()
         if not backup_copy.is_file():
             raise FileNotFoundError(f"Backup copy missing: {backup_copy}")
         target = mount / entry.relative_path
         logger.info("rollback_restore", relative=entry.relative_path, target=str(target))
-        atomic_copy_file(backup_copy, target)
+        if entry.kind == "delta":
+            _restore_audio_delta(backup_copy, target)
+        else:
+            atomic_copy_file(backup_copy, target)
         restored.append(entry.relative_path)
 
     logger.info(

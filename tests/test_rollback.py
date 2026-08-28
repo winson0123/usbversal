@@ -113,6 +113,8 @@ def test_rollback_mount_libraries_service(tmp_path: Path) -> None:
     backup = create_backup(source_mount=mount, files=[db], backup_root=mount / "backups")
     db.write_bytes(b"bad")
 
-    rollback_mount_libraries(mount, backup.backup_id, pre_rollback=False)
+    rollback_mount_libraries(
+        mount, backup.backup_id, backup_root=mount / "backups", pre_rollback=False
+    )
     assert db.read_bytes() == b"good"
     assert sha256_file(db) == backup.manifest.files[0].sha256

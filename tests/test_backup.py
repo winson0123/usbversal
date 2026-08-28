@@ -122,7 +122,9 @@ def test_backup_mount_for_migration_includes_extra_files(tmp_path: Path) -> None
     audio.parent.mkdir(parents=True)
     audio.write_bytes(b"audio")
 
-    result = backup_mount_for_migration(mount, extra_files=[audio])
+    result = backup_mount_for_migration(
+        mount, extra_files=[audio], backup_root=tmp_path / "host-backups"
+    )
 
     assert any(f.relative_path == "Contents/track.wav" for f in result.manifest.files)
 
@@ -169,6 +171,10 @@ def test_backup_mount_for_migration_ignores_missing_extra_files(tmp_path: Path) 
     rb.mkdir(parents=True)
     (rb / "exportLibrary.db").write_bytes(b"x")
 
-    result = backup_mount_for_migration(mount, extra_files=[mount / "Contents" / "ghost.wav"])
+    result = backup_mount_for_migration(
+        mount,
+        extra_files=[mount / "Contents" / "ghost.wav"],
+        backup_root=tmp_path / "host-backups",
+    )
 
     assert len(result.manifest.files) == 1

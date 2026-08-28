@@ -20,7 +20,10 @@
 6. Emit `storage.rollback_done`
 
 Rollback is invoked from services after a failed write. There is no operator
-command for it.
+command for it. Backups are read from the host backup root (see
+[backup-strategy.md](backup-strategy.md)), not from a `backups/` folder on
+the USB. Audio entries restore by splicing the stored tag delta onto the
+file still on the stick.
 
 ## Safety
 

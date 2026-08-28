@@ -618,6 +618,16 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-247 — Host-side audio tag deltas
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-28 |
+| Objective | Backups on the host; audio stored as a tag-region delta, not a second copy of the song |
+| Verification | ruff ✓ ruff format ✓ pytest 283 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

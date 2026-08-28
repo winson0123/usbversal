@@ -7,6 +7,7 @@ from typing import Any
 
 import structlog
 
+from app.storage.backup import default_backup_root
 from app.storage.mounts import resolve_mount_path
 from app.storage.rollback import (
     RollbackResult,
@@ -30,7 +31,7 @@ def rollback_mount_libraries(
     Args:
         mount: Mount path (e.g. /media/$USER/MY_USB).
         backup_id: Backup directory name under backups/ (e.g. 20260525T075946Z).
-        backup_root: Parent of backup dirs; default <mount>/backups.
+        backup_root: Parent of backup dirs; default host backup root.
         pre_rollback: Copy current files before overwriting.
 
     Returns:
@@ -42,7 +43,7 @@ def rollback_mount_libraries(
         MountMismatchError: If manifest was created for a different mount.
     """
     mount_path = resolve_mount_path(mount)
-    root = Path(backup_root).resolve() if backup_root else (mount_path / "backups")
+    root = Path(backup_root).resolve() if backup_root else default_backup_root(mount_path)
     logger.info(
         "rollback_mount_started",
         mount=str(mount_path),

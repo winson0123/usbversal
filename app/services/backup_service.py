@@ -80,7 +80,8 @@ def backup_mount_for_migration(
 
     Args:
         mount: Mount path containing both libraries.
-        backup_root: Optional parent directory for backups (default: mount/backups).
+        backup_root: Optional parent directory for backups (default: host
+            directory from ``default_backup_root``, not the USB).
         extra_files: Additional absolute or mount-relative files to include, such
             as the audio files a caller is about to tag.
 
@@ -118,7 +119,8 @@ def backup_mount_libraries(
 
     Args:
         mount: Mount path containing PIONEER/rekordbox exports.
-        backup_root: Optional parent directory for backups (default: mount/backups).
+        backup_root: Optional parent directory for backups (default: host
+            directory from ``default_backup_root``, not the USB).
         extra_files: Additional absolute or mount-relative files to include.
 
     Returns:
