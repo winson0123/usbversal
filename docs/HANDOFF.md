@@ -78,11 +78,26 @@ has been changed for this yet.
    reverse=...)`). Populated from whichever playlist is currently
    highlighted in the tree (`Tree.cursor_node`/on-highlight event, not
    just on toggle-select). Default columns: Title, Genre, Key, BPM.
-   Per-track sync colour (same red/yellow/green rule) needs its own
-   column or coloured cell -- `playlist_sync_states()` in
-   `app/services/sync_service.py` already computes this per playlist;
-   check whether it exposes (or would need to expose) a per-track,
-   not just per-playlist, verdict.
+   Per-track traffic colour is **not** crate membership alone. User
+   confirmed 2026-08-28: a track whose Rekordbox analysis (beatgrid /
+   hot cues) was not written to the file must not look fully synced.
+   `playlist_sync_states()` today only counts crate membership; the
+   window needs a per-track verdict and the left-pane `x/y` must use
+   the same rule so Contents cannot show green `1289/1289` when 60+
+   tracks never got grids/cues.
+
+   Per-track colour:
+   - **red** — not in the crate
+   - **yellow** — in the crate, but Rekordbox analysis is not on the
+     file (write failed, skipped, or never attempted)
+   - **green** — in the crate, and analysis is on the file *or*
+     Rekordbox has nothing to port (no ANLZ)
+
+   Count numerator (`x` in `x/y`) is **green only**. Red does not
+   count. Yellow does not count — in the crate is not finished.
+   Denominator `y` is every track in the playlist. Playlist colour
+   stays the three-way fold: green only if every descendant is green,
+   red only if none are, yellow otherwise.
 4. **Settings for extra metadata columns.** Genuinely open, see below.
    Do this last -- it's additive (more optional columns on top of the
    fixed four), so nothing else needs to wait for it.
@@ -190,11 +205,10 @@ a Mixed In Key or other foreign vendor frame. What none of this has done yet:
   from the Progress screen (TASK-208, verbose per-track output in TASK-219,
   index/crate phases in TASK-243). `correct_index_bpm()` is still not wired
   into the TUI.
-- **Run against the real stick.** Exercised against synthetic fixtures only —
-  a real WAV carrying real Serato frames, hand-built ANLZ containers, and a
-  hand-built MP3 carrying foreign vendor frames. The ~70 known-wrong index
-  rows on the test stick are still wrong until `correct_index_bpm()` actually
-  runs there. Re-validate before trusting any of this on real hardware.
+- ~~**Run `correct_index_bpm` against the real stick.**~~ Done 2026-08-28
+  on WONSIN (TASK-250). 1286 candidates, **7 rows written**, backup
+  `20260828T072224Z` on the host. A second dry-run reported 0 remaining.
+  See [index-bpm-wonsin.md](workflows/index-bpm-wonsin.md).
 
 ---
 
@@ -228,22 +242,12 @@ Backups on the stick, newest last:
 
 ## Do this next
 
-### Re-validate `sync_playlists` and `correct_index_bpm` on the real stick
+### Confirm a variable-tempo grid in Serato, then the Library window
 
-TASK-130 wired grids, cues, and the index into `sync_playlists`; TASK-132
-added `correct_index_bpm()` for rows outside a synced playlist. Both have only
-run against synthetic fixtures so far. Run `correct_index_bpm()` against an
-auto-detected stick to actually fix the **~70 constant-tempo tracks still at
-half or double tempo in the index** and re-check the four `Drake - NOKIA` variants
-(indexed at 106 when the track opens at 126 for its first hundred seconds),
-then confirm in Serato before trusting either path generally.
-
-Everything else from the original post-porting punch list (write verification,
-codifying the BPM rules, the never-clobber regression test, correcting this
-document) is done — TASK-131, TASK-132, TASK-133, TASK-126. What remains
-before the analysis path can be called finished is validating it on real
-hardware. `sync_playlists` is reachable from the TUI; `correct_index_bpm()`
-is still not. See `docs/tasks/backlog.md`.
+`correct_index_bpm` has been run on WONSIN. Still not in the TUI — operators
+cannot repeat that pass without a script. Next: load Apt X Blue in Serato
+and confirm the 4-marker grid (TASK-251). Then the Library two-pane window
+(TASK-252). See `docs/tasks/backlog.md`.
 
 ---
 

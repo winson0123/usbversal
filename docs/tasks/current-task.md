@@ -10,25 +10,25 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-249` |
-| Objective | A leftover-character Markers2 tag must not abort the whole sync |
+| Task ID | `TASK-250` |
+| Objective | Run `correct_index_bpm` on WONSIN |
 | Completed | 2026-08-28 |
 
 ### Scope
 
-- `_decode_serato_b64` drops one `4n+1` leftover character; remaining decode errors return no markers.
-- FLAC Serato fields use the same helper.
-- Per-track `binascii.Error` is skipped, not fatal.
-- Findings recorded in ADR 0010 and `serato-schema-notes.md`.
+- Dry-run then live write of `location.sqlite` (7 rows).
+- Host backup `20260828T072224Z`.
+- Findings in `docs/workflows/index-bpm-wonsin.md`.
 
 ### Verification log
 
 | Check | Result |
 |-------|--------|
-| `.venv/bin/ruff check .` | pass |
-| `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 285 passed, 4 skipped |
+| Dry-run | 1286 candidates, 7 would update |
+| Live write | 7 rows, backup `20260828T072224Z` |
+| Dry-run after | 0 remaining |
+| `.venv/bin/pytest` | 285 passed, 4 skipped (docs-only task) |
 
 ## Next
 
-`TASK-250` — run `correct_index_bpm` on a real stick (backup-gated). Then variable-tempo deck check, then Library two-pane.
+`TASK-251` — confirm Apt X Blue's 4-marker grid in Serato. Then Library two-pane.

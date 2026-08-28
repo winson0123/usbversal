@@ -640,6 +640,18 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-250 — Run `correct_index_bpm` on WONSIN
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-28 |
+| Objective | Write first-beat BPM into `location.sqlite` on the real stick |
+| Verification | Dry-run 7/1286; live write 7 rows; backup `20260828T072224Z`; second dry-run 0; pytest 285 passed / 4 skipped |
+
+**Findings:** [index-bpm-wonsin.md](../workflows/index-bpm-wonsin.md) — four half-tempo rows, three 0.01 float rows. Exact `!=` kept.
+
+---
+
 ## Template (for future entries)
 
 ```markdown
