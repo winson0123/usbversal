@@ -25,7 +25,7 @@ backup-first safety.
 
 ## Safety guarantees
 
-1. Full database file backup to `backups/<timestamp>/` before any write
+1. Backup on the host before any write (`~/.local/share/usbversal/backups/`). Audio is a tag delta, not a second copy of the song.
 2. Integrity checks when the adapter supports them
 3. Writes rejected when backup cannot be created or verified
 4. Rollback restores from backup metadata
