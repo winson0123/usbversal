@@ -35,7 +35,7 @@ def replace_flushed(target: Path, data: bytes) -> None:
         if temporary.stat().st_size != len(data):
             raise OSError("temporary write was truncated")
         temporary.replace(target)
-        _fsync_directory(target.parent)
+        fsync_replaced(target)
         if target.is_file() and target.stat().st_size == len(data):
             return
         if original:
@@ -52,18 +52,31 @@ def replace_flushed(target: Path, data: bytes) -> None:
                 temporary.unlink()
 
 
-def _fsync_directory(path: Path) -> None:
+def fsync_replaced(path: Path) -> None:
     """
-    Fsync ``path`` so the directory entry from a replace reaches disk.
+    Fsync ``path`` and its parent after a replace.
+
+    On exFAT the swap is not atomic. The new file and the directory
+    entry must both reach the device.
 
     Args:
-        path: Parent directory of the file that was replaced.
+        path: File that was just replaced.
     """
     fd = os.open(path, os.O_RDONLY)
     try:
         os.fsync(fd)
     finally:
         os.close(fd)
+    try:
+        parent = os.open(path.parent, os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        os.fsync(parent)
+    except OSError:
+        return
+    finally:
+        os.close(parent)
 
 
 def _write_flushed(path: Path, data: bytes) -> None:

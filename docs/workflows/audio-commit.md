@@ -13,6 +13,7 @@ TASK-286:
 - Refuse an empty source file.
 - Refuse a rebuilt file that is empty or less than half the original size.
 - Write the `.tmp`, flush, and fsync; check its size before the swap.
+- After the swap, fsync the live file and its parent directory.
 - If the destination is missing or short after the swap, write the original
   bytes back.
 - If the destination is empty and a leftover `.tmp` has bytes, promote the

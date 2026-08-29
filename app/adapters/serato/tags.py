@@ -11,6 +11,7 @@ from pathlib import Path
 
 import structlog
 
+from app.adapters.serato.atomic import fsync_replaced
 from app.adapters.serato.markers2 import _decode_serato_b64
 
 logger = structlog.get_logger(__name__)
@@ -1027,7 +1028,8 @@ def _commit_audio_bytes(target: Path, new_data: bytes, original: bytes) -> None:
     Replace ``target`` with ``new_data`` after a flushed temporary write.
 
     The rebuilt file is written to a sibling ``.tmp``, flushed to disk, and
-    size-checked. Only then is it swapped onto ``target``. If the destination
+    size-checked. Only then is it swapped onto ``target``. The live file
+    and its parent directory are fsynced after the swap. If the destination
     is missing or shorter than ``new_data`` after the swap, ``original`` is
     written back.
 
@@ -1056,6 +1058,7 @@ def _commit_audio_bytes(target: Path, new_data: bytes, original: bytes) -> None:
             raise TagFormatError("temporary audio write was truncated")
         temporary.replace(target)
         if target.is_file() and target.stat().st_size == len(new_data):
+            fsync_replaced(target)
             return
         _restore_audio_bytes(target, original)
         raise TagFormatError("audio replace left a short file; original restored")

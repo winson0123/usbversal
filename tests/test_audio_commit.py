@@ -70,6 +70,23 @@ def test_commit_refuses_a_truncated_payload(tmp_path: Path) -> None:
     assert target.read_bytes() == original
 
 
+def test_commit_fsyncs_the_file_after_replace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The live path and its directory must be fsynced after the swap."""
+    called: list[Path] = []
+    monkeypatch.setattr(
+        "app.adapters.serato.tags.fsync_replaced",
+        lambda path: called.append(path),
+    )
+    target = tmp_path / "t.mp3"
+    original = b"x" * 100
+    target.write_bytes(original)
+    _commit_audio_bytes(target, b"y" * 100, original)
+    assert called == [target]
+    assert target.read_bytes() == b"y" * 100
+
+
 def test_commit_restores_original_when_replace_zeros_the_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

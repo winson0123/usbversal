@@ -11,6 +11,9 @@ from pathlib import Path
 
 from app.core.domain import MountPoint
 
+# Linux BLKFLSBUF: flush the block layer so USB mass-storage finishes.
+_BLKFLSBUF = 0x1261
+
 # Manual override for a setup none of the automatic scanners cover -- an
 # unusual auto-mount daemon, a container, a path the user just prefers.
 MOUNT_ENV_VAR = "USBVERSAL_MOUNT"
@@ -40,11 +43,15 @@ def resolve_mount_path(mount: str | Path) -> Path:
 
 def flush_mount(mount: Path) -> None:
     """
-    Push every dirty page on ``mount`` to the device.
+    Push every dirty page on ``mount`` all the way to the device.
 
     File-level fsync does not flush FAT, directory, or boot-sector updates.
-    ``syncfs`` on the mount directory does. When ``syncfs`` is missing, the
-    whole-system ``sync`` is used instead.
+    Each OS has its own whole-volume flush; none of them is libc-only:
+
+    * Linux: ``os.syncfs``, or libc ``syncfs`` when this Python build
+      lacks it, then ``BLKFLSBUF`` on the block device.
+    * macOS: ``F_FULLFSYNC`` on the mount directory.
+    * Windows: ``FlushFileBuffers`` on the volume (``os.fsync`` of ``\\\\.\\E:``).
 
     Args:
         mount: Mount root that was written.
@@ -52,14 +59,143 @@ def flush_mount(mount: Path) -> None:
     Raises:
         OSError: The directory could not be opened or flushed.
     """
+    system = platform.system()
+    if system == "Windows":
+        _flush_windows(Path(mount))
+        return
     fd = os.open(mount, os.O_RDONLY)
     try:
-        syncfs = getattr(os, "syncfs", None)
-        if syncfs is not None:
-            syncfs(fd)
+        if system == "Darwin":
+            _flush_macos(fd)
         else:
-            os.sync()
+            _flush_linux(fd, Path(mount))
         os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def _flush_linux(fd: int, mount: Path) -> None:
+    """
+    syncfs the mount, then flush the USB block device.
+
+    Args:
+        fd: Open descriptor on the mount directory.
+        mount: Mount root, used to find ``/dev/sdXN``.
+    """
+    _linux_syncfs(fd)
+    device = _block_device_for(mount)
+    if device:
+        _flush_block_device(device)
+
+
+def _linux_syncfs(fd: int) -> None:
+    """
+    Run Linux ``syncfs`` on ``fd`` via ``os`` or libc.
+
+    Args:
+        fd: Open file descriptor on the mount.
+    """
+    syncfs = getattr(os, "syncfs", None)
+    if syncfs is not None:
+        syncfs(fd)
+        return
+    import ctypes
+
+    libc = ctypes.CDLL("libc.so.6", use_errno=True)
+    if libc.syncfs(fd) == 0:
+        return
+    os.sync()
+
+
+def _flush_macos(fd: int) -> None:
+    """
+    Flush ``fd`` to the physical device with ``F_FULLFSYNC``.
+
+    Args:
+        fd: Open descriptor on the mount directory.
+    """
+    import fcntl
+
+    full = getattr(fcntl, "F_FULLFSYNC", None)
+    if full is not None:
+        fcntl.fcntl(fd, full)
+        return
+    os.fsync(fd)
+    if hasattr(os, "sync"):
+        os.sync()
+
+
+def _flush_windows(mount: Path) -> None:
+    """
+    Flush the Windows volume that contains ``mount``.
+
+    Args:
+        mount: Mount root such as ``E:\\``.
+    """
+    drive = mount.resolve().drive
+    volume = f"\\\\.\\{drive}" if drive else ""
+    if not volume:
+        return
+    try:
+        fd = os.open(volume, os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        os.fsync(fd)
+    except OSError:
+        return
+    finally:
+        os.close(fd)
+
+
+def _block_device_for(path: Path) -> str | None:
+    """
+    Return the block device mounted at ``path``, if any.
+
+    Args:
+        path: Directory that may be a mount point.
+
+    Returns:
+        Device path such as ``/dev/sde1``, or None.
+    """
+    try:
+        resolved = path.resolve()
+    except OSError:
+        return None
+    try:
+        with open("/proc/self/mounts", encoding="utf-8") as handle:
+            for line in handle:
+                parts = line.split()
+                if len(parts) < 2:
+                    continue
+                try:
+                    dest = Path(parts[1]).resolve()
+                except OSError:
+                    continue
+                if dest == resolved:
+                    return parts[0]
+    except OSError:
+        return None
+    return None
+
+
+def _flush_block_device(device: str) -> None:
+    """
+    Ask the Linux block layer to flush ``device``.
+
+    Args:
+        device: Path such as ``/dev/sde1``. Ignored when it cannot be opened.
+    """
+    import fcntl
+
+    try:
+        fd = os.open(device, os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        fcntl.ioctl(fd, _BLKFLSBUF)
+    except OSError:
+        return
     finally:
         os.close(fd)
 

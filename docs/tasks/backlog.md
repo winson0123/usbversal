@@ -214,6 +214,7 @@ and none of them exist yet.
 | ~~`TASK-288`~~ | ~~Skip leftover 0-byte crates when reading~~ | Done — empty or unparseable `.crate` is missing tracks, not a crash. |
 | ~~`TASK-289`~~ | ~~List `%%` ancestor stems in `neworder.pref`~~ | Done — Serato needs `Gigs` / `Gigs%%Played` in the order file even with no matching `.crate`. |
 | ~~`TASK-290`~~ | ~~Flush the USB filesystem at the end of sync~~ | Done — `flush_mount` / `syncfs`. TUI does not unmount. |
+| ~~`TASK-291`~~ | ~~Portable volume flush after sync~~ | Done — Linux syncfs, macOS F_FULLFSYNC, Windows FlushFileBuffers. |
 | `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |
 
 ---

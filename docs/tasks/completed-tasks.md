@@ -1090,6 +1090,18 @@ A working WONSIN `neworder.pref` listed `Gigs` and `Gigs%%Played` with no matchi
 
 ---
 
+## TASK-291 — Portable volume flush after sync
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Flush the volume with the OS-native call; fsync audio after replace |
+| Verification | ruff ✓ ruff format ✓ pytest 321 passed / 4 skipped |
+
+Linux: `os.syncfs` or libc `syncfs`, then `BLKFLSBUF`. macOS: `F_FULLFSYNC`. Windows: `FlushFileBuffers` on `\\.\E:`. No extra package. The TUI does not unmount. See `docs/workflows/volume-flush.md`.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

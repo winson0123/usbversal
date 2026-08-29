@@ -8,10 +8,10 @@
 
 No active task. Next: `TASK-252` — Library two-pane window.
 
-Last done: `TASK-290` — Flush the USB filesystem at the end of sync.
+Last done: `TASK-291` — Portable volume flush after sync.
 
-## TASK-290 verification log
+## TASK-291 verification log
 
 - `.venv/bin/ruff check .` — pass
 - `.venv/bin/ruff format --check .` — pass
-- `.venv/bin/pytest` — 316 passed / 4 skipped
+- `.venv/bin/pytest` — 321 passed / 4 skipped

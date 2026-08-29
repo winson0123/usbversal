@@ -655,6 +655,11 @@
       "id": "TASK-290",
       "title": "Flush the USB filesystem at the end of sync",
       "completed_at": "2026-08-30T00:00:00Z"
+    },
+    {
+      "id": "TASK-291",
+      "title": "Portable volume flush after sync",
+      "completed_at": "2026-08-30T00:00:00Z"
     }
   ],
   "history": [
@@ -1441,6 +1446,12 @@
     {
       "id": "TASK-290",
       "title": "Flush the USB filesystem at the end of sync",
+      "completed_at": "2026-08-30T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-291",
+      "title": "Portable volume flush after sync",
       "completed_at": "2026-08-30T00:00:00Z",
       "status": "completed"
     }
