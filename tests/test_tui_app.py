@@ -156,13 +156,15 @@ async def test_quit_from_home_does_not_hop_to_the_rekordbox_thread() -> None:
 async def test_plain_q_does_not_quit() -> None:
     """A stray q must not exit; it toasts that quit is Ctrl+Q."""
     app = UsbversalApp()
-    async with app.run_test() as pilot:
+    async with app.run_test(notifications=True) as pilot:
         await pilot.pause()
         await pilot.press("q")
         await pilot.pause()
         assert isinstance(app.screen, HomeScreen)
         messages = [note.message for note in app._notifications]
-        assert any("^Q" in message for message in messages)
+        assert messages == ["Press ^Q to quit"]
+        toast = app.screen.query_one("Toast")
+        assert toast.region.width <= 24
         assert app.is_running
 
 

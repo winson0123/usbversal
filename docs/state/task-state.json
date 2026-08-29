@@ -563,6 +563,11 @@
       "id": "TASK-269",
       "title": "Bare q uses Textual notify toast",
       "completed_at": "2026-08-29T00:00:00Z"
+    },
+    {
+      "id": "TASK-270",
+      "title": "Shorter quit toast, wrap to the message",
+      "completed_at": "2026-08-29T00:00:00Z"
     }
   ],
   "history": [
@@ -1211,6 +1216,12 @@
     {
       "id": "TASK-269",
       "title": "Bare q uses Textual notify toast",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-270",
+      "title": "Shorter quit toast, wrap to the message",
       "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }

@@ -10,8 +10,8 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-269` |
-| Objective | Pressing `q` shows Textual's built-in toast |
+| Task ID | `TASK-270` |
+| Objective | Shorter quit toast, wrap to the message |
 | Completed | 2026-08-29 |
 
 ### Verification log

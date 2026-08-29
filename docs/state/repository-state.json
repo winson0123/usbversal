@@ -129,6 +129,7 @@
     "progress_bar_horizontally_centered": true,
     "plain_q_shows_quit_hint": true,
     "plain_q_uses_notify_toast": true,
+    "quit_toast_is_compact": true,
     "progress_bar_strip_fills_width": true
   },
   "packaging": {

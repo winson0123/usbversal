@@ -826,6 +826,16 @@ TASK-266 sized the ProgressBar widget. The painted strip is a child `Bar` with `
 
 ---
 
+## TASK-270 — Shorter quit toast
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Toast says "Press ^Q to quit" and shrinks to the message |
+| Verification | ruff ✓ ruff format ✓ pytest 299 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

@@ -34,9 +34,10 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 7 | ~~`TASK-268`~~ | Visible strip fills the bar (not Textual's 32-cell default) |
 | 8 | ~~`TASK-267`~~ | Bare `q` shows a use-`^Q`-to-quit popup |
 | 9 | ~~`TASK-269`~~ | That hint is Textual's `notify` toast, not a modal |
-| 10 | `TASK-262` | Done screen: scrollable failures; host `error.log` (title, path, reason) |
-| 11 | `TASK-263` | `.aif` / `.aiff` tag read/write |
-| 12 | `TASK-252` | Library two-pane (original ask, last) |
+| 10 | ~~`TASK-270`~~ | Toast copy is "Press ^Q to quit"; narrower toast |
+| 11 | `TASK-262` | Done screen: scrollable failures; host `error.log` (title, path, reason) |
+| 12 | `TASK-263` | `.aif` / `.aiff` tag read/write |
+| 13 | `TASK-252` | Library two-pane (original ask, last) |
 
 Progress screen target layout:
 
