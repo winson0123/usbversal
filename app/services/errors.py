@@ -15,23 +15,13 @@ from app.services.migration_service import (
     PlaylistNotFoundError,
     SeratoLibraryRequiredError,
 )
-from app.storage.rollback import (
-    BackupNotFoundError,
-    BackupVerificationError,
-    MountMismatchError,
-    RollbackError,
-)
 
 __all__ = [
     "AdapterError",
-    "BackupNotFoundError",
-    "BackupVerificationError",
     "CrateExistsError",
     "DatabaseNotFoundError",
     "MigrationError",
-    "MountMismatchError",
     "PlaylistNotFoundError",
-    "RollbackError",
     "SeratoLibraryNotFoundError",
     "SeratoLibraryRequiredError",
     "UnsupportedDatabaseError",

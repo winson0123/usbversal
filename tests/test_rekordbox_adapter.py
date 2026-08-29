@@ -5,19 +5,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.adapters.base import DatabaseNotFoundError, UnsupportedDatabaseError, WriteContext
+from app.adapters.base import DatabaseNotFoundError, UnsupportedDatabaseError
 from app.adapters.rekordbox.paths import resolve_rekordbox_database
 from app.adapters.rekordbox.reader import RboxOneLibraryAdapter, open_rekordbox_library
 from app.core.domain import RekordboxDbFormat, RekordboxLibrary
 from app.services.library import open_library
 from app.services.playlist_service import list_rekordbox_playlists
 from tests.conftest import integration_mount
-
-
-def test_write_context_requires_existing_backup(tmp_path: Path) -> None:
-    """WriteContext rejects a backup directory that does not exist."""
-    with pytest.raises(ValueError, match="backup directory"):
-        WriteContext(backup_path=tmp_path / "missing")
 
 
 def test_resolve_prefers_export_library_db(tmp_path: Path) -> None:

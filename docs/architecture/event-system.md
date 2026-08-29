@@ -26,7 +26,7 @@ Implemented in `app/core/event_envelope.py`. Dataclass events from `app/core/eve
 | `job.*` | started, progress, completed, failed, cancelled | TUI, logs |
 | `scan.*` | started, library_found, completed | TUI |
 | `adapter.*` | unknown_field, schema_version | logs, docs (planned) |
-| `storage.*` | backup_created, rollback_done | TUI, audit (planned) |
+| `storage.*` | mount_changed | TUI, audit (planned) |
 | `warning.*` | db_locked, process_running | TUI (planned) |
 
 ## Delivery Model

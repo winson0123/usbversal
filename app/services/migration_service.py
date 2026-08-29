@@ -8,14 +8,11 @@ from typing import Any
 
 import structlog
 
-from app.adapters.base import WriteContext
 from app.adapters.serato import read_database_track_paths
 from app.adapters.serato.writer import sanitize_crate_name, write_crate
 from app.core.domain import Playlist
 from app.core.track_paths import build_serato_path_index, normalize_track_path
-from app.services.backup_service import backup_mount_for_migration
 from app.services.library import UsbLibrary
-from app.storage.backup import BackupResult
 
 logger = structlog.get_logger(__name__)
 
@@ -61,13 +58,11 @@ class PlaylistMigrationResult:
 
     Attributes:
         plan: Resolved path mapping and target crate name.
-        backup: Backup taken before write (None when dry_run).
         crate_path: Written crate path (None when dry_run).
-        dry_run: True when no backup or write was performed.
+        dry_run: True when no write was performed.
     """
 
     plan: PlaylistMigrationPlan
-    backup: BackupResult | None
     crate_path: Path | None
     dry_run: bool
 
@@ -88,7 +83,6 @@ class PlaylistMigrationResult:
             "skipped_count": len(self.plan.skipped_paths),
             "skipped_paths": list(self.plan.skipped_paths),
             "serato_paths": list(self.plan.serato_paths),
-            "backup_id": self.backup.backup_id if self.backup else None,
             "crate_path": str(self.crate_path) if self.crate_path else None,
         }
 
@@ -238,10 +232,9 @@ def migrate_playlist_to_crate(
     playlist_name: str | None = None,
     dry_run: bool = False,
     overwrite: bool = False,
-    backup_root: str | Path | None = None,
 ) -> PlaylistMigrationResult:
     """
-    Copy a Rekordbox playlist to a new Serato crate file (backup-gated).
+    Copy a Rekordbox playlist to a new Serato crate file.
 
     Args:
         mount: Mount path containing Rekordbox and Serato libraries.
@@ -249,10 +242,9 @@ def migrate_playlist_to_crate(
         playlist_name: Rekordbox playlist name (exact).
         dry_run: When True, only build and return the plan.
         overwrite: Replace an existing Subcrates/<name>.crate file.
-        backup_root: Optional backups parent directory.
 
     Returns:
-        PlaylistMigrationResult with backup and crate path when not dry_run.
+        PlaylistMigrationResult with crate path when not dry_run.
 
     Raises:
         CrateExistsError: Target crate exists and overwrite is False.
@@ -265,29 +257,25 @@ def migrate_playlist_to_crate(
     )
 
     if dry_run:
-        return PlaylistMigrationResult(plan=plan, backup=None, crate_path=None, dry_run=True)
+        return PlaylistMigrationResult(plan=plan, crate_path=None, dry_run=True)
 
     if not plan.serato_paths:
         raise MigrationError(
             f"No tracks from playlist {plan.playlist_name!r} match the Serato library index",
         )
 
-    backup = backup_mount_for_migration(library.mount, backup_root=backup_root)
     serato_root = library.serato_root
     if serato_root is None:
         raise SeratoLibraryRequiredError(f"No Serato library under {library.mount}")
 
-    write_context = WriteContext(backup_path=backup.backup_dir)
     crate_path = write_crate(
         serato_root=serato_root,
         crate_name=plan.crate_name,
         track_paths=list(plan.serato_paths),
-        write_context=write_context,
         overwrite=overwrite,
     )
     return PlaylistMigrationResult(
         plan=plan,
-        backup=backup,
         crate_path=crate_path,
         dry_run=False,
     )

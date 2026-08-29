@@ -78,11 +78,11 @@ Record results in the verification log section of `current-task.md`.
 
 | Rule | Requirement |
 |------|-------------|
-| Database writes | **Never** write to DJ databases without a verified backup |
+| Rekordbox files | **Never** write under `PIONEER/` |
 | Schema stability | **Never** assume vendor schema is stable across versions |
 | Schema rebuild | **Never** rebuild or drop schemas wholesale |
 | Unknown fields | Preserve and track unknown fields; do not discard silently |
-| Rollback | Every write path must support rollback via backup metadata |
+| Recovery | Restore the Rekordbox USB; do not keep a host backup/rollback path |
 
 ---
 
@@ -119,7 +119,7 @@ Human-readable mirrors:
 
 - Implementing Rekordbox/Serato parsing beyond documented placeholders
 - Implementing job runner business logic without a scoped task
-- Writing to real DJ databases without backup task approval
+- Writing under `PIONEER/` or regenerating a vendor index
 - Adding dependencies not justified in an ADR or task scope
 
 ---

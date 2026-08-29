@@ -39,8 +39,8 @@ Vendor formats still change without notice; treat versions defensively.
 
 | Constraint | Enforcement |
 |------------|-------------|
-| Backup before write | Full file copy of all touched Serato DB files |
-| No in-place patch without backup | Storage layer gate |
+| Rekordbox files | Never write under `PIONEER/` |
+| Tag rewrite | Verify audio hash and frame read-back before replace |
 | Read-only if parse confidence low | Adapter returns error, does not guess |
 | No schema rebuild | Never regenerate entire database from scratch |
 

@@ -1,4 +1,4 @@
-"""Serato crate write adapter (backup-gated)."""
+"""Serato crate write adapter."""
 
 from __future__ import annotations
 
@@ -9,7 +9,6 @@ import structlog
 from serato_tools.crate import Crate
 from serato_tools.database_v2 import DatabaseV2
 
-from app.adapters.base import WriteContext
 from app.adapters.serato.naming import sanitize_crate_name
 from app.adapters.serato.paths import subcrates_dir
 
@@ -51,7 +50,6 @@ def write_crate(
     serato_root: Path,
     crate_name: str,
     track_paths: list[str],
-    write_context: WriteContext,
     overwrite: bool = False,
 ) -> Path:
     """
@@ -61,7 +59,6 @@ def write_crate(
         serato_root: Path to _Serato_ directory.
         crate_name: Crate filename stem (sanitized playlist name).
         track_paths: Serato-relative paths to add in order.
-        write_context: Validated backup context (required before any write).
         overwrite: Replace an existing .crate file when True.
 
     Returns:
@@ -69,9 +66,7 @@ def write_crate(
 
     Raises:
         CrateExistsError: Target crate exists and overwrite is False.
-        ValueError: If write_context backup_path is invalid.
     """
-    _ = write_context  # validated in WriteContext.__post_init__
     subcrates = subcrates_dir(serato_root)
     subcrates.mkdir(parents=True, exist_ok=True)
     crate_path = (subcrates / f"{sanitize_crate_name(crate_name)}.crate").resolve()
@@ -100,7 +95,6 @@ def append_database_tracks(
     *,
     database_path: Path,
     records: list[list[tuple[str, object]]],
-    write_context: WriteContext,
 ) -> int:
     """
     Append track records to a Serato database V2 file.
@@ -108,12 +102,10 @@ def append_database_tracks(
     Args:
         database_path: Path to the database V2 file.
         records: Field lists, one per new track, in Serato field order.
-        write_context: Validated backup context, required before any write.
 
     Returns:
         Number of records appended.
     """
-    _ = write_context
     if not records:
         return 0
 

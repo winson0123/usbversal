@@ -1,15 +1,13 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-27T00:00:00Z",
+  "updated_at": "2026-08-29T00:00:00Z",
   "allowed_patterns": [
     "adapter_per_vendor",
     "tui_thin_presentation",
     "asyncio_job_runner",
     "event_bus_in_process",
-    "backup_before_write",
-    "write_context_requires_backup_path",
     "domain_models_in_core",
-    "storage_own_mount_and_backup",
+    "storage_own_mount",
     "unknown_field_preservation",
     "single_active_task_per_agent",
     "merge_never_regenerate_vendor_index",
@@ -20,7 +18,6 @@
   ],
   "forbidden_patterns": [
     "tui_business_logic",
-    "write_without_backup",
     "schema_rebuild_wholesale",
     "adapter_imports_tui",
     "core_imports_vendor_sql_directly",
@@ -28,7 +25,6 @@
     "silent_drop_unknown_fields",
     "assume_schema_stable",
     "rmtree_vendor_library_dir",
-    "write_audio_tags_without_backup",
     "vendor_import_outside_adapter"
   ],
   "constraints": {

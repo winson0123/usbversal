@@ -28,7 +28,6 @@ from app.services.sync_progress import SyncProgress, display_title
 from app.services.sync_service import SyncReport, sync_playlists
 
 _PHASE_STATUS = {
-    "backup": "Backing up",
     "index": "Indexing tracks",
     "analysis": "Writing analysis",
     "crates": "Writing crates",
@@ -91,7 +90,7 @@ class ProgressScreen(Screen):
         """Keep status, bar, and playlist mid-screen; dock the log below."""
         with CenterMiddle():
             with Center():
-                yield Static("Taking backup…", id=_STATUS_ID)
+                yield Static("Starting…", id=_STATUS_ID)
             with Center(id="sync-bar-row"):
                 yield ProgressBar(id=_BAR_ID, show_eta=False, show_percentage=False)
             with Center():
@@ -139,14 +138,10 @@ class ProgressScreen(Screen):
             current=sample.done, total=sample.total, at=time.monotonic()
         )
         label = _PHASE_STATUS.get(sample.phase, sample.phase)
-        if sample.phase == "backup" and sample.total:
-            percent = round(100 * sample.done / sample.total)
-            message = f"{label}: {percent}%"
-        else:
-            message = f"{label}: {sample.done}/{sample.total}"
+        message = f"{label}: {sample.done}/{sample.total}"
         if estimate.eta_seconds is not None:
             message += f" (eta {format_duration(estimate.eta_seconds)})"
-        elif sample.phase != "backup" and estimate.rate_per_second is not None:
+        elif estimate.rate_per_second is not None:
             message += f" ({estimate.rate_per_second:.1f}/s)"
         self.query_one(f"#{_STATUS_ID}", Static).update(message)
 
@@ -158,8 +153,6 @@ class ProgressScreen(Screen):
             playlist.add_class("empty")
             playlist.update("")
 
-        if sample.phase == "backup":
-            return
         log = self.query_one(RichLog)
         log.remove_class("empty")
         line = f"[{sample.done}/{sample.total}] {display_title(sample.item)}"
@@ -222,11 +215,7 @@ class DoneScreen(Screen):
         for failure in self._failures:
             log.write(Text(format_failure_lines(failure), style="red"))
         if self._report is not None:
-            write_error_log(
-                self._report.mount,
-                self._failures,
-                backup_id=self._report.backup_id,
-            )
+            write_error_log(self._report.mount, self._failures)
 
     def _summary(self) -> Text:
         if self._error is not None:

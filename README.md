@@ -13,22 +13,22 @@ sync on USB-mounted media. No audio processing. No cloud dependency.
 ## Purpose
 
 Usbversal helps DJs copy Rekordbox playlists, beatgrids, and hot cues onto a
-Serato USB without corrupting vendor databases. All write paths require
-backup-first safety.
+Serato USB without corrupting Rekordbox files. Writes go immediately;
+recovery is restoring the Rekordbox USB.
 
 ## Goals
 
 - Detect USB-mounted DJ libraries (Rekordbox, Serato)
 - Sync selected playlists into Serato crates with analysis tags
-- Apply safe writes with **mandatory backup and rollback**
+- Apply writes immediately; restore the Rekordbox USB if needed
 - Ship as **PyInstaller executables** for Windows, Linux, and macOS
 
 ## Safety guarantees
 
-1. Backup on the host before any write (`~/.local/share/usbversal/backups/`). Audio is a tag delta, not a second copy of the song.
-2. Integrity checks when the adapter supports them
-3. Writes rejected when backup cannot be created or verified
-4. Rollback restores from backup metadata
+1. Never write under `PIONEER/`. Recovery is restoring the Rekordbox USB.
+2. Tag writes verify audio hash and frame read-back before the new file replaces the old one.
+3. Failed sync items are listed on Done and written to host `error.log` (`~/.local/share/usbversal/<volume>/`).
+4. Never regenerate a vendor index; merge only.
 
 ## Usage
 
@@ -59,8 +59,8 @@ See [docs/workflows/release-workflow.md](docs/workflows/release-workflow.md) and
 | `app/tui/` | The shipped product: interactive terminal UI (`python -m app.tui`) |
 | `app/core/` | Domain models and events |
 | `app/adapters/` | Rekordbox / Serato adapters |
-| `app/services/` | Scan, backup, playlist/crate orchestration |
-| `app/storage/` | Mount detection, backup, rollback |
+| `app/services/` | Scan, playlist/crate orchestration |
+| `app/storage/` | Mount detection, host data paths |
 | `tests/` | Unit and integration tests |
 | `docs/` | Architecture, ADRs, tasks, machine state |
 

@@ -27,7 +27,7 @@ Rekordbox stores library metadata primarily in **SQLite** databases on USB/expor
 
 | Constraint | Enforcement |
 |------------|-------------|
-| Backup before write | `WriteContext.backup_path` required |
+| Rekordbox files | Never write under `PIONEER/` |
 | Integrity check | `PRAGMA integrity_check` before and after write (when possible) |
 | No schema rebuild | Never `DROP`/`CREATE` wholesale |
 | Locked DB | Detect `-wal`/`-shm` or lock files; warn, prefer read-only |
@@ -58,9 +58,9 @@ Rekordbox PC libraries can have **intelligent playlists** (`PlaylistType.SmartLi
 
 - Apply domain `Plan` objects (playlist moves, metadata edits)
 - Transactional writes where SQLite allows
-- Rollback via storage layer on failure
+- Recovery is restoring the Rekordbox USB
 
 ## Related
 
 - [../schemas/rekordbox-schema-notes.md](../schemas/rekordbox-schema-notes.md)
-- [../storage/backup-strategy.md](../storage/backup-strategy.md)
+- [../storage/usb-detection.md](../storage/usb-detection.md)

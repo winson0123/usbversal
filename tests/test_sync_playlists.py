@@ -21,7 +21,6 @@ from app.core.domain import Playlist
 from app.services.migration_service import PlaylistNotFoundError, SeratoLibraryRequiredError
 from app.services.sync_progress import SyncProgress
 from app.services.sync_service import correct_index_bpm, sync_playlists
-from app.storage.backup import BackupManifest, default_backup_root, resolve_artifact
 from tests.conftest import EMPTY_DATABASE_V2, make_library
 
 TRACKS = ["/Contents/a.mp3", "/Contents/b.mp3"]
@@ -180,7 +179,6 @@ def test_dry_run_writes_nothing(tmp_path: Path) -> None:
     report = sync_playlists(library, [1], dry_run=True)
 
     assert report.dry_run is True
-    assert report.backup_id is None
     assert report.records_added == 2
     assert (mount / "_Serato_" / "database V2").read_bytes() == before
     assert not list((mount / "_Serato_" / "Subcrates").glob("*.crate"))
@@ -198,7 +196,6 @@ def test_sync_indexes_missing_tracks_and_writes_a_crate(tmp_path: Path) -> None:
     assert [sample.phase for sample in calls if sample.phase == "index"] == ["index", "index"]
     assert report.records_added == 2
     assert report.crates_written == 1
-    assert report.backup_id is not None
     crate = mount / "_Serato_" / "Subcrates" / f"{volume_label_for(mount)}%%test.crate"
     assert read_crate_track_paths(crate) == ["Contents/a.mp3", "Contents/b.mp3"]
     assert read_database_track_paths(mount / "_Serato_" / "database V2") == [
@@ -380,7 +377,6 @@ def test_resync_does_not_recount_matching_tags(tmp_path: Path) -> None:
     assert report.grids_written == 0
     assert report.cues_written == 0
     assert report.index_rows_updated == 0
-    assert report.backup_id is not None
     assert (mount / "Contents" / "track.wav").read_bytes() == before
 
 
@@ -422,27 +418,6 @@ def test_malformed_analysis_is_skipped_not_fatal(tmp_path: Path) -> None:
     assert report.crates_written == 1
 
 
-def test_analysis_targets_are_backed_up(tmp_path: Path) -> None:
-    """The audio file about to be tagged is captured in the run's backup."""
-    mount = _stick(tmp_path, indexed=["Contents/track.wav"])
-    _place_audio(mount, "Contents/track.wav")
-    dat = mount / "PIONEER" / "USBANLZ" / "P001" / "ANLZ0000.DAT"
-    _write_analysis(dat, beats=[(1, 128.0, 0)], cues=[])
-    content = _content(
-        "/Contents/track.wav", analysis_data_file_path="/PIONEER/USBANLZ/P001/ANLZ0000.DAT"
-    )
-    playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
-    library = _library(mount, [playlist], {1: ["/Contents/track.wav"]}, [content])
-
-    report = sync_playlists(library, [1])
-
-    backup_dir = default_backup_root(mount) / report.backup_id
-    manifest = BackupManifest.load(backup_dir)
-    entry = next(e for e in manifest.files if e.relative_path == "Contents/track.wav")
-    assert resolve_artifact(backup_dir, entry).is_file()
-    assert not (mount / "backups").exists()
-
-
 def test_correct_index_bpm_fixes_a_wrong_row(tmp_path: Path) -> None:
     """A row that disagrees with the first beat's tempo is corrected."""
     mount = _stick(
@@ -461,7 +436,6 @@ def test_correct_index_bpm_fixes_a_wrong_row(tmp_path: Path) -> None:
 
     assert result.candidates == 1
     assert result.rows_updated == 1
-    assert result.backup_id is not None
     analysis = read_track_analysis(library_db_path(mount / "_Serato_"))["Contents/track.wav"]
     assert analysis.bpm == 126.0
 
@@ -484,7 +458,6 @@ def test_correct_index_bpm_leaves_matching_rows_alone(tmp_path: Path) -> None:
 
     assert result.candidates == 1
     assert result.rows_updated == 0
-    assert result.backup_id is None
 
 
 def test_correct_index_bpm_dry_run_writes_nothing(tmp_path: Path) -> None:
@@ -506,7 +479,6 @@ def test_correct_index_bpm_dry_run_writes_nothing(tmp_path: Path) -> None:
     result = correct_index_bpm(library, dry_run=True)
 
     assert result.rows_updated == 1
-    assert result.backup_id is None
     assert index_path.read_bytes() == before
 
 
@@ -554,11 +526,8 @@ def test_on_progress_reports_each_analysis_track(tmp_path: Path) -> None:
 
     sync_playlists(library, [1], on_progress=calls.append)
 
-    backup = [sample for sample in calls if sample.phase == "backup"]
     analysis = [sample for sample in calls if sample.phase == "analysis"]
     crates = [sample for sample in calls if sample.phase == "crates"]
-    assert backup[0].done == 0
-    assert backup[-1].done == backup[-1].total
     assert analysis == [
         SyncProgress(
             "analysis",
@@ -624,9 +593,8 @@ def test_on_progress_skips_analysis_when_nothing_has_analysis_data(tmp_path: Pat
 
     sync_playlists(library, [1], on_progress=calls.append)
 
-    sync_calls = [sample for sample in calls if sample.phase != "backup"]
-    assert [sample.phase for sample in sync_calls] == ["crates"]
-    assert sync_calls[0] == SyncProgress(
+    assert [sample.phase for sample in calls] == ["crates"]
+    assert calls[0] == SyncProgress(
         "crates",
         1,
         1,

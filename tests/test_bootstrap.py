@@ -13,7 +13,6 @@ from app.adapters.serato.paths import resolve_serato_library
 from app.core.domain import Playlist
 from app.services.bootstrap_service import bootstrap_serato_library
 from app.services.sync_service import sync_playlists
-from app.storage.backup import BackupManifest, default_backup_root, resolve_artifact
 from tests.conftest import make_library
 
 
@@ -36,7 +35,6 @@ def test_creates_an_empty_valid_serato_library(tmp_path: Path) -> None:
     result = bootstrap_serato_library(mount)
 
     assert result.created is True
-    assert result.backup_id is not None
     resolved = resolve_serato_library(mount)
     assert resolved is not None
     serato_root, database_path = resolved
@@ -56,22 +54,6 @@ def test_pioneer_files_are_byte_identical_after_bootstrap(tmp_path: Path) -> Non
     assert _hash(db_path) == before
 
 
-def test_backup_covers_the_rekordbox_files(tmp_path: Path) -> None:
-    """The backup taken before writing actually contains what must stay safe."""
-    mount = _rekordbox_only_stick(tmp_path)
-
-    result = bootstrap_serato_library(mount)
-
-    backup_dir = default_backup_root(mount) / result.backup_id
-    entry = next(
-        item
-        for item in BackupManifest.load(backup_dir).files
-        if item.relative_path.endswith("exportLibrary.db")
-    )
-    assert resolve_artifact(backup_dir, entry).is_file()
-    assert not (mount / "backups").exists()
-
-
 def test_an_existing_serato_library_is_left_alone(tmp_path: Path) -> None:
     """A stick that already has _Serato_ is reported as not created, untouched."""
     mount = _rekordbox_only_stick(tmp_path)
@@ -84,13 +66,11 @@ def test_an_existing_serato_library_is_left_alone(tmp_path: Path) -> None:
     result = bootstrap_serato_library(mount)
 
     assert result.created is False
-    assert result.backup_id is None
     assert existing_db.read_bytes() == before
-    assert not (mount / "backups").exists()
 
 
-def test_raises_when_there_is_nothing_to_back_up(tmp_path: Path) -> None:
-    """No Rekordbox files at all means no verified backup is possible."""
+def test_raises_when_there_are_no_rekordbox_files(tmp_path: Path) -> None:
+    """A mount with no Rekordbox export is not a stick this can bootstrap."""
     tmp_path.mkdir(exist_ok=True)
 
     with pytest.raises(FileNotFoundError):

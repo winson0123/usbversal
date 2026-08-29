@@ -6,8 +6,8 @@ below — that's what a session picking this up should do next.
 
 | | |
 |---|---|
-| Tests | 336 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-278` — Skip backup hash when size and mtime match |
+| Tests | 285 passed, 4 skipped (`ruff` and `ruff format` clean) |
+| Last done | `TASK-279` — Remove backup and rollback |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -45,7 +45,8 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 18 | ~~`TASK-263`~~ | `.aif` / `.aiff` / `.m4a` / `.mp4` tag read/write |
 | 19 | ~~`TASK-277`~~ | Skip GEOB rewrite when BeatGrid/Markers2 already match |
 | 20 | ~~`TASK-278`~~ | Skip backup SHA-256 when size and mtime match |
-| 21 | `TASK-252` | Library two-pane (original ask, last) |
+| 21 | ~~`TASK-279`~~ | Delete backup and rollback |
+| 22 | `TASK-252` | Library two-pane (original ask, last) |
 
 Progress screen target layout:
 
@@ -57,7 +58,7 @@ Progress screen target layout:
             …
 ```
 
-`error.log` lives on the host (next to backups), not on the USB.
+`error.log` lives on the host under `~/.local/share/usbversal/<volume>/`, not on the USB.
 
 ---
 
@@ -234,7 +235,7 @@ and hot cues into the audio tags and, when a grid was written, updates
 | `adapters/serato/library_db.py` | reads/updates `location.sqlite` |
 
 `sync_playlists()` now writes crates, `database V2` records, `neworder.pref`,
-grids, cues, and the index in one backup-gated pass. A track whose audio or
+grids, cues, and the index in one pass. A track whose audio or
 ANLZ data cannot be read is skipped and recorded in `SyncReport.analysis_errors`
 rather than aborting the run. `correct_index_bpm()` (TASK-132) does the same
 first-beat-tempo correction library-wide, not only for tracks in a playlist

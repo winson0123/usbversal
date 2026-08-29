@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.adapters.base import WriteContext
 from app.adapters.serato.writer import CrateExistsError, sanitize_crate_name, write_crate
 from app.core.domain import Playlist, RekordboxDbFormat, RekordboxLibrary
 from app.services.migration_service import (
@@ -13,7 +12,6 @@ from app.services.migration_service import (
     build_migration_plan,
     migrate_playlist_to_crate,
 )
-from app.storage.backup import BackupManifest
 from tests.conftest import make_library
 
 
@@ -24,36 +22,32 @@ def test_sanitize_crate_name() -> None:
     assert sanitize_crate_name("   ") == "Untitled"
 
 
-def test_write_crate_creates_file(tmp_path: Path, make_backup) -> None:
+def test_write_crate_creates_file(tmp_path: Path) -> None:
     """write_crate creates a .crate with track entries."""
     serato = tmp_path / "_Serato_"
     serato.mkdir()
-    backup = make_backup()
 
     crate_path = write_crate(
         serato_root=serato,
         crate_name="Pocket",
         track_paths=["Contents/a.mp3", "Contents/b.mp3"],
-        write_context=WriteContext(backup_path=backup.backup_dir),
     )
     assert crate_path.is_file()
     assert crate_path.name == "Pocket.crate"
 
 
-def test_write_crate_exists_without_overwrite(tmp_path: Path, make_backup) -> None:
+def test_write_crate_exists_without_overwrite(tmp_path: Path) -> None:
     """write_crate raises when crate exists and overwrite is False."""
     serato = tmp_path / "_Serato_"
     sub = serato / "Subcrates"
     sub.mkdir(parents=True)
     (sub / "Pocket.crate").write_bytes(b"existing")
-    backup = make_backup()
 
     with pytest.raises(CrateExistsError):
         write_crate(
             serato_root=serato,
             crate_name="Pocket",
             track_paths=["Contents/a.mp3"],
-            write_context=WriteContext(backup_path=backup.backup_dir),
             overwrite=False,
         )
 
@@ -94,7 +88,7 @@ def test_build_migration_plan_with_mocks(tmp_path: Path) -> None:
 
 
 def test_migrate_playlist_dry_run(tmp_path: Path) -> None:
-    """migrate_playlist_to_crate dry_run does not create backup or crate."""
+    """migrate_playlist_to_crate dry_run does not write a crate."""
     mount = tmp_path / "usb"
     mount.mkdir()
     (mount / "_Serato_").mkdir()
@@ -118,7 +112,6 @@ def test_migrate_playlist_dry_run(tmp_path: Path) -> None:
         )
 
     assert result.dry_run is True
-    assert result.backup is None
     assert result.crate_path is None
 
 
@@ -169,5 +162,3 @@ def test_migrate_playlist_end_to_end(tmp_path: Path) -> None:
 
     assert result.crate_path is not None
     assert result.crate_path.name == "Pocket.crate"
-    assert result.backup is not None
-    assert BackupManifest.load(result.backup.backup_dir).backup_id == result.backup.backup_id

@@ -202,6 +202,7 @@ and none of them exist yet.
 | ~~`TASK-263`~~ | ~~AIFF / AIF / M4A Serato tags~~ | Done — AIFF/AIFC `ID3 ` GEOB; M4A/MP4 `----:com.serato.dj` atoms. SSND / `mdat` hashed. MP4 `markers` (Markers_) only written when asked; Serato still wants it for the first five cues. |
 | ~~`TASK-277`~~ | ~~Skip GEOB rewrite when payload already matches~~ | Done — `write_geob` returns False and leaves the file alone when every update already matches and nothing is being removed. Sync does not bump grid/cue/index counts. Backup still runs. |
 | ~~`TASK-278`~~ | ~~Skip backup hash when size and mtime match~~ | Done — `original_mtime_ns` on each manifest row; size + mtime match skips SHA-256. Old rows are hashed once, then stamped. |
+| ~~`TASK-279`~~ | ~~Remove backup and rollback~~ | Done — writes go immediately; `error.log` stays on the host. Recovery is restoring the Rekordbox USB. |
 | `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |
 
 ---

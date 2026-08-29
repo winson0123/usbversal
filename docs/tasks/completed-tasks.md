@@ -946,6 +946,18 @@ Same change-detection rule as rsync and restic. Inode is not used. Older snapsho
 
 ---
 
+## TASK-279 — Remove backup and rollback
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Delete the backup and rollback system; writes proceed immediately |
+| Verification | ruff ✓ ruff format ✓ pytest 285 passed / 4 skipped |
+
+`create_backup`, `WriteContext`, rollback, and host audio-delta snapshots are gone. Sync, bootstrap, and migration write immediately. Progress starts on index/analysis/crates. `error.log` stays on the host under `~/.local/share/usbversal/<volume>/`. Recovery is restoring the Rekordbox USB.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

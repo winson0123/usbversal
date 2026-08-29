@@ -71,13 +71,11 @@ rather than retrofitted later.
    rather than parsing the CLI's text output.
 
 6. ~~**Batch sync over selected playlists.**~~ Done — TASK-114/TASK-205,
-   `sync_playlists()` takes one backup for the whole run and reports
-   per-playlist outcomes.
+   `sync_playlists()` reports per-playlist outcomes.
 
 ## Constraints carried over
 
-- Writes stay backup-gated: a `WriteContext` cannot be built without a verified
-  manifest, and the TUI must surface a failed gate rather than proceed.
+- Writes go immediately. Recovery is restoring the Rekordbox USB.
 - Stage 2 (cues/beatgrids) mutates audio files and must stay behind an explicit
   opt-in in the UI, never bundled into a default "sync".
 - Nothing under `PIONEER/` or `Contents/` is written during playlist sync.

@@ -30,7 +30,7 @@ High-level architecture for the Python DJ-library TUI. Implementation details li
             │                        │
 ┌───────────▼────────────────────────▼─────────────────────┐
 │                   Storage Layer                          │
-│  USB detection · backup · atomic write · rollback        │
+│  USB detection · host paths                              │
 └──────────────────────────┬───────────────────────────────┘
                            │
                     ┌──────▼──────┐
@@ -43,11 +43,11 @@ High-level architecture for the Python DJ-library TUI. Implementation details li
 
 | Layer | Responsibility | Must not |
 |-------|----------------|----------|
-| TUI | Screens, rendering, key handling | Parse DB formats, run backups |
+| TUI | Screens, rendering, key handling | Parse DB formats |
 | Core | Domain models, validation, plans | Touch vendor-specific bytes |
 | Adapters | Vendor read/write, schema mapping | Manage mount detection |
 | Jobs | Long-running work, cancellation | Embed vendor SQL in the TUI |
-| Storage | Paths, backup, rollback, USB | Interpret playlist semantics |
+| Storage | Paths, USB mounts, host data dir | Interpret playlist semantics |
 
 Dependencies flow **inward**: TUI → Jobs → Services → Adapters → Storage → Core.
 `core` holds domain types and imports nothing from the other layers. TUI is a
@@ -64,7 +64,7 @@ Each vendor implements a common adapter interface (to be defined in `core/`):
 
 - `detect(library_root) -> bool`
 - `read_metadata(...) -> DomainModel`
-- `apply_plan(plan, write_context) -> Result` with **WriteContext** requiring `backup_path`
+- `apply_plan(plan) -> Result` — writes go immediately; Rekordbox USB restore is the recovery path
 
 Adapters isolate:
 
@@ -82,7 +82,7 @@ Operations emit structured events for logging, TUI progress, and subscribers:
 |------------|----------|
 | Progress | `job.progress`, `scan.found_library` |
 | Warning | `db.locked`, `schema.unknown_field` |
-| Error | `backup.failed`, `integrity.failed` |
+| Error | `integrity.failed` |
 | Lifecycle | `job.started`, `job.completed`, `job.cancelled` |
 
 Events are immutable dataclasses; subscribers must not block the job runner.
@@ -91,7 +91,7 @@ Details: `docs/architecture/event-system.md`.
 
 ## Async Job Model Concept
 
-Long operations (scan, apply, backup) run as **asyncio tasks** managed by a job registry:
+Long operations (scan, apply) run as **asyncio tasks** managed by a job registry:
 
 - Persistent job ID and checkpoint metadata (for resumability)
 - Cooperative cancellation
@@ -99,19 +99,15 @@ Long operations (scan, apply, backup) run as **asyncio tasks** managed by a job 
 
 Details: `docs/architecture/async-model.md`, `docs/jobs/`.
 
-## Backup-First Write Safety Model
+## Write Safety Model
 
 ```text
 apply requested
-    → storage.create_backup(db_paths)
     → adapter.verify_integrity (if supported)
-    → adapter.apply_plan(plan, WriteContext{backup_path})
-    → on failure: storage.rollback(backup_path)
+    → adapter.apply_plan(plan)
 ```
 
-**WriteContext** without a verified `backup_path` must reject the operation at the storage layer.
-
-Details: `docs/storage/backup-strategy.md`, `docs/storage/rollback-flow.md`.
+Writes go immediately. Recovery is restoring the Rekordbox USB. `PIONEER/` is never written. Tag writes verify audio hash and frame read-back before the new file replaces the old one.
 
 ## Technology Choices
 

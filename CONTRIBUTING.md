@@ -60,13 +60,13 @@ The TUI (`app/tui/`) must:
 
 - Render screens and handle keys
 - Dispatch to services — **no business logic in TUI modules**
-- Stay off vendor parsers and backup internals
+- Stay off vendor parsers
 
-Parsing, schema mapping, backup logic, and job orchestration belong in `app/core/`, `app/adapters/`, `app/services/`, and `app/storage/`.
+Parsing, schema mapping, and job orchestration belong in `app/core/`, `app/adapters/`, `app/services/`, and `app/storage/`.
 
 ## Safety Requirements for Database Work
 
-- Always create backup before write (see `docs/storage/backup-strategy.md`).
+- Never write under `PIONEER/`. Recovery is restoring the Rekordbox USB.
 - Never assume Rekordbox/Serato schema stability.
 - Track unknown fields (see adapter docs).
 - Add integration tests with fixture DBs before enabling write commands.
@@ -84,4 +84,4 @@ When changing behavior or architecture:
 - One task per PR preferred
 - Link task ID in PR description
 - CI must pass: `ruff`, `pytest`
-- Reviewers verify backup/rollback paths for any write-related change
+- Reviewers verify write paths never touch `PIONEER/`

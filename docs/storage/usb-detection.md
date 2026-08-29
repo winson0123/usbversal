@@ -57,6 +57,5 @@ When a DJ USB is available:
 
 ## Related
 
-- [backup-strategy.md](backup-strategy.md)
 - [../adapters/rekordbox.md](../adapters/rekordbox.md)
 - [../adapters/serato.md](../adapters/serato.md)

@@ -13,7 +13,7 @@ from textual.widgets import ProgressBar, RichLog, Static
 
 from app.services.sync_progress import SyncProgress
 from app.services.sync_service import SyncReport
-from app.storage.backup import default_backup_root
+from app.storage.host import host_volume_dir
 from app.tui.app import RekordboxThreadMixin
 from app.tui.screens.progress import DoneScreen, ProgressScreen
 
@@ -22,7 +22,6 @@ def _fake_report(**overrides) -> SyncReport:
     fields = {
         "mount": Path("/mnt/usb"),
         "dry_run": False,
-        "backup_id": "20260101T000000Z",
         "records_added": 1,
         "results": (),
         "grids_written": 2,
@@ -46,7 +45,7 @@ def _fake_sync(
 ):
     """Build a stand-in for sync_playlists that drives on_progress synchronously."""
 
-    def _sync(library, playlist_ids, *, dry_run=False, backup_root=None, on_progress=None):
+    def _sync(library, playlist_ids, *, dry_run=False, on_progress=None):
         if on_progress is not None:
             for sample in calls:
                 if delay_s:
@@ -136,7 +135,7 @@ async def test_analysis_errors_are_called_out_in_the_summary() -> None:
             assert "a.mp3" in text
             assert "Contents/a.mp3" in text
             assert "bad grid" in text
-            error_log = default_backup_root(Path("/mnt/usb")) / "error.log"
+            error_log = host_volume_dir(Path("/mnt/usb")) / "error.log"
             assert error_log.is_file()
             assert "a.mp3" in error_log.read_text(encoding="utf-8")
 
@@ -210,7 +209,7 @@ async def test_progress_bar_reflects_the_last_sample() -> None:
 
     hold = threading.Event()
 
-    def _held_sync(library, playlist_ids, *, dry_run=False, backup_root=None, on_progress=None):
+    def _held_sync(library, playlist_ids, *, dry_run=False, on_progress=None):
         hold.wait(timeout=5)
         return _fake_report()
 
@@ -233,52 +232,12 @@ async def test_progress_bar_reflects_the_last_sample() -> None:
 
 
 @pytest.mark.asyncio
-async def test_backup_samples_drive_the_bar_and_do_not_log_files() -> None:
-    """Backup is one bar with an ETA, not a per-file log. Sync starts a new bar."""
-
-    hold = threading.Event()
-
-    def _held_sync(library, playlist_ids, *, dry_run=False, backup_root=None, on_progress=None):
-        hold.wait(timeout=5)
-        return _fake_report()
-
-    with patch("app.tui.screens.progress.sync_playlists", _held_sync):
-        app = _Harness(library=object(), playlist_ids=[1])
-        async with app.run_test() as pilot:
-            await pilot.pause()
-            screen = app.screen
-            try:
-                assert isinstance(screen, ProgressScreen)
-                screen._update_progress(SyncProgress("backup", 0, 100, ""))
-                screen._update_progress(SyncProgress("backup", 40, 100, ""))
-                status = str(screen.query_one("#sync-status", Static).render())
-                bar = screen.query_one(ProgressBar)
-                assert "Backing up" in status
-                assert "40%" in status
-                assert bar.total == 100
-                assert bar.progress == 40
-                assert len(screen.query_one(RichLog).lines) == 0
-                assert "empty" in screen.query_one(RichLog).classes
-                assert str(screen.query_one("#sync-playlist", Static).render()) == ""
-
-                after_backup = screen._tracker
-                screen._update_progress(SyncProgress("analysis", 1, 3, "Contents/a.mp3"))
-                bar = screen.query_one(ProgressBar)
-                assert bar.total == 3
-                assert bar.progress == 1
-                assert screen._tracker is not after_backup
-                assert "empty" not in screen.query_one(RichLog).classes
-            finally:
-                hold.set()
-
-
-@pytest.mark.asyncio
 async def test_progress_shows_the_playlist_and_centers_the_bar() -> None:
     """The visible Bar strip is wide and centered; the playlist shows its own x/x."""
 
     hold = threading.Event()
 
-    def _held_sync(library, playlist_ids, *, dry_run=False, backup_root=None, on_progress=None):
+    def _held_sync(library, playlist_ids, *, dry_run=False, on_progress=None):
         hold.wait(timeout=5)
         return _fake_report()
 
@@ -334,7 +293,7 @@ async def test_progress_log_shows_a_green_line_per_successful_track() -> None:
     """Each track that analyses cleanly gets its own green log line -- the
     user asked to actually see what's happening, not just a bare counter."""
 
-    def _slow_sync(library, playlist_ids, *, dry_run=False, backup_root=None, on_progress=None):
+    def _slow_sync(library, playlist_ids, *, dry_run=False, on_progress=None):
         time.sleep(1.0)
         return _fake_report()
 
@@ -358,7 +317,7 @@ async def test_progress_log_shows_a_red_line_for_a_failed_track() -> None:
     """A track whose analysis failed gets a red line naming the error,
     instead of silently vanishing into the done/total counter."""
 
-    def _slow_sync(library, playlist_ids, *, dry_run=False, backup_root=None, on_progress=None):
+    def _slow_sync(library, playlist_ids, *, dry_run=False, on_progress=None):
         time.sleep(1.0)
         return _fake_report()
 

@@ -16,8 +16,8 @@ vendor-specific database formats.
 | Jobs | `app.jobs` | Progress rate tracking (JobRunner unused by the TUI) |
 | Core | `app.core` | Domain models, plans, adapter protocols |
 | Adapters | `app.adapters` | Rekordbox (SQLite), Serato (binary) |
-| Storage | `app.storage` | Mount scan, backup, atomic write, rollback |
-| Services | `app.services` | Scan, backup, playlist/crate orchestration |
+| Storage | `app.storage` | Mount scan, host data paths |
+| Services | `app.services` | Scan, playlist/crate orchestration |
 
 ## Data Flow (Read)
 
@@ -32,9 +32,7 @@ TUI Detect
 
 ```text
 TUI Progress
-  → Storage.backup(target_paths)
   → sync_playlists (index, analysis, crates)
-    → on error: Storage.rollback
 ```
 
 `USBVERSAL_MOUNT` is a silent escape hatch when auto-detect misses a path.
@@ -43,7 +41,7 @@ TUI Progress
 
 - **Core** never imports SQLite or Serato-specific parsers directly.
 - **Adapters** never perform mount enumeration (Storage responsibility).
-- **TUI** never owns vendor parsers or backup internals.
+- **TUI** never owns vendor parsers.
 
 ## Related
 

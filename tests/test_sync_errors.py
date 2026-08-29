@@ -9,6 +9,7 @@ from app.services.sync_errors import (
     write_error_log,
 )
 from app.services.sync_service import PlaylistSyncResult, SyncReport
+from app.storage.host import host_volume_dir
 
 
 def _report(**overrides) -> SyncReport:
@@ -16,7 +17,6 @@ def _report(**overrides) -> SyncReport:
     fields = {
         "mount": Path("/mnt/usb"),
         "dry_run": False,
-        "backup_id": "20260101T000000Z",
         "records_added": 0,
         "results": (),
         "analysis_errors": (),
@@ -51,27 +51,27 @@ def test_format_failure_lines_is_title_path_reason() -> None:
     assert text == "Song.mp3\nContents/Song.mp3\ntoo tight"
 
 
-def test_write_error_log_sits_next_to_host_backups(tmp_path: Path, monkeypatch) -> None:
-    """error.log is written under the volume's host backup directory."""
-    monkeypatch.setenv("USBVERSAL_BACKUP_ROOT", str(tmp_path / "host-backups"))
+def test_write_error_log_sits_in_the_host_volume_dir(tmp_path: Path) -> None:
+    """error.log is written under the volume's host data directory, not the USB."""
     mount = tmp_path / "WONSIN"
     mount.mkdir()
     failures = (SyncFailure("Song.mp3", "Contents/Song.mp3", "too tight"),)
 
-    written = write_error_log(mount, failures, backup_id="20260101T000000Z")
+    written = write_error_log(mount, failures)
 
     assert written is not None
-    assert written.name == "error.log"
+    assert written == host_volume_dir(mount) / "error.log"
     assert written.parent.name == "WONSIN"
+    assert not (mount / "error.log").exists()
     text = written.read_text(encoding="utf-8")
-    assert "backup_id=20260101T000000Z" in text
     assert "Song.mp3" in text
     assert "Contents/Song.mp3" in text
     assert "too tight" in text
 
 
-def test_write_error_log_skips_an_empty_run(tmp_path: Path, monkeypatch) -> None:
+def test_write_error_log_skips_an_empty_run(tmp_path: Path) -> None:
     """A clean sync does not create error.log."""
-    monkeypatch.setenv("USBVERSAL_BACKUP_ROOT", str(tmp_path / "host-backups"))
-    assert write_error_log(tmp_path / "WONSIN", ()) is None
-    assert not (tmp_path / "host-backups").exists()
+    mount = tmp_path / "WONSIN"
+    mount.mkdir()
+    assert write_error_log(mount, ()) is None
+    assert not (host_volume_dir(mount) / "error.log").exists()

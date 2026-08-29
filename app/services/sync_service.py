@@ -10,7 +10,6 @@ from typing import Any
 
 import structlog
 
-from app.adapters.base import WriteContext
 from app.adapters.rekordbox.anlz import (
     AnlzError,
     Beat,
@@ -44,7 +43,6 @@ from app.adapters.serato.writer import (
 from app.core.domain import Playlist, PlaylistSyncState, SyncState
 from app.core.playlist_tree import PlaylistNode, build_playlist_tree
 from app.core.track_paths import normalize_track_path
-from app.services.backup_service import backup_mount_for_migration
 from app.services.library import UsbLibrary
 from app.services.migration_service import PlaylistNotFoundError, SeratoLibraryRequiredError
 from app.services.sync_progress import (
@@ -360,7 +358,6 @@ class SyncReport:
     Attributes:
         mount: Mount that was synced.
         dry_run: True when nothing was written.
-        backup_id: Backup taken before writing, None on a dry run.
         records_added: Track records added to the Serato database.
         results: Per-playlist outcomes in selection order.
         grids_written: Tracks that received a Serato BeatGrid tag.
@@ -371,7 +368,6 @@ class SyncReport:
 
     mount: Path
     dry_run: bool
-    backup_id: str | None
     records_added: int
     results: tuple[PlaylistSyncResult, ...]
     grids_written: int = 0
@@ -394,7 +390,6 @@ class SyncReport:
         return {
             "mount": str(self.mount),
             "dry_run": self.dry_run,
-            "backup_id": self.backup_id,
             "records_added": self.records_added,
             "crates_written": self.crates_written,
             "grids_written": self.grids_written,
@@ -468,7 +463,6 @@ def _sync_analysis(
     contents: dict[str, Any],
     paths: Sequence[str],
     lookups: RekordboxLookups,
-    write_context: WriteContext,
     on_progress: SyncProgressCallback | None = None,
 ) -> AnalysisSyncResult:
     """
@@ -486,13 +480,11 @@ def _sync_analysis(
         paths: Rekordbox track paths to process; each must resolve in ``contents``
             and carry Rekordbox analysis data.
         lookups: Id-to-name tables, for key lookups.
-        write_context: Validated backup context (required before any write).
         on_progress: Optional callback invoked after each track.
 
     Returns:
         Counts of what was written, and one message per track that failed.
     """
-    _ = write_context
     cues_written = 0
     errors: list[str] = []
     updates: dict[str, TrackAnalysis] = {}
@@ -627,7 +619,6 @@ def _dry_run_report(
     return SyncReport(
         mount=library.mount,
         dry_run=True,
-        backup_id=None,
         records_added=len(missing),
         results=tuple(
             PlaylistSyncResult(
@@ -658,7 +649,6 @@ def _index_missing_tracks(
     missing: Sequence[str],
     by_path: dict[str, Any],
     lookups: RekordboxLookups,
-    context: WriteContext,
     on_progress: SyncProgressCallback | None = None,
 ) -> int:
     """
@@ -669,7 +659,6 @@ def _index_missing_tracks(
         missing: Rekordbox paths not yet indexed.
         by_path: Content row per Rekordbox path.
         lookups: Id-to-name tables for ``build_track_record``.
-        context: Validated backup context.
         on_progress: Optional callback after each missing path is prepared.
     """
     if not missing:
@@ -680,9 +669,7 @@ def _index_missing_tracks(
         if raw in by_path:
             records.append(build_track_record(by_path[raw], lookups))
         emit_progress(on_progress, "index", done, total, raw)
-    return append_database_tracks(
-        database_path=database_path, records=records, write_context=context
-    )
+    return append_database_tracks(database_path=database_path, records=records)
 
 
 def _existing_index_path(serato_root: Path) -> Path | None:
@@ -713,7 +700,6 @@ def _write_playlist_crates(
     selected: Sequence[Playlist],
     by_id: dict[int, Playlist],
     tracks_by_playlist: dict[int, Sequence[str]],
-    context: WriteContext,
     on_progress: SyncProgressCallback | None = None,
     volume: str | None = None,
 ) -> list[PlaylistSyncResult]:
@@ -725,7 +711,6 @@ def _write_playlist_crates(
         selected: Leaf playlists in selection order.
         by_id: Every playlist on the stick, for crate-name ancestry.
         tracks_by_playlist: Rekordbox paths per playlist id.
-        context: Validated backup context.
         on_progress: Optional callback after each crate write.
         volume: Thumbdrive label prefixed onto every crate name.
     """
@@ -740,7 +725,6 @@ def _write_playlist_crates(
                 serato_root=serato_root,
                 crate_name=crate_name,
                 track_paths=paths,
-                write_context=context,
                 overwrite=True,
             )
         except (CrateExistsError, OSError) as exc:
@@ -792,24 +776,21 @@ def sync_playlists(
     playlist_ids: Sequence[int],
     *,
     dry_run: bool = False,
-    backup_root: str | Path | None = None,
     on_progress: SyncProgressCallback | None = None,
 ) -> SyncReport:
     """
     Mirror the selected Rekordbox playlists into Serato crates.
 
-    Takes one backup for the whole run, adds any track records Serato is
-    missing in a single pass, writes one crate per playlist and updates the
-    crate order, then writes each track's Rekordbox beatgrid and hot cues into
-    its audio tags and refreshes ``location.sqlite`` so the library list
-    matches. A track's analysis is skipped, not aborted, when its audio or
-    ANLZ data cannot be read.
+    Adds any track records Serato is missing in a single pass, writes one
+    crate per playlist and updates the crate order, then writes each track's
+    Rekordbox beatgrid and hot cues into its audio tags and refreshes
+    ``location.sqlite`` so the library list matches. A track's analysis is
+    skipped, not aborted, when its audio or ANLZ data cannot be read.
 
     Args:
         library: Opened session handle.
         playlist_ids: Rekordbox playlist ids to sync, in selection order.
-        dry_run: Plan only; take no backup and write nothing.
-        backup_root: Optional backups parent directory.
+        dry_run: Plan only; write nothing.
         on_progress: Optional callback for each index, analysis, and crate
             step. ``error`` is that item's failure message, or None. Not
             called for a dry run. A phase with nothing to do emits nothing.
@@ -831,17 +812,6 @@ def sync_playlists(
     lookups = load_lookups(library.rekordbox.database)
     by_path = {c.path: c for c in library.rekordbox.database.get_contents()}
     analysis_targets = _tracks_with_analysis(library.mount, all_paths, by_path)
-    backup = backup_mount_for_migration(
-        library.mount,
-        backup_root=backup_root,
-        extra_files=[library.mount / serato_path(raw) for raw in analysis_targets],
-        on_progress=(
-            None
-            if on_progress is None
-            else lambda done, total: emit_progress(on_progress, "backup", done, total, "")
-        ),
-    )
-    context = WriteContext(backup_path=backup.backup_dir)
     groups = [(p.name, tracks_by_playlist[p.id]) for p in selected]
     index_paths, index_meta = playlist_path_meta(groups, set(missing))
     analysis_paths, analysis_meta = playlist_path_meta(groups, analysis_targets)
@@ -851,7 +821,6 @@ def sync_playlists(
         index_paths,
         by_path,
         lookups,
-        context,
         attach_playlist(rebase_progress(on_progress, 0, sync_total), index_meta),
     )
     analysis = _sync_analysis(
@@ -860,7 +829,6 @@ def sync_playlists(
         by_path,
         analysis_paths,
         lookups,
-        context,
         attach_playlist(rebase_progress(on_progress, len(missing), sync_total), analysis_meta),
     )
     results = _write_playlist_crates(
@@ -868,7 +836,6 @@ def sync_playlists(
         selected,
         by_id,
         tracks_by_playlist,
-        context,
         rebase_progress(on_progress, len(missing) + len(analysis_targets), sync_total),
         volume=volume_label_for(library.mount),
     )
@@ -881,12 +848,10 @@ def sync_playlists(
         grids_written=analysis.grids_written,
         cues_written=analysis.cues_written,
         index_rows_updated=analysis.index_rows_updated,
-        backup_id=backup.backup_id,
     )
     return SyncReport(
         mount=library.mount,
         dry_run=False,
-        backup_id=backup.backup_id,
         records_added=records_added,
         results=tuple(results),
         grids_written=analysis.grids_written,
@@ -906,20 +871,16 @@ class IndexCorrectionResult:
             index row, i.e. tracks this pass could judge.
         rows_updated: Rows whose stored BPM did not match the first beat's
             tempo and were corrected. Zero on a dry run.
-        backup_id: Backup taken before writing, None on a dry run or when
-            nothing needed correcting.
     """
 
     candidates: int
     rows_updated: int
-    backup_id: str | None
 
 
 def correct_index_bpm(
     library: UsbLibrary,
     *,
     dry_run: bool = False,
-    backup_root: str | Path | None = None,
 ) -> IndexCorrectionResult:
     """
     Correct Serato library index rows whose BPM disagrees with Rekordbox's grid.
@@ -939,8 +900,7 @@ def correct_index_bpm(
 
     Args:
         library: Opened session handle.
-        dry_run: Plan only; take no backup and write nothing.
-        backup_root: Optional backups parent directory.
+        dry_run: Plan only; write nothing.
 
     Returns:
         IndexCorrectionResult describing what would be, or was, corrected.
@@ -975,20 +935,13 @@ def correct_index_bpm(
             updates[path] = TrackAnalysis(bpm=beats[0].bpm)
 
     if dry_run or not updates:
-        return IndexCorrectionResult(
-            candidates=candidates, rows_updated=len(updates), backup_id=None
-        )
+        return IndexCorrectionResult(candidates=candidates, rows_updated=len(updates))
 
-    backup = backup_mount_for_migration(library.mount, backup_root=backup_root)
-    _ = WriteContext(backup_path=backup.backup_dir)
     rows_updated = update_track_analysis(index_path, updates)
 
     logger.info(
         "index_bpm_corrected",
         candidates=candidates,
         rows_updated=rows_updated,
-        backup_id=backup.backup_id,
     )
-    return IndexCorrectionResult(
-        candidates=candidates, rows_updated=rows_updated, backup_id=backup.backup_id
-    )
+    return IndexCorrectionResult(candidates=candidates, rows_updated=rows_updated)

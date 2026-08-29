@@ -8,7 +8,7 @@ from pathlib import Path
 
 from app.services.sync_progress import display_title
 from app.services.sync_service import SyncReport
-from app.storage.backup import default_backup_root
+from app.storage.host import host_volume_dir
 
 _ERROR_LOG_NAME = "error.log"
 
@@ -84,26 +84,22 @@ def format_failure_lines(failure: SyncFailure) -> str:
 def write_error_log(
     mount: Path,
     failures: Sequence[SyncFailure],
-    *,
-    backup_id: str | None = None,
 ) -> Path | None:
     """
-    Write failures to ``error.log`` next to that volume's host backups.
+    Write failures to ``error.log`` in that volume's host data directory.
 
     Args:
         mount: USB mount the sync ran on.
         failures: Items to record.
-        backup_id: Backup taken before this sync, when one exists.
 
     Returns:
         Path written, or None when there is nothing to record.
     """
     if not failures:
         return None
-    root = default_backup_root(mount)
+    root = host_volume_dir(mount)
     root.mkdir(parents=True, exist_ok=True)
     path = root / _ERROR_LOG_NAME
     blocks = [format_failure_lines(item) for item in failures]
-    header = f"backup_id={backup_id}\n\n" if backup_id else ""
-    path.write_text(header + "\n\n".join(blocks) + "\n", encoding="utf-8")
+    path.write_text("\n\n".join(blocks) + "\n", encoding="utf-8")
     return path
