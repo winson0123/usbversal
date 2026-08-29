@@ -49,6 +49,29 @@ def test_create_backup_writes_manifest(tmp_path: Path) -> None:
     assert (result.backup_dir / loaded.files[0].relative_path).read_bytes() == b"test-db-content"
 
 
+def test_create_backup_reports_byte_progress(tmp_path: Path) -> None:
+    """Backup progress is one bar over total bytes, not a per-file log."""
+    mount = tmp_path / "usb"
+    rb = mount / "PIONEER/rekordbox"
+    rb.mkdir(parents=True)
+    first = rb / "exportLibrary.db"
+    second = rb / "export.pdb"
+    first.write_bytes(b"aaaa")
+    second.write_bytes(b"bbbbbbbb")
+    samples: list[tuple[int, int]] = []
+
+    create_backup(
+        source_mount=mount,
+        files=[first, second],
+        backup_root=tmp_path / "backups",
+        on_progress=lambda done, total: samples.append((done, total)),
+    )
+
+    assert samples[0] == (0, 12)
+    assert samples[-1] == (12, 12)
+    assert [done for done, _ in samples] == sorted(done for done, _ in samples)
+
+
 def test_backup_mount_libraries(tmp_path: Path) -> None:
     """backup_mount_libraries backs up all present Rekordbox export files."""
     mount = tmp_path / "usb"

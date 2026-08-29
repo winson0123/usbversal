@@ -10,10 +10,6 @@
   },
   "pending_tasks": [
     {
-      "id": "TASK-259",
-      "title": "Backup bar, then sync bar"
-    },
-    {
       "id": "TASK-261",
       "title": "Progress screen: playlist + titles"
     },
@@ -530,6 +526,11 @@
     {
       "id": "TASK-258",
       "title": "Quit is Ctrl+Q only",
+      "completed_at": "2026-08-29T00:00:00Z"
+    },
+    {
+      "id": "TASK-259",
+      "title": "Backup bar, then sync bar",
       "completed_at": "2026-08-29T00:00:00Z"
     }
   ],
@@ -1131,6 +1132,12 @@
     {
       "id": "TASK-258",
       "title": "Quit is Ctrl+Q only",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-259",
+      "title": "Backup bar, then sync bar",
       "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }

@@ -19,9 +19,11 @@ from textual.widgets import Footer, ProgressBar, RichLog, Static
 
 from app.jobs.progress_rate import ProgressRateTracker, format_duration
 from app.services.library import UsbLibrary
-from app.services.sync_service import SyncProgress, SyncReport, sync_playlists
+from app.services.sync_progress import SyncProgress
+from app.services.sync_service import SyncReport, sync_playlists
 
 _PHASE_STATUS = {
+    "backup": "Backing up",
     "index": "Indexing tracks",
     "analysis": "Writing analysis",
     "crates": "Writing crates",
@@ -46,6 +48,7 @@ class ProgressScreen(Screen):
         self.library = library
         self._playlist_ids = list(playlist_ids)
         self._tracker = ProgressRateTracker()
+        self._bar_run: str | None = None
 
     def compose(self) -> ComposeResult:
         with Container():
@@ -84,19 +87,28 @@ class ProgressScreen(Screen):
         Args:
             sample: Phase, counts, item path or crate name, and optional error.
         """
+        run = "backup" if sample.phase == "backup" else "sync"
+        if run != self._bar_run:
+            self._tracker = ProgressRateTracker()
+            self._bar_run = run
         self.query_one(ProgressBar).update(total=sample.total, progress=sample.done)
         estimate = self._tracker.observe(
             current=sample.done, total=sample.total, at=time.monotonic()
         )
         label = _PHASE_STATUS.get(sample.phase, sample.phase)
-        message = f"{label}: {sample.done}/{sample.total}"
-        if estimate.rate_per_second is not None:
-            message += f" ({estimate.rate_per_second:.1f}/s"
-            if estimate.eta_seconds is not None:
-                message += f", eta {format_duration(estimate.eta_seconds)}"
-            message += ")"
+        if sample.phase == "backup" and sample.total:
+            percent = round(100 * sample.done / sample.total)
+            message = f"{label}: {percent}%"
+        else:
+            message = f"{label}: {sample.done}/{sample.total}"
+        if estimate.eta_seconds is not None:
+            message += f" (eta {format_duration(estimate.eta_seconds)})"
+        elif sample.phase != "backup" and estimate.rate_per_second is not None:
+            message += f" ({estimate.rate_per_second:.1f}/s)"
         self.query_one(f"#{_STATUS_ID}", Static).update(message)
 
+        if sample.phase == "backup":
+            return
         log = self.query_one(RichLog)
         line = f"[{sample.done}/{sample.total}] {sample.item}"
         if sample.error is None:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -74,6 +75,7 @@ def backup_mount_for_migration(
     *,
     backup_root: str | Path | None = None,
     extra_files: list[str | Path] | None = None,
+    on_progress: Callable[[int, int], None] | None = None,
 ) -> BackupResult:
     """
     Back up Rekordbox and Serato library files before a cross-vendor write.
@@ -84,6 +86,8 @@ def backup_mount_for_migration(
             directory from ``default_backup_root``, not the USB).
         extra_files: Additional absolute or mount-relative files to include, such
             as the audio files a caller is about to tag.
+        on_progress: Optional ``(bytes_done, bytes_total)`` callback for the
+            backup bar.
 
     Returns:
         BackupResult with manifest covering all copied files.
@@ -105,7 +109,9 @@ def backup_mount_for_migration(
         file_count=len(unique),
     )
     root = Path(backup_root).resolve() if backup_root else None
-    return create_backup(source_mount=mount_path, files=unique, backup_root=root)
+    return create_backup(
+        source_mount=mount_path, files=unique, backup_root=root, on_progress=on_progress
+    )
 
 
 def backup_mount_libraries(

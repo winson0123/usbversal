@@ -182,7 +182,7 @@ and none of them exist yet.
 | ~~`TASK-256`~~ | ~~Omit Rekordbox "CUE Analysis Playlist"~~ | Done — `include_playlist()` drops it (any casing) from `list_playlists`, so the tree and sync never see it. |
 | ~~`TASK-257`~~ | ~~Terminal beatgrid BPM is the settled last section~~ | Done — median of downbeats from the last anchor, not the first mid-ramp reading. Apt X Blue 140.87 → 140. |
 | ~~`TASK-258`~~ | ~~Quit is Ctrl+Q only~~ | Done — app binding is `ctrl+q` with footer `^Q`. Bare `q` does nothing. |
-| `TASK-259` | Backup bar, then sync bar | Two runs, two bars. Backup: one bar + ETA for the whole copy (bytes or equivalent — not a per-file log). Sync: one bar + ETA for index + analysis + crates together; do not reset the bar between those phases. Not one bar across backup and sync. |
+| ~~`TASK-259`~~ | ~~Backup bar, then sync bar~~ | Done — backup bar is bytes + ETA. Sync bar is index+analysis+crates as one total. Not one bar across both. |
 | ~~`TASK-260`~~ | ~~One run-wide bar and ETA~~ | Folded into TASK-259. |
 | `TASK-261` | Progress screen: playlist + titles | Center the bar. Show playlist currently writing (`Name  x/x`). Log song titles, not full paths. Keep a line per track. |
 | `TASK-262` | Done screen lists failures + `error.log` | Scrollable per-track errors (title + path + reason). Write the same lines to a host `error.log` when anything failed. |

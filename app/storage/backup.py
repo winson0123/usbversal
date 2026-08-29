@@ -7,6 +7,7 @@ import json
 import os
 import re
 import shutil
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -21,6 +22,8 @@ from app.storage.audio_delta import (
 )
 
 logger = structlog.get_logger(__name__)
+
+BackupProgressCallback = Callable[[int, int], None]
 
 BACKUP_ROOT_ENV = "USBVERSAL_BACKUP_ROOT"
 _KIND_FULL = "full"
@@ -305,6 +308,7 @@ def create_backup(
     files: list[Path],
     backup_root: Path | None = None,
     backup_id: str | None = None,
+    on_progress: BackupProgressCallback | None = None,
 ) -> BackupResult:
     """
     Copy files from a mount into a timestamped backup directory.
@@ -315,6 +319,8 @@ def create_backup(
         backup_root: Parent directory for backups; defaults to a host
             directory from ``default_backup_root``, not the USB.
         backup_id: Optional directory name; defaults to UTC timestamp.
+        on_progress: Optional ``(bytes_done, bytes_total)`` callback. Fired
+            at 0 and after each file so a bar can show backup ETA.
 
     Returns:
         BackupResult with backup_dir and manifest.
@@ -351,7 +357,7 @@ def create_backup(
                 suffix += 1
                 backup_id = f"{stem}-{suffix}"
 
-    entries: list[BackupFileEntry] = []
+    sources: list[tuple[Path, str]] = []
     for file_path in files:
         source = file_path.resolve()
         if not source.is_file():
@@ -360,7 +366,20 @@ def create_backup(
             relative = source.relative_to(mount).as_posix()
         except ValueError:
             relative = source.name
+        sources.append((source, relative))
+    sizes = [source.stat().st_size for source, _ in sources]
+    total_bytes = sum(sizes)
+    use_bytes = total_bytes > 0
+    total = total_bytes if use_bytes else len(sources)
+    if on_progress is not None:
+        on_progress(0, total)
+    entries: list[BackupFileEntry] = []
+    copied = 0
+    for (source, relative), size in zip(sources, sizes, strict=True):
         entries.append(_store_backup_file(source, backup_dir, relative))
+        copied += size if use_bytes else 1
+        if on_progress is not None:
+            on_progress(copied, total)
 
     manifest = BackupManifest(
         backup_id=backup_id,

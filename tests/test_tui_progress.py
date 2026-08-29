@@ -10,7 +10,8 @@ from textual.app import App
 from textual.screen import Screen
 from textual.widgets import ProgressBar, RichLog, Static
 
-from app.services.sync_service import SyncProgress, SyncReport
+from app.services.sync_progress import SyncProgress
+from app.services.sync_service import SyncReport
 from app.tui.app import RekordboxThreadMixin
 from app.tui.screens.progress import DoneScreen, ProgressScreen
 
@@ -195,6 +196,41 @@ async def test_progress_bar_reflects_the_last_sample() -> None:
                 bar = screen.query_one(ProgressBar)
                 assert bar.total == 4
                 assert bar.progress == 3
+            finally:
+                hold.set()
+
+
+@pytest.mark.asyncio
+async def test_backup_samples_drive_the_bar_and_do_not_log_files() -> None:
+    """Backup is one bar with an ETA, not a per-file log. Sync starts a new bar."""
+
+    hold = threading.Event()
+
+    def _held_sync(library, playlist_ids, *, dry_run=False, backup_root=None, on_progress=None):
+        hold.wait(timeout=5)
+        return _fake_report()
+
+    with patch("app.tui.screens.progress.sync_playlists", _held_sync):
+        app = _Harness(library=object(), playlist_ids=[1])
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = app.screen
+            try:
+                assert isinstance(screen, ProgressScreen)
+                screen._update_progress(SyncProgress("backup", 0, 100, ""))
+                screen._update_progress(SyncProgress("backup", 40, 100, ""))
+                status = str(screen.query_one("#sync-status", Static).render())
+                bar = screen.query_one(ProgressBar)
+                assert "Backing up" in status
+                assert "40%" in status
+                assert bar.total == 100
+                assert bar.progress == 40
+                assert len(screen.query_one(RichLog).lines) == 0
+
+                screen._update_progress(SyncProgress("analysis", 1, 3, "Contents/a.mp3"))
+                bar = screen.query_one(ProgressBar)
+                assert bar.total == 3
+                assert bar.progress == 1
             finally:
                 hold.set()
 

@@ -736,6 +736,18 @@ App binding is `ctrl+q`; footer shows `^Q`.
 
 ---
 
+## TASK-259 — Backup bar, then sync bar
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | One bar + ETA for backup, then a new bar + ETA for the whole sync |
+| Verification | ruff ✓ ruff format ✓ pytest 297 passed / 4 skipped |
+
+Backup reports bytes so the bar can estimate time. Sync does not reset between index, analysis, and crates.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

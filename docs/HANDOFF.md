@@ -26,7 +26,7 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | Order | ID | What |
 |-------|----|------|
 | 1 | ~~`TASK-258`~~ | Quit is `Ctrl+Q` only |
-| 2 | `TASK-259` | Backup: one bar + ETA. Then sync: one bar + ETA (index+analysis+crates). Not per-file backup, not one bar across both. |
+| 2 | ~~`TASK-259`~~ | Backup bar + ETA, then sync bar + ETA |
 | 3 | `TASK-261` | Center the bar; current playlist `x/x`; log titles, not paths |
 | 4 | `TASK-262` | Done screen: scrollable failures; host `error.log` (title, path, reason) |
 | 5 | `TASK-263` | `.aif` / `.aiff` tag read/write |

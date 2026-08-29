@@ -10,8 +10,8 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-258` |
-| Objective | Quit only on Ctrl+Q |
+| Task ID | `TASK-259` |
+| Objective | Backup bar + ETA, then sync bar + ETA |
 | Completed | 2026-08-29 |
 
 ### Verification log
@@ -20,8 +20,8 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 295 passed, 4 skipped |
+| `.venv/bin/pytest` | 297 passed, 4 skipped |
 
 ## Next
 
-`TASK-259` — Backup bar + ETA, then sync bar + ETA (not one bar across both).
+`TASK-261` — Center the bar; current playlist `x/x`; log titles.

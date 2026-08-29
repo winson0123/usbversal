@@ -19,7 +19,8 @@ from app.adapters.serato.neworder import read_crate_order, write_crate_order
 from app.adapters.serato.tags import read_geob
 from app.core.domain import Playlist
 from app.services.migration_service import PlaylistNotFoundError, SeratoLibraryRequiredError
-from app.services.sync_service import SyncProgress, correct_index_bpm, sync_playlists
+from app.services.sync_progress import SyncProgress
+from app.services.sync_service import correct_index_bpm, sync_playlists
 from app.storage.backup import BackupManifest, default_backup_root
 from tests.conftest import EMPTY_DATABASE_V2, make_library
 
@@ -513,13 +514,16 @@ def test_on_progress_reports_each_analysis_track(tmp_path: Path) -> None:
 
     sync_playlists(library, [1], on_progress=calls.append)
 
+    backup = [sample for sample in calls if sample.phase == "backup"]
     analysis = [sample for sample in calls if sample.phase == "analysis"]
     crates = [sample for sample in calls if sample.phase == "crates"]
+    assert backup[0].done == 0
+    assert backup[-1].done == backup[-1].total
     assert analysis == [
-        SyncProgress("analysis", 1, 2, "/Contents/a.wav"),
-        SyncProgress("analysis", 2, 2, "/Contents/b.wav"),
+        SyncProgress("analysis", 1, 3, "/Contents/a.wav"),
+        SyncProgress("analysis", 2, 3, "/Contents/b.wav"),
     ]
-    assert crates == [SyncProgress("crates", 1, 1, f"{volume_label_for(mount)}%%test")]
+    assert crates == [SyncProgress("crates", 3, 3, f"{volume_label_for(mount)}%%test")]
 
 
 def test_on_progress_reports_the_failing_track_and_its_error(tmp_path: Path) -> None:
@@ -541,7 +545,7 @@ def test_on_progress_reports_the_failing_track_and_its_error(tmp_path: Path) -> 
 
     analysis = [sample for sample in calls if sample.phase == "analysis"]
     assert len(analysis) == 1
-    assert (analysis[0].done, analysis[0].total, analysis[0].item) == (1, 1, "/Contents/a.wav")
+    assert (analysis[0].done, analysis[0].total, analysis[0].item) == (1, 2, "/Contents/a.wav")
     assert analysis[0].error is not None
 
 
@@ -554,5 +558,6 @@ def test_on_progress_skips_analysis_when_nothing_has_analysis_data(tmp_path: Pat
 
     sync_playlists(library, [1], on_progress=calls.append)
 
-    assert [sample.phase for sample in calls] == ["crates"]
-    assert calls[0] == SyncProgress("crates", 1, 1, f"{volume_label_for(mount)}%%test")
+    sync_calls = [sample for sample in calls if sample.phase != "backup"]
+    assert [sample.phase for sample in sync_calls] == ["crates"]
+    assert sync_calls[0] == SyncProgress("crates", 1, 1, f"{volume_label_for(mount)}%%test")

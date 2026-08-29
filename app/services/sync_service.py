@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import binascii
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 import structlog
 
@@ -47,6 +47,7 @@ from app.core.track_paths import normalize_track_path
 from app.services.backup_service import backup_mount_for_migration
 from app.services.library import UsbLibrary
 from app.services.migration_service import PlaylistNotFoundError, SeratoLibraryRequiredError
+from app.services.sync_progress import SyncProgressCallback, emit_progress, rebase_progress
 from app.services.track_records import (
     RekordboxLookups,
     build_track_record,
@@ -55,42 +56,6 @@ from app.services.track_records import (
 )
 
 logger = structlog.get_logger(__name__)
-
-
-@dataclass(frozen=True)
-class SyncProgress:
-    """
-    One progress sample from a sync write step.
-
-    Attributes:
-        phase: Which write step this sample belongs to.
-        done: Items completed in this phase, 1-based.
-        total: Items in this phase.
-        item: Track path or crate name.
-        error: That item's failure message, or None.
-    """
-
-    phase: Literal["index", "analysis", "crates"]
-    done: int
-    total: int
-    item: str
-    error: str | None = None
-
-
-SyncProgressCallback = Callable[[SyncProgress], None]
-
-
-def _emit_progress(
-    on_progress: SyncProgressCallback | None,
-    phase: Literal["index", "analysis", "crates"],
-    done: int,
-    total: int,
-    item: str,
-    error: str | None = None,
-) -> None:
-    """Invoke ``on_progress`` when a caller supplied one."""
-    if on_progress is not None:
-        on_progress(SyncProgress(phase=phase, done=done, total=total, item=item, error=error))
 
 
 def _crate_contents(serato_root: Path | None) -> dict[str, set[str]]:
@@ -548,7 +513,7 @@ def _sync_analysis(
             if cues:
                 cues_written += 1
         finally:
-            _emit_progress(on_progress, "analysis", done, len(ordered), raw, track_error)
+            emit_progress(on_progress, "analysis", done, len(ordered), raw, track_error)
 
     rows_updated = 0
     if updates and index_path is not None:
@@ -704,7 +669,7 @@ def _index_missing_tracks(
     for done, raw in enumerate(missing, start=1):
         if raw in by_path:
             records.append(build_track_record(by_path[raw], lookups))
-        _emit_progress(on_progress, "index", done, total, raw)
+        emit_progress(on_progress, "index", done, total, raw)
     return append_database_tracks(
         database_path=database_path, records=records, write_context=context
     )
@@ -779,7 +744,7 @@ def _write_playlist_crates(
                     error=error,
                 )
             )
-            _emit_progress(on_progress, "crates", done, total, crate_name, error)
+            emit_progress(on_progress, "crates", done, total, crate_name, error)
             continue
         results.append(
             PlaylistSyncResult(
@@ -789,7 +754,7 @@ def _write_playlist_crates(
                 tracks=len(paths),
             )
         )
-        _emit_progress(on_progress, "crates", done, total, crate_name)
+        emit_progress(on_progress, "crates", done, total, crate_name)
     return results
 
 
@@ -841,10 +806,21 @@ def sync_playlists(
         library.mount,
         backup_root=backup_root,
         extra_files=[library.mount / serato_path(raw) for raw in analysis_targets],
+        on_progress=(
+            None
+            if on_progress is None
+            else lambda done, total: emit_progress(on_progress, "backup", done, total, "")
+        ),
     )
     context = WriteContext(backup_path=backup.backup_dir)
+    sync_total = len(missing) + len(analysis_targets) + len(selected)
     records_added = _index_missing_tracks(
-        database_path, missing, by_path, lookups, context, on_progress
+        database_path,
+        missing,
+        by_path,
+        lookups,
+        context,
+        rebase_progress(on_progress, 0, sync_total),
     )
     analysis = _sync_analysis(
         library.mount,
@@ -853,7 +829,7 @@ def sync_playlists(
         analysis_targets,
         lookups,
         context,
-        on_progress,
+        rebase_progress(on_progress, len(missing), sync_total),
     )
     results = _write_playlist_crates(
         serato_root,
@@ -861,7 +837,7 @@ def sync_playlists(
         by_id,
         tracks_by_playlist,
         context,
-        on_progress,
+        rebase_progress(on_progress, len(missing) + len(analysis_targets), sync_total),
         volume=volume_label_for(library.mount),
     )
     write_crate_order(serato_root, merge_crate_order(serato_root, _written_crate_names(results)))
