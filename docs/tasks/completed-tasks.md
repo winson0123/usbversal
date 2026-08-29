@@ -1054,6 +1054,18 @@ A Serato rename on WONSIN wrote `Dance-pop ␛␛2f Dancehall` (U+241B twice + h
 
 ---
 
+## TASK-288 — Skip leftover 0-byte crates when reading
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Library screen must not crash on a leftover 0-byte crate |
+| Verification | ruff ✓ ruff format ✓ pytest 308 passed / 4 skipped |
+
+`read_crate_track_paths` returns no tracks for an empty or unparseable `.crate`. The Library tree treats that crate as missing so a dirty-unmount leftover cannot take the TUI down.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

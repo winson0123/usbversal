@@ -640,6 +640,11 @@
       "id": "TASK-287",
       "title": "Fsync crate, database V2, and neworder writes",
       "completed_at": "2026-08-30T00:00:00Z"
+    },
+    {
+      "id": "TASK-288",
+      "title": "Skip leftover 0-byte crates when reading",
+      "completed_at": "2026-08-30T00:00:00Z"
     }
   ],
   "history": [
@@ -1408,6 +1413,12 @@
     {
       "id": "TASK-287",
       "title": "Fsync crate, database V2, and neworder writes",
+      "completed_at": "2026-08-30T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-288",
+      "title": "Skip leftover 0-byte crates when reading",
       "completed_at": "2026-08-30T00:00:00Z",
       "status": "completed"
     }

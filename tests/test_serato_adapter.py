@@ -7,7 +7,11 @@ import pytest
 
 from app.adapters.base import SeratoLibraryNotFoundError
 from app.adapters.serato.paths import list_crate_files, resolve_serato_library
-from app.adapters.serato.reader import SeratoToolsAdapter, open_serato_library
+from app.adapters.serato.reader import (
+    SeratoToolsAdapter,
+    open_serato_library,
+    read_crate_track_paths,
+)
 from app.core.domain import SeratoLibrary
 from app.services.crate_service import list_serato_crates
 from tests.conftest import integration_mount
@@ -35,6 +39,22 @@ def test_list_crate_files(tmp_path: Path) -> None:
     assert {p.stem for p in paths} == {"Contents", "Other"}
 
 
+def test_read_crate_track_paths_skips_an_empty_file(tmp_path: Path) -> None:
+    """A 0-byte leftover crate is not a parse error."""
+    crate = tmp_path / "Pocket.crate"
+    crate.write_bytes(b"")
+
+    assert read_crate_track_paths(crate) == []
+
+
+def test_read_crate_track_paths_skips_unparseable_bytes(tmp_path: Path) -> None:
+    """Junk that is not a crate header returns no tracks."""
+    crate = tmp_path / "Pocket.crate"
+    crate.write_bytes(b"not-a-crate")
+
+    assert read_crate_track_paths(crate) == []
+
+
 def test_open_raises_when_missing(tmp_path: Path) -> None:
     """open_serato_library raises when _Serato_ is absent."""
     with pytest.raises(SeratoLibraryNotFoundError):
@@ -50,12 +70,13 @@ def test_serato_adapter_lists_crates() -> None:
         database_track_count=10,
     )
     mock_db = MagicMock()
-    mock_crate = MagicMock()
-    mock_crate.get_track_paths.return_value = ["Contents/a.mp3", "Contents/b.mp3"]
 
     with patch("app.adapters.serato.reader.list_crate_files") as list_files:
         list_files.return_value = [Path("/mnt/usb/_Serato_/Subcrates/Pocket.crate")]
-        with patch("app.adapters.serato.reader.Crate", return_value=mock_crate):
+        with patch(
+            "app.adapters.serato.reader.read_crate_track_paths",
+            return_value=["Contents/a.mp3", "Contents/b.mp3"],
+        ):
             crates = SeratoToolsAdapter(library, mock_db).list_crates()
 
     assert len(crates) == 1

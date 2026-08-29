@@ -103,6 +103,20 @@ def test_missing_crate_is_red(tmp_path: Path) -> None:
     assert state.in_crate == 0
 
 
+def test_zero_byte_crate_does_not_crash_sync_state(tmp_path: Path) -> None:
+    """A dirty-unmount 0-byte crate is treated as missing, not a crash."""
+    mount = _stick(tmp_path, crates={}, indexed=["Contents/a.mp3"])
+    leftover = mount / "_Serato_" / "Subcrates" / f"{_stem(tmp_path, 'Pocket')}.crate"
+    leftover.write_bytes(b"")
+    playlist = Playlist(id=1, name="Pocket", parent_id=None, is_folder=False)
+    library = make_library(mount, _adapter([playlist], {1: ["/Contents/a.mp3"]}))
+
+    (state,) = playlist_sync_states(library)
+
+    assert state.state is SyncState.NOT_SYNCED
+    assert state.in_crate == 0
+
+
 def test_blocked_counts_tracks_serato_cannot_index(tmp_path: Path) -> None:
     """Tracks absent from database V2 are reported as blocked, not merely missing."""
     mount = _stick(tmp_path, crates={}, indexed=["Contents/a.mp3"])

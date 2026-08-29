@@ -43,8 +43,7 @@ class SeratoToolsAdapter(SeratoReadAdapter):
         """
         crates: list[SeratoCrate] = []
         for crate_path in list_crate_files(self._library.serato_root):
-            crate = Crate(str(crate_path))
-            track_count = len(list(crate.get_track_paths()))
+            track_count = len(read_crate_track_paths(crate_path))
             crates.append(
                 SeratoCrate(
                     name=crate_path.stem,
@@ -66,13 +65,23 @@ def read_crate_track_paths(crate_path: Path) -> list[str]:
     """
     Read track paths from a Serato crate file, in crate order.
 
+    An empty or unparseable file returns no paths. A dirty unmount can
+    leave a 0-byte ``.crate`` that serato-tools cannot open.
+
     Args:
         crate_path: Path to a .crate file.
 
     Returns:
         Track paths as stored by Serato (drive-relative, no leading slash).
     """
-    return list(Crate(str(crate_path)).get_track_paths())
+    if not crate_path.is_file() or crate_path.stat().st_size == 0:
+        logger.warning("serato_crate_unreadable", path=str(crate_path), reason="empty")
+        return []
+    try:
+        return list(Crate(str(crate_path)).get_track_paths())
+    except (AssertionError, AttributeError, ValueError, OSError) as exc:
+        logger.warning("serato_crate_unreadable", path=str(crate_path), error=str(exc))
+        return []
 
 
 def read_database_track_paths(database_path: Path) -> list[str]:

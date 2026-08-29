@@ -8,4 +8,4 @@
 
 No active task. Next: `TASK-252` — Library two-pane window.
 
-Last done: `TASK-287` — Fsync crate, database V2, and neworder writes.
+Last done: `TASK-288` — Skip leftover 0-byte crates when reading.

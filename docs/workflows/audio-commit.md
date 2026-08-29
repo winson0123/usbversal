@@ -36,3 +36,7 @@ would not recreate the header.
 Crate, database V2, and `neworder.pref` now go through `replace_flushed`.
 A zero-byte `database V2` is treated as missing. Eject the stick from
 Linux before Windows/Serato; do not pull it mid-sync.
+
+Reading a leftover 0-byte `.crate` used to crash the Library screen
+(`Crate()`: `version not set after parsing file`). `read_crate_track_paths`
+returns no tracks for an empty or unparseable file (TASK-288).

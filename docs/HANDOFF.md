@@ -6,8 +6,8 @@ below — that's what a session picking this up should do next.
 
 | | |
 |---|---|
-| Tests | 305 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-287` — Fsync crate, database V2, and neworder writes |
+| Tests | 308 passed, 4 skipped (`ruff` and `ruff format` clean) |
+| Last done | `TASK-288` — Skip leftover 0-byte crates when reading |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -54,7 +54,8 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 27 | ~~`TASK-285`~~ | Fix hot-cue colours and write Markers_ |
 | 28 | ~~`TASK-286`~~ | Do not leave a 0-byte song after a failed replace |
 | 29 | ~~`TASK-287`~~ | Fsync crate, database V2, and neworder writes |
-| 30 | `TASK-252` | Library two-pane (original ask, last) |
+| 30 | ~~`TASK-288`~~ | Skip leftover 0-byte crates when reading |
+| 31 | `TASK-252` | Library two-pane (original ask, last) |
 
 Progress screen target layout:
 
