@@ -9,7 +9,7 @@ import structlog
 from serato_tools.crate import Crate
 from serato_tools.database_v2 import DatabaseV2
 
-from app.adapters.serato.naming import sanitize_crate_name
+from app.adapters.serato.naming import crate_name_slash_aliases, sanitize_crate_name
 from app.adapters.serato.paths import subcrates_dir
 
 logger = structlog.get_logger(__name__)
@@ -69,12 +69,18 @@ def write_crate(
     """
     subcrates = subcrates_dir(serato_root)
     subcrates.mkdir(parents=True, exist_ok=True)
-    crate_path = (subcrates / f"{sanitize_crate_name(crate_name)}.crate").resolve()
+    stem = sanitize_crate_name(crate_name)
+    crate_path = (subcrates / f"{stem}.crate").resolve()
     if crate_path.is_file() and not overwrite:
         raise CrateExistsError(f"Crate already exists: {crate_path} (use --overwrite)")
     if crate_path.is_file():
         crate_path.unlink()
         logger.info("serato_crate_removed_for_overwrite", path=str(crate_path))
+    for alias in crate_name_slash_aliases(stem)[1:]:
+        leftover = (subcrates / f"{alias}.crate").resolve()
+        if leftover.is_file() and leftover != crate_path:
+            leftover.unlink()
+            logger.info("serato_legacy_slash_crate_removed", path=str(leftover))
     crate = Crate(str(crate_path))
     # Crate.DEFAULT_ENTRIES is class-level and add_track mutates it, so a new
     # crate inherits tracks added to any earlier one. Start from a private copy

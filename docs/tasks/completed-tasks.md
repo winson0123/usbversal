@@ -994,6 +994,18 @@ Sync writes an empty `{volume}.crate` (the mount folder name) and lists it first
 
 ---
 
+## TASK-283 — Normal-width slash in crate names
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Encode `/` in crate names as a normal-width slash lookalike, and drop leftover fullwidth files |
+| Verification | ruff ✓ ruff format ✓ pytest 293 passed / 4 skipped |
+
+A real `/` cannot live in a `.crate` filename. U+2215 division slash (`∕`) replaces the TASK-254 fullwidth solidus so Serato does not show `／`. A re-sync deletes the old file and drops that spelling from `neworder.pref`.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

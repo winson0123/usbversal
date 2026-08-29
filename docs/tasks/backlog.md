@@ -177,7 +177,7 @@ and none of them exist yet.
 | ~~`TASK-250`~~ | ~~Run `correct_index_bpm` on a real stick~~ | Done — WONSIN 2026-08-28: 7 of 1286 rows written, backup `20260828T072224Z`. Still not in the TUI. Findings in `docs/workflows/index-bpm-wonsin.md`. |
 | ~~`TASK-251`~~ | ~~Confirm a variable-tempo grid in Serato~~ | Done — 2026-08-29 deck load: four-marker 149→140 grid follows. Last marker was 140.9, not 140 (TASK-257). |
 | ~~`TASK-253`~~ | ~~Hot cue colours are black in Serato~~ | Done — RGB at PCP2 offset 28. Findings in `docs/workflows/cue-colour-offset.md`. |
-| ~~`TASK-254`~~ | ~~Keep `/` in crate names~~ | Done — `/` becomes U+FF0F fullwidth solidus. See `docs/workflows/crate-slash.md`. |
+| ~~`TASK-254`~~ | ~~Keep `/` in crate names~~ | Done — `/` cannot live in a filename. TASK-283 uses U+2215 division slash. See `docs/workflows/crate-slash.md`. |
 | ~~`TASK-255`~~ | ~~Parent crate named after the volume~~ | Done — `crate_name_for(..., volume=)` prefixes the mount folder name. TASK-282 adds the empty parent `.crate`. See `docs/workflows/volume-crate.md`. |
 | ~~`TASK-256`~~ | ~~Omit Rekordbox "CUE Analysis Playlist"~~ | Done — `include_playlist()` drops it (any casing) from `list_playlists`, so the tree and sync never see it. |
 | ~~`TASK-257`~~ | ~~Terminal beatgrid BPM is the settled last section~~ | Done — median of downbeats from the last anchor, not the first mid-ramp reading. Apt X Blue 140.87 → 140. |
@@ -206,6 +206,7 @@ and none of them exist yet.
 | ~~`TASK-280`~~ | ~~Stable phase-average ETA~~ | Done — remaining time is units left over the average rate since this phase started, not the last 8 items. |
 | ~~`TASK-281`~~ | ~~Parallel analysis tag writes~~ | Done — 4 workers write ANLZ/tags; Rekordbox, index, and crates stay sequential. `USBVERSAL_SYNC_WORKERS` overrides. |
 | ~~`TASK-282`~~ | ~~Write the volume parent crate file~~ | Done — empty `{volume}.crate` plus `{volume}%%…` children; parent first in `neworder.pref`. |
+| ~~`TASK-283`~~ | ~~Normal-width slash in crate names~~ | Done — `/` becomes U+2215 (`∕`); leftover U+FF0F files are removed on write. |
 | `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |
 
 ---

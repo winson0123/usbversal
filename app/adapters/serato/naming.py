@@ -9,10 +9,12 @@ from app.core.domain import Playlist
 
 # Windows forbids these in a filename. "/" is special-cased: a real slash
 # cannot live in the .crate name, but "_" was losing the character the user
-# typed. Fullwidth solidus is legal on exFAT and still reads as a slash.
+# typed. Division slash (U+2215) is legal on exFAT and looks like "/".
+# Fullwidth solidus was the TASK-254 stand-in; it renders as "／" in Serato.
 _INVALID_CRATE_CHARS = re.compile(r'[<>:"\\|?*]')
 _SLASH = "/"
-_SLASH_STAND_IN = "\uff0f"
+_SLASH_STAND_IN = "\u2215"
+_LEGACY_SLASH_STAND_IN = "\uff0f"
 
 
 def volume_label_for(mount: Path) -> str:
@@ -37,8 +39,9 @@ def sanitize_crate_name(name: str) -> str:
     """
     Convert a playlist name into a safe Serato crate filename stem.
 
-    A ``/`` in the Rekordbox name becomes a fullwidth solidus so the crate
-    still reads as a slash. Other characters Windows rejects become ``_``.
+    A ``/`` in the Rekordbox name becomes a division slash (U+2215) so the
+    crate still reads as a slash. Other characters Windows rejects become
+    ``_``.
 
     Args:
         name: Rekordbox playlist display name.
@@ -50,6 +53,46 @@ def sanitize_crate_name(name: str) -> str:
     cleaned = _INVALID_CRATE_CHARS.sub("_", cleaned)
     cleaned = cleaned.strip(" .")
     return cleaned or "Untitled"
+
+
+def crate_name_slash_aliases(stem: str) -> tuple[str, ...]:
+    """
+    Return this stem spelled with each slash stand-in.
+
+    A re-sync after changing the stand-in must delete the old filename so
+    Serato does not show both spellings.
+
+    Args:
+        stem: Crate filename stem.
+
+    Returns:
+        Unique stems, current spelling first.
+    """
+    current = stem.replace(_LEGACY_SLASH_STAND_IN, _SLASH_STAND_IN)
+    legacy = stem.replace(_SLASH_STAND_IN, _LEGACY_SLASH_STAND_IN)
+    if current == legacy:
+        return (current,)
+    return (current, legacy)
+
+
+def drop_legacy_slash_names(order: list[str], current: list[str]) -> list[str]:
+    """
+    Remove crate names that are only an old slash spelling of ``current``.
+
+    Args:
+        order: Display order, possibly including leftover fullwidth names.
+        current: Crate stems just written.
+
+    Returns:
+        Order without those leftovers.
+    """
+    keep = set(current)
+    drop: set[str] = set()
+    for name in current:
+        for alias in crate_name_slash_aliases(name):
+            if alias not in keep:
+                drop.add(alias)
+    return [name for name in order if name not in drop]
 
 
 def crate_name_for(

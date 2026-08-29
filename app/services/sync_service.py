@@ -12,6 +12,7 @@ import structlog
 from app.adapters.rekordbox.anlz import read_beats
 from app.adapters.serato import (
     crate_name_for,
+    drop_legacy_slash_names,
     read_crate_track_paths,
     read_database_track_paths,
     volume_label_for,
@@ -688,10 +689,14 @@ def _publish_crate_order(
         results: Per-playlist crate write outcomes.
         volume: Sanitized thumbdrive label.
     """
+    written = _written_crate_names(results)
     write_volume_parent_crate(serato_root=serato_root, volume=volume)
     write_crate_order(
         serato_root,
-        with_parent_first(merge_crate_order(serato_root, _written_crate_names(results)), volume),
+        with_parent_first(
+            drop_legacy_slash_names(merge_crate_order(serato_root, written), written),
+            volume,
+        ),
     )
 
 

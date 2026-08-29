@@ -18,7 +18,7 @@ from tests.conftest import make_library
 def test_sanitize_crate_name() -> None:
     """sanitize_crate_name removes invalid filename characters."""
     assert sanitize_crate_name("My: Playlist?") == "My_ Playlist_"
-    assert sanitize_crate_name("Afro / Afro House") == "Afro \uff0f Afro House"
+    assert sanitize_crate_name("Afro / Afro House") == "Afro \u2215 Afro House"
     assert sanitize_crate_name("   ") == "Untitled"
 
 
@@ -50,6 +50,25 @@ def test_write_crate_exists_without_overwrite(tmp_path: Path) -> None:
             track_paths=["Contents/a.mp3"],
             overwrite=False,
         )
+
+
+def test_write_crate_removes_fullwidth_slash_leftover(tmp_path: Path) -> None:
+    """The old U+FF0F filename must not sit beside the new spelling."""
+    serato = tmp_path / "_Serato_"
+    leftover = serato / "Subcrates" / "Afro \uff0f Afro House.crate"
+    leftover.parent.mkdir(parents=True)
+    leftover.write_bytes(b"old")
+
+    crate_path = write_crate(
+        serato_root=serato,
+        crate_name="Afro / Afro House",
+        track_paths=["Contents/a.mp3"],
+        overwrite=True,
+    )
+
+    assert crate_path.name == "Afro \u2215 Afro House.crate"
+    assert crate_path.is_file()
+    assert not leftover.exists()
 
 
 def test_build_migration_plan_with_mocks(tmp_path: Path) -> None:
