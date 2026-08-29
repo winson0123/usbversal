@@ -155,7 +155,7 @@ class UsbversalApp(RekordboxThreadMixin, App):
     """
 
     TITLE = "usbversal"
-    BINDINGS = [Binding("q", "quit", "Quit", show=True)]
+    BINDINGS = [Binding("ctrl+q", "quit", "Quit", show=True, key_display="^Q")]
 
     # Textual's built-in dark theme still leaks through on a few stock
     # widgets even with ansi_color=True: none of these have a :ansi rule of

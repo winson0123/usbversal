@@ -181,7 +181,13 @@ and none of them exist yet.
 | ~~`TASK-255`~~ | ~~Parent crate named after the volume~~ | Done — `crate_name_for(..., volume=)` prefixes the mount folder name. No empty parent `.crate`. See `docs/workflows/volume-crate.md`. |
 | ~~`TASK-256`~~ | ~~Omit Rekordbox "CUE Analysis Playlist"~~ | Done — `include_playlist()` drops it (any casing) from `list_playlists`, so the tree and sync never see it. |
 | ~~`TASK-257`~~ | ~~Terminal beatgrid BPM is the settled last section~~ | Done — median of downbeats from the last anchor, not the first mid-ramp reading. Apt X Blue 140.87 → 140. |
-| `TASK-252` | Library two-pane window | Last. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green: not in crate / crate but analysis not ported / fully ported. Spec in HANDOFF.md. |
+| ~~`TASK-258`~~ | ~~Quit is Ctrl+Q only~~ | Done — app binding is `ctrl+q` with footer `^Q`. Bare `q` does nothing. |
+| `TASK-259` | Backup bar, then sync bar | Two runs, two bars. Backup: one bar + ETA for the whole copy (bytes or equivalent — not a per-file log). Sync: one bar + ETA for index + analysis + crates together; do not reset the bar between those phases. Not one bar across backup and sync. |
+| ~~`TASK-260`~~ | ~~One run-wide bar and ETA~~ | Folded into TASK-259. |
+| `TASK-261` | Progress screen: playlist + titles | Center the bar. Show playlist currently writing (`Name  x/x`). Log song titles, not full paths. Keep a line per track. |
+| `TASK-262` | Done screen lists failures + `error.log` | Scrollable per-track errors (title + path + reason). Write the same lines to a host `error.log` when anything failed. |
+| `TASK-263` | AIFF / AIF Serato tags | `write_geob` / `read_geob` for `.aif` / `.aiff` (ID3 GEOB, same family as WAV/MP3). Tests like TASK-241. MP4 still out of scope. |
+| `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |
 
 ---
 

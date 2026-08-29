@@ -8,7 +8,28 @@
     "started_at": null,
     "blocked_reason": null
   },
-  "pending_tasks": [],
+  "pending_tasks": [
+    {
+      "id": "TASK-259",
+      "title": "Backup bar, then sync bar"
+    },
+    {
+      "id": "TASK-261",
+      "title": "Progress screen: playlist + titles"
+    },
+    {
+      "id": "TASK-262",
+      "title": "Done screen lists failures + error.log"
+    },
+    {
+      "id": "TASK-263",
+      "title": "AIFF / AIF Serato tags"
+    },
+    {
+      "id": "TASK-252",
+      "title": "Library two-pane window"
+    }
+  ],
   "blocked_tasks": [],
   "completed_tasks": [
     {
@@ -504,6 +525,11 @@
     {
       "id": "TASK-257",
       "title": "Terminal beatgrid BPM is the settled last section",
+      "completed_at": "2026-08-29T00:00:00Z"
+    },
+    {
+      "id": "TASK-258",
+      "title": "Quit is Ctrl+Q only",
       "completed_at": "2026-08-29T00:00:00Z"
     }
   ],
@@ -1099,6 +1125,12 @@
     {
       "id": "TASK-257",
       "title": "Terminal beatgrid BPM is the settled last section",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-258",
+      "title": "Quit is Ctrl+Q only",
       "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }

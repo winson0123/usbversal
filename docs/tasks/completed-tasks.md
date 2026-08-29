@@ -724,6 +724,18 @@ Rekordbox recreates `CUE Analysis Playlist` (also seen as `Cue Analysis Playlist
 
 ---
 
+## TASK-258 — Quit is Ctrl+Q only
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | A stray `q` must not exit mid-sync |
+| Verification | ruff ✓ ruff format ✓ pytest 295 passed / 4 skipped |
+
+App binding is `ctrl+q`; footer shows `^Q`.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

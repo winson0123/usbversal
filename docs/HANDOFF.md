@@ -19,7 +19,34 @@ to work on.
 
 ---
 
-## Pending: Library screen redesign (not started)
+## Pending: Progress, AIF, then Library two-pane
+
+Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
+
+| Order | ID | What |
+|-------|----|------|
+| 1 | ~~`TASK-258`~~ | Quit is `Ctrl+Q` only |
+| 2 | `TASK-259` | Backup: one bar + ETA. Then sync: one bar + ETA (index+analysis+crates). Not per-file backup, not one bar across both. |
+| 3 | `TASK-261` | Center the bar; current playlist `x/x`; log titles, not paths |
+| 4 | `TASK-262` | Done screen: scrollable failures; host `error.log` (title, path, reason) |
+| 5 | `TASK-263` | `.aif` / `.aiff` tag read/write |
+| 6 | `TASK-252` | Library two-pane (original ask, last) |
+
+Progress screen target layout:
+
+```text
+            [###########........]  42%   eta 12m
+            House          3/10
+            Some Track Title
+            Another Title
+            …
+```
+
+`error.log` lives on the host (next to backups), not on the USB.
+
+---
+
+## Library screen redesign (TASK-252, last)
 
 The user asked for this in one message, verbatim:
 
@@ -242,13 +269,11 @@ Backups on the stick, newest last:
 
 ## Do this next
 
-### Library two-pane window
+### Progress wave, then Library two-pane
 
-`correct_index_bpm` has been run on WONSIN. Still not in the TUI — operators
-cannot repeat that pass without a script. Apt X Blue's 4-marker grid is
-confirmed in Serato (TASK-251); re-sync after TASK-257 so the last marker
-is 140, not 140.9. Next is the Library two-pane window (TASK-252).
-See `docs/tasks/backlog.md`.
+`correct_index_bpm` has been run on WONSIN. Still not in the TUI. Apt X Blue's
+4-marker grid is confirmed; re-sync after TASK-257 so the last marker is 140.
+Next wave is TASK-258, 259, 261–263, then TASK-252. See the pending table above.
 
 ---
 

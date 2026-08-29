@@ -149,7 +149,30 @@ async def test_quit_from_home_does_not_hop_to_the_rekordbox_thread() -> None:
         await pilot.pause()
         await app.action_quit()
 
-    assert hops == 0
+        assert hops == 0
+
+
+@pytest.mark.asyncio
+async def test_plain_q_does_not_quit() -> None:
+    """A stray q must not exit, including while a sync is on screen."""
+    app = UsbversalApp()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("q")
+        await pilot.pause()
+        assert isinstance(app.screen, HomeScreen)
+        assert app.is_running
+
+
+@pytest.mark.asyncio
+async def test_ctrl_q_quits() -> None:
+    """Ctrl+Q is the quit key."""
+    app = UsbversalApp()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+q")
+        await pilot.pause()
+        assert not app.is_running
 
 
 def test_rewrite_alt_screen_swaps_on_and_off_for_a_clear() -> None:
