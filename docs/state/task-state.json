@@ -600,6 +600,11 @@
       "id": "TASK-279",
       "title": "Remove backup and rollback",
       "completed_at": "2026-08-29T00:00:00Z"
+    },
+    {
+      "id": "TASK-280",
+      "title": "Stable phase-average ETA",
+      "completed_at": "2026-08-29T00:00:00Z"
     }
   ],
   "history": [
@@ -1320,6 +1325,12 @@
     {
       "id": "TASK-279",
       "title": "Remove backup and rollback",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-280",
+      "title": "Stable phase-average ETA",
       "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }

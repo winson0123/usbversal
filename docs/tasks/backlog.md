@@ -203,6 +203,7 @@ and none of them exist yet.
 | ~~`TASK-277`~~ | ~~Skip GEOB rewrite when payload already matches~~ | Done — `write_geob` returns False and leaves the file alone when every update already matches and nothing is being removed. Sync does not bump grid/cue/index counts. Backup still runs. |
 | ~~`TASK-278`~~ | ~~Skip backup hash when size and mtime match~~ | Done — `original_mtime_ns` on each manifest row; size + mtime match skips SHA-256. Old rows are hashed once, then stamped. |
 | ~~`TASK-279`~~ | ~~Remove backup and rollback~~ | Done — writes go immediately; `error.log` stays on the host. Recovery is restoring the Rekordbox USB. |
+| ~~`TASK-280`~~ | ~~Stable phase-average ETA~~ | Done — remaining time is units left over the average rate since this phase started, not the last 8 items. |
 | `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |
 
 ---

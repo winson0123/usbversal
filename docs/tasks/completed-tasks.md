@@ -958,6 +958,18 @@ Same change-detection rule as rsync and restic. Inode is not used. Older snapsho
 
 ---
 
+## TASK-280 — Stable phase-average ETA
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Estimate remaining time from the whole current phase, not the last few items |
+| Verification | ruff ✓ ruff format ✓ pytest 285 passed / 4 skipped |
+
+The 8-sample window made ETA climb and drop as skip and rewrite tracks interleaved. Rate is now units completed since the phase started, over elapsed time since then. The progress screen still starts a new tracker when the phase changes.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

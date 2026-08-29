@@ -7,7 +7,7 @@ below — that's what a session picking this up should do next.
 | | |
 |---|---|
 | Tests | 285 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-279` — Remove backup and rollback |
+| Last done | `TASK-280` — Stable phase-average ETA |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -46,7 +46,8 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 19 | ~~`TASK-277`~~ | Skip GEOB rewrite when BeatGrid/Markers2 already match |
 | 20 | ~~`TASK-278`~~ | Skip backup SHA-256 when size and mtime match |
 | 21 | ~~`TASK-279`~~ | Delete backup and rollback |
-| 22 | `TASK-252` | Library two-pane (original ask, last) |
+| 22 | ~~`TASK-280`~~ | ETA from the whole phase, not the last few items |
+| 23 | `TASK-252` | Library two-pane (original ask, last) |
 
 Progress screen target layout:
 

@@ -35,32 +35,40 @@ def test_eta_is_remaining_work_over_rate() -> None:
     assert estimate.eta_seconds == 40.0
 
 
-def test_rate_averages_over_recent_samples_not_just_the_last_step() -> None:
-    """A slow first step in the window is not erased by a fast second one."""
+def test_rate_uses_every_sample_since_the_first() -> None:
+    """A slow first step is not erased by a fast second one."""
     tracker = ProgressRateTracker()
     tracker.observe(current=0, total=100, at=0.0)
     tracker.observe(current=1, total=100, at=10.0)
 
     estimate = tracker.observe(current=11, total=100, at=15.0)
 
-    # 11 units over 15 seconds in the window, not 10 units over the last 5.
-    assert estimate.rate_per_second < 2.0
+    # 11 units over 15 seconds, not 10 units over the last 5.
+    assert estimate.rate_per_second == pytest.approx(11 / 15)
 
 
-def test_a_fast_start_does_not_keep_the_eta_optimistic() -> None:
-    """After the window fills with slow steps, remaining work uses that rate."""
+def test_interleaved_speeds_do_not_swing_eta_by_minutes() -> None:
+    """Skip and rewrite tracks interleaved must not make remaining time yo-yo."""
     tracker = ProgressRateTracker()
-    tracker.observe(current=0, total=100, at=0.0)
-    for step in range(1, 20):
-        tracker.observe(current=step, total=100, at=step * 0.01)
-    at = 19 * 0.01
-    estimate = tracker.observe(current=19, total=100, at=at)
-    for step in range(20, 28):
-        at += 2.0
-        estimate = tracker.observe(current=step, total=100, at=at)
+    tracker.observe(current=0, total=200, at=0.0)
+    etas: list[float] = []
+    at = 0.0
+    for step in range(1, 81):
+        at += 2.0 if step % 2 else 0.02
+        estimate = tracker.observe(current=step, total=200, at=at)
+        assert estimate.eta_seconds is not None
+        etas.append(estimate.eta_seconds)
 
-    assert estimate.rate_per_second == pytest.approx(0.5)
-    assert estimate.eta_seconds == pytest.approx(146.0)
+    settled = etas[20:]
+    increases = [
+        settled[index] - settled[index - 1]
+        for index in range(1, len(settled))
+        if settled[index] > settled[index - 1]
+    ]
+    assert increases
+    assert max(increases) < 8.0
+    assert settled[-1] < settled[0]
+    assert estimate.eta_seconds == pytest.approx((200 - 80) * at / 80)
 
 
 def test_no_total_yields_a_rate_but_no_eta() -> None:
