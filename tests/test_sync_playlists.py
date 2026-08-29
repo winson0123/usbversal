@@ -344,6 +344,46 @@ def test_analysis_writes_beatgrid_cues_and_index(tmp_path: Path) -> None:
     assert analysis.key == "8A"
 
 
+def test_resync_does_not_recount_matching_tags(tmp_path: Path) -> None:
+    """A second sync of the same analysis does not bump grid or cue counts."""
+    mount = _stick(
+        tmp_path,
+        indexed=["Contents/track.wav"],
+        asset_rows={"Contents/track.wav": (999.0, "")},
+    )
+    _place_audio(mount, "Contents/track.wav")
+    dat = mount / "PIONEER" / "USBANLZ" / "P001" / "ANLZ0000.DAT"
+    _write_analysis(
+        dat,
+        beats=[(1, 136.0, 0), (2, 136.0, 441), (3, 136.0, 882)],
+        cues=[(1, 0, (0xFF, 0x00, 0x17)), (2, 441, (0x00, 0xC4, 0xFF))],
+    )
+    content = _content(
+        "/Contents/track.wav",
+        analysis_data_file_path="/PIONEER/USBANLZ/P001/ANLZ0000.DAT",
+        key_id=5,
+    )
+    playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
+    library = _library(
+        mount,
+        [playlist],
+        {1: ["/Contents/track.wav"]},
+        [content],
+        keys=[SimpleNamespace(id=5, name="8A")],
+    )
+    first = sync_playlists(library, [1])
+    before = (mount / "Contents" / "track.wav").read_bytes()
+
+    report = sync_playlists(library, [1])
+
+    assert first.grids_written == 1
+    assert report.grids_written == 0
+    assert report.cues_written == 0
+    assert report.index_rows_updated == 0
+    assert report.backup_id is not None
+    assert (mount / "Contents" / "track.wav").read_bytes() == before
+
+
 def test_no_analysis_data_leaves_index_untouched(tmp_path: Path) -> None:
     """A track Rekordbox never analysed is left exactly as Serato had it."""
     mount = _stick(

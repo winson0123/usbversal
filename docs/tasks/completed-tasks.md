@@ -922,6 +922,18 @@ AIFF/AIFC store ID3 GEOB in a big-endian `ID3 ` chunk; audio is `SSND` after its
 
 ---
 
+## TASK-277 — Skip GEOB rewrite when payload already matches
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Do not rewrite a file whose BeatGrid/Markers2 already match |
+| Verification | ruff ✓ ruff format ✓ pytest 333 passed / 4 skipped |
+
+`write_geob` compares intended payloads to the frames already on disk. A full match with nothing to remove returns False and does not replace the file. Sync only increments grid/cue/index counts when a rewrite happened. Progress still ticks; backup is unchanged.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

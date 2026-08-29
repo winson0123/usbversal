@@ -53,8 +53,7 @@ def test_rewriting_nothing_leaves_the_file_identical(wav: Path) -> None:
     """A no-op write must not perturb a single byte."""
     original = wav.read_bytes()
 
-    write_geob(wav, {})
-
+    assert write_geob(wav, {}) is False
     assert wav.read_bytes() == original
 
 
@@ -62,17 +61,37 @@ def test_rewriting_a_frame_with_its_own_bytes_is_identical(wav: Path) -> None:
     """Round-tripping a payload through the writer changes nothing."""
     original = wav.read_bytes()
     frames = read_geob(wav)
+    before = wav.stat().st_mtime_ns
 
-    write_geob(wav, {"Serato Markers2": frames["Serato Markers2"]})
+    assert write_geob(wav, {"Serato Markers2": frames["Serato Markers2"]}) is False
 
     assert wav.read_bytes() == original
+    assert wav.stat().st_mtime_ns == before
+
+
+def test_one_changed_frame_still_rewrites(wav: Path) -> None:
+    """A matching sibling does not skip a write that also has a new payload."""
+    frames = read_geob(wav)
+
+    assert (
+        write_geob(
+            wav,
+            {
+                "Serato BeatGrid": frames["Serato BeatGrid"],
+                "Serato Markers2": b"\x01\x01",
+            },
+        )
+        is True
+    )
+    assert read_geob(wav)["Serato Markers2"] == b"\x01\x01"
+    assert read_geob(wav)["Serato BeatGrid"] == frames["Serato BeatGrid"]
 
 
 def test_audio_survives_a_tag_change(wav: Path) -> None:
     """Editing tags must never touch the audio payload."""
     before = _audio_chunk(wav)
 
-    write_geob(wav, {"Serato BeatGrid": b"\x01\x00\x00\x00\x00\x00\x00"})
+    assert write_geob(wav, {"Serato BeatGrid": b"\x01\x00\x00\x00\x00\x00\x00"}) is True
 
     assert _audio_chunk(wav) == before
     assert read_geob(wav)["Serato BeatGrid"] == b"\x01\x00\x00\x00\x00\x00\x00"
@@ -111,7 +130,7 @@ def test_a_frame_the_file_never_carried_reads_back(wav: Path) -> None:
 
 def test_removed_frames_do_not_read_back(wav: Path) -> None:
     """A frame named for removal is gone, not merely unchanged."""
-    write_geob(wav, {}, remove_geob={"Serato Autotags"})
+    assert write_geob(wav, {}, remove_geob={"Serato Autotags"}) is True
 
     assert "Serato Autotags" not in read_geob(wav)
 

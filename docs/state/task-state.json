@@ -10,10 +10,6 @@
   },
   "pending_tasks": [
     {
-      "id": "TASK-277",
-      "title": "Skip GEOB rewrite when payload already matches"
-    },
-    {
       "id": "TASK-252",
       "title": "Library two-pane window"
     }
@@ -1301,6 +1297,12 @@
     {
       "id": "TASK-263",
       "title": "AIFF / AIF / M4A Serato tags",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-277",
+      "title": "Skip GEOB rewrite when payload already matches",
       "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }

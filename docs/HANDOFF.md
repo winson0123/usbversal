@@ -6,8 +6,8 @@ below — that's what a session picking this up should do next.
 
 | | |
 |---|---|
-| Tests | 331 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-263` — AIFF / AIF / M4A Serato tags |
+| Tests | 333 passed, 4 skipped (`ruff` and `ruff format` clean) |
+| Last done | `TASK-277` — Skip GEOB rewrite when payload already matches |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -19,7 +19,7 @@ to work on.
 
 ---
 
-## Pending: skip matching GEOB, then Library two-pane
+## Pending: Library two-pane
 
 Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 
@@ -43,7 +43,7 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 16 | ~~`TASK-275`~~ | Content-addressed backups; one changed file is one new object |
 | 17 | ~~`TASK-276`~~ | ETA uses recent rate; resets when the phase changes |
 | 18 | ~~`TASK-263`~~ | `.aif` / `.aiff` / `.m4a` / `.mp4` tag read/write |
-| 19 | `TASK-277` | Skip GEOB rewrite when BeatGrid/Markers2 already match |
+| 19 | ~~`TASK-277`~~ | Skip GEOB rewrite when BeatGrid/Markers2 already match |
 | 20 | `TASK-252` | Library two-pane (original ask, last) |
 
 Progress screen target layout:

@@ -200,7 +200,7 @@ and none of them exist yet.
 | ~~`TASK-275`~~ | ~~Content-addressed incremental backups~~ | Done — artifacts live in `objects/<sha256>`; a new snapshot only stores what changed. `latest` names the current id. |
 | ~~`TASK-276`~~ | ~~ETA from recent rate, reset on phase~~ | Done — window of 8 samples; tracker resets at backup/index/analysis/crates so cheap early work does not inflate remaining time. |
 | ~~`TASK-263`~~ | ~~AIFF / AIF / M4A Serato tags~~ | Done — AIFF/AIFC `ID3 ` GEOB; M4A/MP4 `----:com.serato.dj` atoms. SSND / `mdat` hashed. MP4 `markers` (Markers_) only written when asked; Serato still wants it for the first five cues. |
-| `TASK-277` | Skip GEOB rewrite when payload already matches | Same file in a later sync (or a second playlist on a later run) still calls `write_geob`. Compare intended BeatGrid/Markers2 bytes to `read_geob`; if every update is already on disk, do not rewrite, do not bump write counts. Progress still ticks the track. Implement in `write_geob` so every caller gets it. Do not skip backup in this task. |
+| ~~`TASK-277`~~ | ~~Skip GEOB rewrite when payload already matches~~ | Done — `write_geob` returns False and leaves the file alone when every update already matches and nothing is being removed. Sync does not bump grid/cue/index counts. Backup still runs. |
 | `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |
 
 ---

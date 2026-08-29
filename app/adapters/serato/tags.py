@@ -930,13 +930,40 @@ def _splice_aiff_id3(data: bytes, new_tag: bytes) -> bytearray:
     return rebuilt
 
 
+def _already_on_disk(
+    data: bytes,
+    updates: dict[str, bytes],
+    dropped_geob: set[str],
+    dropped_frames: set[bytes],
+) -> bool:
+    """
+    Return whether the file already has every requested payload and nothing to drop.
+
+    Args:
+        data: Whole file contents.
+        updates: GEOB description to intended payload.
+        dropped_geob: GEOB descriptions that must be removed.
+        dropped_frames: Frame ids that must be removed.
+
+    Returns:
+        True when a rewrite would not change any requested frame.
+    """
+    if dropped_geob or dropped_frames:
+        return False
+    try:
+        existing = _read_geob_bytes(data)
+    except TagFormatError:
+        return False
+    return all(existing.get(name) == payload for name, payload in updates.items())
+
+
 def write_geob(
     path: str | Path,
     updates: dict[str, bytes],
     *,
     remove_geob: set[str] | None = None,
     remove_frames: set[bytes] | None = None,
-) -> None:
+) -> bool:
     """
     Replace or remove Serato frames in an audio file, in place.
 
@@ -947,13 +974,17 @@ def write_geob(
     chunk may grow or be created. FLAC Vorbis comments and MP4 ``moov`` may
     grow; STREAMINFO / ``mdat`` stay identical. Before anything reaches disk,
     the rebuilt file is verified against the original. The original file is
-    untouched if verification fails.
+    untouched if verification fails. When every requested payload already
+    matches and nothing is being removed, the file is not rewritten.
 
     Args:
         path: Path to an .mp3, .wav, .flac, .aif, .aiff, .m4a, or .mp4 file.
         updates: GEOB description to new payload.
         remove_geob: GEOB descriptions to delete entirely.
         remove_frames: Frame ids to delete entirely, such as ``b"TKEY"``.
+
+    Returns:
+        True if the file was rewritten, False if every update already matched.
 
     Raises:
         TagFormatError: The container or tag cannot be parsed, the new frames
@@ -964,6 +995,9 @@ def write_geob(
     dropped_frames = remove_frames or set()
     target = Path(path)
     data = target.read_bytes()
+    if _already_on_disk(data, updates, dropped_geob, dropped_frames):
+        logger.info("audio_tags_unchanged", path=str(target), frames=sorted(updates))
+        return False
     if data[:4] == b"fLaC":
         new_data = _write_flac_bytes(data, updates, dropped_geob)
         verify_geob_rewrite(data, new_data, updates, remove_geob=dropped_geob)
@@ -971,7 +1005,7 @@ def write_geob(
         temporary.write_bytes(new_data)
         temporary.replace(target)
         logger.info("audio_tags_written", path=str(target), frames=sorted(updates))
-        return
+        return True
     if _is_mp4(data):
         from app.adapters.serato.mp4_tags import write_mp4_bytes
 
@@ -981,7 +1015,7 @@ def write_geob(
         temporary.write_bytes(new_data)
         temporary.replace(target)
         logger.info("audio_tags_written", path=str(target), frames=sorted(updates))
-        return
+        return True
     if _is_aiff(data):
         found = _iff_chunk(data, b"ID3 ")
         tag = data[found[0] : found[0] + found[1]] if found else _empty_id3_tag()
@@ -1012,3 +1046,4 @@ def write_geob(
     temporary.write_bytes(bytes(new_data))
     temporary.replace(target)
     logger.info("audio_tags_written", path=str(target), frames=sorted(updates))
+    return True

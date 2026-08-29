@@ -431,7 +431,7 @@ def _analysis_dat_path(mount: Path, content: Any) -> Path | None:
     return mount / serato_path(raw)
 
 
-def _write_track_tags(audio_path: Path, beats: list[Beat], cues: list[HotCue]) -> None:
+def _write_track_tags(audio_path: Path, beats: list[Beat], cues: list[HotCue]) -> bool:
     """
     Write a track's beatgrid and hot cues into its audio tags.
 
@@ -439,6 +439,9 @@ def _write_track_tags(audio_path: Path, beats: list[Beat], cues: list[HotCue]) -
         audio_path: Path to the audio file (.mp3, .wav, .flac, .aif, .aiff, .m4a).
         beats: Beats to encode as a Serato BeatGrid, empty to leave it alone.
         cues: Hot cues to encode as Serato Markers2, empty to leave them alone.
+
+    Returns:
+        True when tags were rewritten, False when they already matched.
     """
     updates: dict[str, bytes] = {}
     if beats:
@@ -454,8 +457,9 @@ def _write_track_tags(audio_path: Path, beats: list[Beat], cues: list[HotCue]) -
         updates["Serato Markers2"] = encode_markers(
             markers, payload_size=len(existing) if existing else None
         )
-    if updates:
-        write_geob(audio_path, updates)
+    if not updates:
+        return False
+    return write_geob(audio_path, updates)
 
 
 def _sync_analysis(
@@ -507,16 +511,16 @@ def _sync_analysis(
                 cues = read_hot_cues(extended_path(dat_path))
                 if not beats and not cues:
                     continue
-                _write_track_tags(audio_path, beats, cues)
+                wrote = _write_track_tags(audio_path, beats, cues)
             except (AnlzError, TagFormatError, OSError, binascii.Error) as exc:
                 track_error = str(exc)
                 errors.append(f"{raw}: {track_error}")
                 continue
-            if beats:
+            if wrote and beats:
                 updates[serato_path(raw)] = TrackAnalysis(
                     bpm=beats[0].bpm, key=lookups.keys.get(content.key_id)
                 )
-            if cues:
+            if wrote and cues:
                 cues_written += 1
         finally:
             emit_progress(on_progress, "analysis", done, len(ordered), raw, track_error)
