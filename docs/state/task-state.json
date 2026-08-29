@@ -558,6 +558,11 @@
       "id": "TASK-268",
       "title": "Stretch the visible progress strip to the bar width",
       "completed_at": "2026-08-29T00:00:00Z"
+    },
+    {
+      "id": "TASK-269",
+      "title": "Bare q uses Textual notify toast",
+      "completed_at": "2026-08-29T00:00:00Z"
     }
   ],
   "history": [
@@ -1200,6 +1205,12 @@
     {
       "id": "TASK-268",
       "title": "Stretch the visible progress strip to the bar width",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-269",
+      "title": "Bare q uses Textual notify toast",
       "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }

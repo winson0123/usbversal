@@ -182,7 +182,8 @@ and none of them exist yet.
 | ~~`TASK-256`~~ | ~~Omit Rekordbox "CUE Analysis Playlist"~~ | Done — `include_playlist()` drops it (any casing) from `list_playlists`, so the tree and sync never see it. |
 | ~~`TASK-257`~~ | ~~Terminal beatgrid BPM is the settled last section~~ | Done — median of downbeats from the last anchor, not the first mid-ramp reading. Apt X Blue 140.87 → 140. |
 | ~~`TASK-258`~~ | ~~Quit is Ctrl+Q only~~ | Done — app binding is `ctrl+q` with footer `^Q`. Bare `q` does nothing. |
-| ~~`TASK-267`~~ | ~~Bare q shows a use-^Q-to-quit popup~~ | Done — `q` pushes `QuitHintScreen`; Enter / Esc / `q` dismisses; `^Q` still quits. |
+| ~~`TASK-267`~~ | ~~Bare q shows a use-^Q-to-quit popup~~ | Done — then replaced in TASK-269. |
+| ~~`TASK-269`~~ | ~~Bare q uses Textual notify toast~~ | Done — `q` calls `App.notify`, not a custom modal. |
 | ~~`TASK-259`~~ | ~~Backup bar, then sync bar~~ | Done — backup bar is bytes + ETA. Sync bar is index+analysis+crates as one total. Not one bar across both. |
 | ~~`TASK-260`~~ | ~~One run-wide bar and ETA~~ | Folded into TASK-259. |
 | ~~`TASK-261`~~ | ~~Progress screen: playlist + titles~~ | Done — bar centered, playlist `Name  x/x`, log is the filename. |

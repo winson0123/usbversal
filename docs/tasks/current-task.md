@@ -10,8 +10,8 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-268` |
-| Objective | Stretch the visible progress strip to the bar width |
+| Task ID | `TASK-269` |
+| Objective | Pressing `q` shows Textual's built-in toast |
 | Completed | 2026-08-29 |
 
 ### Verification log
@@ -20,7 +20,7 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 300 passed, 4 skipped |
+| `.venv/bin/pytest` | 299 passed, 4 skipped |
 
 ## Next
 

@@ -816,6 +816,16 @@ TASK-266 sized the ProgressBar widget. The painted strip is a child `Bar` with `
 
 ---
 
+## TASK-269 — Bare q uses Textual notify toast
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Pressing `q` shows Textual's built-in toast, not a custom modal |
+| Verification | ruff ✓ ruff format ✓ pytest 299 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown
