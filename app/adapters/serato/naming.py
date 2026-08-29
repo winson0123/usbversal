@@ -8,13 +8,14 @@ from pathlib import Path
 from app.core.domain import Playlist
 
 # Windows forbids these in a filename. "/" is special-cased: a real slash
-# cannot live in the .crate name, but "_" was losing the character the user
-# typed. Division slash (U+2215) is legal on exFAT and looks like "/".
-# Fullwidth solidus was the TASK-254 stand-in; it renders as "／" in Serato.
+# cannot live in the .crate name. Serato's own rename on WONSIN wrote
+# U+241B U+241B "2f" (hex for 0x2F) and then displayed a normal slash.
+# Earlier stand-ins (fullwidth solidus, division slash) stay as aliases
+# so a re-sync can delete those leftover files.
 _INVALID_CRATE_CHARS = re.compile(r'[<>:"\\|?*]')
 _SLASH = "/"
-_SLASH_STAND_IN = "\u2215"
-_LEGACY_SLASH_STAND_IN = "\uff0f"
+_SLASH_STAND_IN = "\u241b\u241b2f"
+_LEGACY_SLASH_STAND_INS = ("\uff0f", "\u2215")
 
 
 def volume_label_for(mount: Path) -> str:
@@ -39,9 +40,8 @@ def sanitize_crate_name(name: str) -> str:
     """
     Convert a playlist name into a safe Serato crate filename stem.
 
-    A ``/`` in the Rekordbox name becomes a division slash (U+2215) so the
-    crate still reads as a slash. Other characters Windows rejects become
-    ``_``.
+    A ``/`` in the Rekordbox name becomes Serato's slash escape
+    (U+241B U+241B ``2f``). Other characters Windows rejects become ``_``.
 
     Args:
         name: Rekordbox playlist display name.
@@ -49,10 +49,30 @@ def sanitize_crate_name(name: str) -> str:
     Returns:
         Sanitized name without the .crate extension.
     """
-    cleaned = name.strip().replace(_SLASH, _SLASH_STAND_IN)
+    cleaned = name.strip()
+    for encoding in (_SLASH_STAND_IN, *_LEGACY_SLASH_STAND_INS):
+        cleaned = cleaned.replace(encoding, _SLASH)
+    cleaned = cleaned.replace(_SLASH, _SLASH_STAND_IN)
     cleaned = _INVALID_CRATE_CHARS.sub("_", cleaned)
     cleaned = cleaned.strip(" .")
     return cleaned or "Untitled"
+
+
+def _with_slash_stand_in(stem: str, stand_in: str) -> str:
+    """
+    Rewrite every known slash encoding in ``stem`` to ``stand_in``.
+
+    Args:
+        stem: Crate filename stem.
+        stand_in: Encoding to use for each slash.
+
+    Returns:
+        Stem with a single slash spelling.
+    """
+    rewritten = stem
+    for encoding in (_SLASH_STAND_IN, *_LEGACY_SLASH_STAND_INS):
+        rewritten = rewritten.replace(encoding, stand_in)
+    return rewritten
 
 
 def crate_name_slash_aliases(stem: str) -> tuple[str, ...]:
@@ -68,11 +88,11 @@ def crate_name_slash_aliases(stem: str) -> tuple[str, ...]:
     Returns:
         Unique stems, current spelling first.
     """
-    current = stem.replace(_LEGACY_SLASH_STAND_IN, _SLASH_STAND_IN)
-    legacy = stem.replace(_SLASH_STAND_IN, _LEGACY_SLASH_STAND_IN)
-    if current == legacy:
-        return (current,)
-    return (current, legacy)
+    current = _with_slash_stand_in(stem, _SLASH_STAND_IN)
+    variants = [current]
+    for legacy in _LEGACY_SLASH_STAND_INS:
+        variants.append(_with_slash_stand_in(stem, legacy))
+    return tuple(dict.fromkeys(variants))
 
 
 def drop_legacy_slash_names(order: list[str], current: list[str]) -> list[str]:

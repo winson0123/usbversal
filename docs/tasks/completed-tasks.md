@@ -1006,6 +1006,18 @@ A real `/` cannot live in a `.crate` filename. U+2215 division slash (`∕`) rep
 
 ---
 
+## TASK-284 — Serato's slash escape in crate names
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Encode `/` in crate names the way Serato does when you type a slash |
+| Verification | ruff ✓ ruff format ✓ pytest 293 passed / 4 skipped |
+
+A Serato rename on WONSIN wrote `Dance-pop ␛␛2f Dancehall` (U+241B twice + hex `2f`). Sync now uses that. Leftover `／` and `∕` files are removed on write.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

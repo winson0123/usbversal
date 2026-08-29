@@ -620,6 +620,11 @@
       "id": "TASK-283",
       "title": "Normal-width slash in crate names",
       "completed_at": "2026-08-29T00:00:00Z"
+    },
+    {
+      "id": "TASK-284",
+      "title": "Serato's slash escape in crate names",
+      "completed_at": "2026-08-29T00:00:00Z"
     }
   ],
   "history": [
@@ -1364,6 +1369,12 @@
     {
       "id": "TASK-283",
       "title": "Normal-width slash in crate names",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-284",
+      "title": "Serato's slash escape in crate names",
       "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }

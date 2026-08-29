@@ -56,22 +56,23 @@ def test_each_ancestor_name_is_sanitized_independently() -> None:
     playlist = Playlist(id=1, name="2024?", parent_id=9, is_folder=False)
     by_id = {9: folder, 1: playlist}
 
-    assert crate_name_for(playlist, by_id) == "Techno\u2215House%%2024_"
+    assert crate_name_for(playlist, by_id) == "Techno\u241b\u241b2fHouse%%2024_"
 
 
-def test_a_slash_in_the_name_stays_a_slash() -> None:
-    """Rekordbox 'Afro / Afro House' must not become 'Afro _ Afro House'."""
+def test_a_slash_in_the_name_uses_serato_escape() -> None:
+    """Rekordbox 'Afro / Afro House' must match Serato's own slash rename."""
     from app.adapters.serato.naming import sanitize_crate_name
 
-    assert sanitize_crate_name("Afro / Afro House") == "Afro \u2215 Afro House"
+    assert sanitize_crate_name("Afro / Afro House") == "Afro \u241b\u241b2f Afro House"
 
 
-def test_slash_aliases_include_the_old_fullwidth_spelling() -> None:
-    """A re-sync must know the TASK-254 filename so it can delete it."""
-    current = "WONSIN%%Afro \u2215 Afro House"
-    legacy = "WONSIN%%Afro \uff0f Afro House"
-    assert crate_name_slash_aliases(current) == (current, legacy)
-    assert drop_legacy_slash_names([legacy, current, "Pocket"], [current]) == [
+def test_slash_aliases_include_older_stand_ins() -> None:
+    """A re-sync must know the TASK-254 and TASK-283 filenames so it can delete them."""
+    current = "WONSIN%%Afro \u241b\u241b2f Afro House"
+    fullwidth = "WONSIN%%Afro \uff0f Afro House"
+    division = "WONSIN%%Afro \u2215 Afro House"
+    assert crate_name_slash_aliases(current) == (current, fullwidth, division)
+    assert drop_legacy_slash_names([fullwidth, division, current, "Pocket"], [current]) == [
         current,
         "Pocket",
     ]

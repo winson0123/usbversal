@@ -7,7 +7,7 @@ below — that's what a session picking this up should do next.
 | | |
 |---|---|
 | Tests | 293 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-283` — Normal-width slash in crate names |
+| Last done | `TASK-284` — Serato's slash escape in crate names |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -50,7 +50,8 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 23 | ~~`TASK-281`~~ | Parallel analysis tag writes |
 | 24 | ~~`TASK-282`~~ | Write the volume parent crate file |
 | 25 | ~~`TASK-283`~~ | Normal-width slash in crate names |
-| 26 | `TASK-252` | Library two-pane (original ask, last) |
+| 26 | ~~`TASK-284`~~ | Serato's slash escape in crate names |
+| 27 | `TASK-252` | Library two-pane (original ask, last) |
 
 Progress screen target layout:
 

@@ -206,7 +206,8 @@ and none of them exist yet.
 | ~~`TASK-280`~~ | ~~Stable phase-average ETA~~ | Done — remaining time is units left over the average rate since this phase started, not the last 8 items. |
 | ~~`TASK-281`~~ | ~~Parallel analysis tag writes~~ | Done — 4 workers write ANLZ/tags; Rekordbox, index, and crates stay sequential. `USBVERSAL_SYNC_WORKERS` overrides. |
 | ~~`TASK-282`~~ | ~~Write the volume parent crate file~~ | Done — empty `{volume}.crate` plus `{volume}%%…` children; parent first in `neworder.pref`. |
-| ~~`TASK-283`~~ | ~~Normal-width slash in crate names~~ | Done — `/` becomes U+2215 (`∕`); leftover U+FF0F files are removed on write. |
+| ~~`TASK-283`~~ | ~~Normal-width slash in crate names~~ | Superseded by TASK-284 — U+2215 still rendered wrong; Serato's own rename is `␛␛2f`. |
+| ~~`TASK-284`~~ | ~~Serato's slash escape in crate names~~ | Done — `/` becomes U+241B U+241B `2f`, matching a live Serato rename on WONSIN. Leftover `／` / `∕` files are removed on write. |
 | `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |
 
 ---
