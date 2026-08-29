@@ -170,7 +170,7 @@ length, and total length.
 |-----|------|----------|
 | `PQTZ` | `.DAT` | Beatgrid. Entries of `u2 beat_number` (1..4), `u2 tempo` (**BPM × 100**), `u4 time` (**milliseconds**). |
 | `PCOB` | `.DAT` | Cue list, older format, **no colour**. |
-| `PCO2` | `.EXT` | Extended cue list — includes colour and comment. **Prefer this one.** Carries hot cue number and time in ms. |
+| `PCO2` | `.EXT` | Extended cue list — includes colour and comment. **Prefer this one.** Carries hot cue number and time in ms. RGB is at PCP2 body offset 28, not the last 3 bytes (TASK-253). |
 
 Cue entries distinguish memory cues from hot cues; **only hot cues map to Serato
 cue slots**. Saved loops live in `PCO2` with an end time.

@@ -13,6 +13,9 @@ logger = structlog.get_logger(__name__)
 _MAGIC = b"PMAI"
 _EXTENDED_CUES = "PCO2"
 _HOT_CUE_LIST = 1
+# Real Rekordbox .EXT PCP2 bodies are 72 bytes: RGB sits at 28, then a
+# comment. The last three bytes are padding, so they are usually 00 00 00.
+_CUE_RGB_OFFSET = 28
 
 
 class AnlzError(ValueError):
@@ -97,7 +100,7 @@ def read_hot_cues(extended_file: str | Path) -> list[HotCue]:
             number = struct.unpack(">I", data[entry + 12 : entry + 16])[0]
             body = data[entry + entry_header : entry + entry_total]
             position = struct.unpack(">I", body[4:8])[0]
-            red, green, blue = body[-3:]
+            red, green, blue = _cue_rgb(body)
             cues.append(
                 HotCue(
                     slot=number - 1,
@@ -110,6 +113,25 @@ def read_hot_cues(extended_file: str | Path) -> list[HotCue]:
     cues.sort(key=lambda cue: cue.slot)
     logger.debug("anlz_hot_cues_read", path=str(path), count=len(cues))
     return cues
+
+
+def _cue_rgb(body: bytes) -> tuple[int, int, int]:
+    """
+    Return the RGB triple from one PCP2 cue body.
+
+    Args:
+        body: Bytes after the PCP2 header.
+
+    Returns:
+        ``(red, green, blue)``. Offset 28 on a full Rekordbox entry; the
+        last three bytes when the body is shorter than that (older / test
+        layouts).
+    """
+    if len(body) >= _CUE_RGB_OFFSET + 3:
+        return body[_CUE_RGB_OFFSET], body[_CUE_RGB_OFFSET + 1], body[_CUE_RGB_OFFSET + 2]
+    if len(body) >= 3:
+        return body[-3], body[-2], body[-1]
+    return 0, 0, 0
 
 
 @dataclass(frozen=True)

@@ -652,6 +652,18 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-253 — Read PCO2 cue colour from offset 28
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Stop writing black Serato cues; RGB is at PCP2 offset 28, not the last 3 bytes |
+| Verification | ruff ✓ ruff format ✓ pytest 286 passed / 4 skipped |
+
+**Findings:** [cue-colour-offset.md](../workflows/cue-colour-offset.md)
+
+---
+
 ## Template (for future entries)
 
 ```markdown

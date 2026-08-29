@@ -57,10 +57,15 @@ def _pqtz(beats: list[tuple[int, float, int]]) -> bytes:
 
 
 def _cue(number: int, time_ms: int, colour: tuple[int, int, int]) -> bytes:
-    """Build one PCO2 extended cue entry."""
-    body = b"\x01\x00\x03\xe8" + struct.pack(">I", time_ms) + b"\x00" * 20 + b"\x00"
-    body += bytes(colour)
-    return b"PCP2" + struct.pack(">II", 16, 16 + len(body)) + struct.pack(">I", number) + body
+    """Build one PCP2 entry matching a real Rekordbox 72-byte cue body."""
+    body = bytearray(72)
+    body[0:4] = b"\x01\x00\x03\xe8"
+    struct.pack_into(">I", body, 4, time_ms)
+    body[8:12] = b"\xff\xff\xff\xff"
+    body[12:16] = b"\x00\x01\x00\x00"
+    body[28:31] = bytes(colour)
+    header = struct.pack(">II", 16, 16 + len(body)) + struct.pack(">I", number)
+    return b"PCP2" + header + bytes(body)
 
 
 def _pco2(kind: int, cues: list[bytes]) -> bytes:

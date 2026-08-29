@@ -32,10 +32,15 @@ def _pqtz(beats: list[tuple[int, float, int]]) -> bytes:
 
 
 def _cue(number: int, time_ms: int, colour: tuple[int, int, int]) -> bytes:
-    """Build one PCP2 extended cue entry."""
-    body = b"\x01\x00\x03\xe8" + struct.pack(">I", time_ms) + b"\x00" * 20 + b"\x00"
-    body += bytes(colour)
-    return b"PCP2" + struct.pack(">II", 16, 16 + len(body)) + struct.pack(">I", number) + body
+    """Build one PCP2 entry matching a real Rekordbox 72-byte cue body."""
+    body = bytearray(72)
+    body[0:4] = b"\x01\x00\x03\xe8"
+    struct.pack_into(">I", body, 4, time_ms)
+    body[8:12] = b"\xff\xff\xff\xff"
+    body[12:16] = b"\x00\x01\x00\x00"
+    body[28:31] = bytes(colour)
+    header = struct.pack(">II", 16, 16 + len(body)) + struct.pack(">I", number)
+    return b"PCP2" + header + bytes(body)
 
 
 def _pco2(kind: int, cues: list[bytes]) -> bytes:
@@ -90,6 +95,14 @@ def test_reads_hot_cues_with_slot_position_and_colour(tmp_path: Path) -> None:
         (0, 0, "#FF0017"),
         (1, 441, "#00C4FF"),
     ]
+
+
+def test_cue_colour_is_not_the_trailing_padding(tmp_path: Path) -> None:
+    """Comment NULs after the RGB must not be read as black."""
+    f = tmp_path / "a.EXT"
+    f.write_bytes(_anlz(_pco2(1, [_cue(1, 15532, (0xFF, 0x00, 0x17))])))
+
+    assert read_hot_cues(f)[0].colour == "#FF0017"
 
 
 def test_memory_cues_are_ignored(tmp_path: Path) -> None:

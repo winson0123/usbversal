@@ -176,6 +176,10 @@ and none of them exist yet.
 | ~~`TASK-243`~~ | ~~Progress covers index and crate writes~~ | Done — `SyncProgress` with `index` / `analysis` / `crates`. Progress screen labels each phase; backup is the opening status line. |
 | ~~`TASK-250`~~ | ~~Run `correct_index_bpm` on a real stick~~ | Done — WONSIN 2026-08-28: 7 of 1286 rows written, backup `20260828T072224Z`. Still not in the TUI. Findings in `docs/workflows/index-bpm-wonsin.md`. |
 | `TASK-251` | Confirm a variable-tempo grid in Serato | Apt X Blue already has a 4-marker grid on disk. Deck check still missing. |
+| ~~`TASK-253`~~ | ~~Hot cue colours are black in Serato~~ | Done — RGB at PCP2 offset 28. Findings in `docs/workflows/cue-colour-offset.md`. |
+| `TASK-254` | Keep `/` in crate names | `sanitize_crate_name` turns `/` into `_`. Windows forbids `/` in filenames; pick a legal encoding that still reads as a slash. |
+| `TASK-255` | Parent crate named after the volume | Prefix every synced crate with the thumbdrive label (`WONSIN%%…`). Empty parent file not required. |
+| `TASK-256` | Omit Rekordbox "CUE Analysis Playlist" | Default auto-regenerated playlist; do not sync or list it. |
 | `TASK-252` | Library two-pane window | Last. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green: not in crate / crate but analysis not ported / fully ported. Spec in HANDOFF.md. |
 
 ---

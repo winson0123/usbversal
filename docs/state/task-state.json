@@ -9,7 +9,13 @@
     "blocked_reason": null
   },
   "pending_tasks": [],
-  "blocked_tasks": [],
+  "blocked_tasks": [
+    {
+      "id": "TASK-251",
+      "title": "Confirm a variable-tempo grid in Serato",
+      "blocked_reason": "On-disk grid matches the encoder; needs a Serato deck load of Apt X Blue"
+    }
+  ],
   "completed_tasks": [
     {
       "id": "TASK-INIT-001",
@@ -475,6 +481,11 @@
       "id": "TASK-250",
       "title": "Run correct_index_bpm on a real stick",
       "completed_at": "2026-08-28T00:00:00Z"
+    },
+    {
+      "id": "TASK-253",
+      "title": "Read PCO2 cue colour from offset 28",
+      "completed_at": "2026-08-29T00:00:00Z"
     }
   ],
   "history": [
@@ -1034,6 +1045,12 @@
       "id": "TASK-250",
       "title": "Run correct_index_bpm on a real stick",
       "completed_at": "2026-08-28T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-253",
+      "title": "Read PCO2 cue colour from offset 28",
+      "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }
   ]

@@ -50,17 +50,19 @@ alone, not that it would decline to create them.
 | Location | `ANLZ*.EXT`, `PCO2` where list type = 1 | `Serato Markers2` GEOB |
 | Numbering | hot cue 1-based | slot 0-based (`hot_cue - 1`) |
 | Position | u32 BE milliseconds | u32 BE milliseconds — same unit |
-| Colour | RGB in the entry's last 3 bytes | 3 bytes at body offset 7 |
+| Colour | RGB at PCP2 body offset 28 | 3 bytes at CUE body offset 7 |
 
 Verified on `Techno1-1.wav`: Rekordbox holds cue 1 @ 0 ms and cue 2 @ 441 ms;
 Lexicon wrote slot 0 @ 0 ms and slot 1 @ 441 ms. Same cues, same positions.
 
 Memory cues (list type 0) occupy no Serato slot and are ignored.
 
-**Colour is not carried across unchanged.** Rekordbox records `#FF0017` and
-`#00C4FF`; Lexicon wrote `#CC0044` and `#0088CC`, so it maps onto a Serato
-palette. This matters little in practice: of 232 hot cues across 400 tracks,
-**230 have no colour at all** (`#000000`).
+**Colour lives at offset 28, not the last 3 bytes.** A real Rekordbox 6/7
+`.EXT` PCP2 body is 72 bytes: RGB, then a comment. The trailing bytes are
+NULs, so reading `body[-3:]` wrote `#000000` into every Serato cue
+(TASK-253, confirmed on WONSIN). Lexicon also mapped `#FF0017` → `#CC0044`
+and `#00C4FF` → `#0088CC` onto a Serato palette; we write the Rekordbox RGB
+as-is (ADR 0008: Serato displayed those values on Pocket).
 
 ### 2. Beatgrid — `PQTZ` → `Serato BeatGrid` [format verified, mapping inferred]
 
