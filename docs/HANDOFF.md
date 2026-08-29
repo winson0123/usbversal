@@ -6,8 +6,8 @@ below — that's what a session picking this up should do next.
 
 | | |
 |---|---|
-| Tests | 290 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-281` — Parallel analysis tag writes |
+| Tests | 291 passed, 4 skipped (`ruff` and `ruff format` clean) |
+| Last done | `TASK-282` — Write the volume parent crate file |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -48,7 +48,8 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 21 | ~~`TASK-279`~~ | Delete backup and rollback |
 | 22 | ~~`TASK-280`~~ | ETA from the whole phase, not the last few items |
 | 23 | ~~`TASK-281`~~ | Parallel analysis tag writes |
-| 24 | `TASK-252` | Library two-pane (original ask, last) |
+| 24 | ~~`TASK-282`~~ | Write the volume parent crate file |
+| 25 | `TASK-252` | Library two-pane (original ask, last) |
 
 Progress screen target layout:
 

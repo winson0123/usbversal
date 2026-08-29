@@ -86,3 +86,17 @@ def merge_crate_order(serato_root: Path, new_names: list[str]) -> list[str]:
     order = read_crate_order(serato_root)
     order.extend(name for name in new_names if name not in order)
     return order
+
+
+def with_parent_first(order: list[str], parent: str) -> list[str]:
+    """
+    Put ``parent`` first in crate display order, once.
+
+    Args:
+        order: Existing crate names in display order.
+        parent: Volume parent crate stem.
+
+    Returns:
+        Order with ``parent`` first and no later duplicate.
+    """
+    return [parent, *[name for name in order if name != parent]]

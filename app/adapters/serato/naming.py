@@ -65,10 +65,12 @@ def crate_name_for(
     own, joined with "%%" -- "Techno / Peak Time" becomes
     "Techno%%Peak Time.crate". Confirmed in Serato (TASK-245): a synced
     Rekordbox ``Gigs / Played / safety day`` playlist appears under Played
-    under Gigs. No empty parent crate files are required.
+    under Gigs. Rekordbox folder ancestors do not get their own empty
+    ``.crate`` files.
 
     When ``volume`` is set, it is the outermost parent (the thumbdrive
-    label). ``Contents`` on WONSIN becomes ``WONSIN%%Contents``.
+    label). ``Contents`` on WONSIN becomes ``WONSIN%%Contents``. Sync also
+    writes an empty ``WONSIN.crate`` so Serato has a real folder node.
 
     Sync state and the crate writer must agree on this mapping, so both call
     here rather than deriving names independently.

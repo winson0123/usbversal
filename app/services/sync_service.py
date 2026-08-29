@@ -22,12 +22,13 @@ from app.adapters.serato.library_db import (
     read_track_analysis,
     update_track_analysis,
 )
-from app.adapters.serato.neworder import merge_crate_order, write_crate_order
+from app.adapters.serato.neworder import merge_crate_order, with_parent_first, write_crate_order
 from app.adapters.serato.paths import list_crate_files
 from app.adapters.serato.writer import (
     CrateExistsError,
     append_database_tracks,
     write_crate,
+    write_volume_parent_crate,
 )
 from app.core.domain import Playlist, PlaylistSyncState, SyncState
 from app.core.playlist_tree import PlaylistNode, build_playlist_tree
@@ -671,6 +672,29 @@ def _written_crate_names(results: Sequence[PlaylistSyncResult]) -> list[str]:
     return [result.crate_name for result in results if result.error is None]
 
 
+def _publish_crate_order(
+    serato_root: Path,
+    results: Sequence[PlaylistSyncResult],
+    volume: str,
+) -> None:
+    """
+    Write the empty volume parent crate and refresh ``neworder.pref``.
+
+    Children keep ``{volume}%%…`` names. The parent is listed first so Serato
+    shows the thumbdrive folder at the top of the crate list.
+
+    Args:
+        serato_root: Path to ``_Serato_``.
+        results: Per-playlist crate write outcomes.
+        volume: Sanitized thumbdrive label.
+    """
+    write_volume_parent_crate(serato_root=serato_root, volume=volume)
+    write_crate_order(
+        serato_root,
+        with_parent_first(merge_crate_order(serato_root, _written_crate_names(results)), volume),
+    )
+
+
 def _write_playlist_crates(
     serato_root: Path,
     selected: Sequence[Playlist],
@@ -807,15 +831,16 @@ def sync_playlists(
         lookups,
         attach_playlist(rebase_progress(on_progress, len(missing), sync_total), analysis_meta),
     )
+    volume = volume_label_for(library.mount)
     results = _write_playlist_crates(
         serato_root,
         selected,
         by_id,
         tracks_by_playlist,
         rebase_progress(on_progress, len(missing) + len(analysis_targets), sync_total),
-        volume=volume_label_for(library.mount),
+        volume=volume,
     )
-    write_crate_order(serato_root, merge_crate_order(serato_root, _written_crate_names(results)))
+    _publish_crate_order(serato_root, results, volume)
 
     logger.info(
         "sync_completed",

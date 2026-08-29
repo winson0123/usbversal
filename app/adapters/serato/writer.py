@@ -91,6 +91,28 @@ def write_crate(
     return crate_path
 
 
+def write_volume_parent_crate(*, serato_root: Path, volume: str) -> Path:
+    """
+    Write an empty crate named after the thumbdrive.
+
+    Serato treats this file as the folder wrapping every ``{volume}%%…``
+    child crate.
+
+    Args:
+        serato_root: Path to ``_Serato_``.
+        volume: Sanitized volume label from ``volume_label_for``.
+
+    Returns:
+        Path to the written parent ``.crate`` file.
+    """
+    return write_crate(
+        serato_root=serato_root,
+        crate_name=volume,
+        track_paths=[],
+        overwrite=True,
+    )
+
+
 def append_database_tracks(
     *,
     database_path: Path,

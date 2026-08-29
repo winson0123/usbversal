@@ -71,7 +71,7 @@ See [../schemas/serato-schema-notes.md](../schemas/serato-schema-notes.md) and [
 | `database V2` append `otrk` | implemented | TASK-112 |
 | `neworder.pref` merge / write | planned | TASK-074 |
 | `Parent%%Child` nested crate naming | confirmed in Serato | TASK-075 / TASK-245 |
-| Volume-label parent crate | implemented | TASK-255 |
+| Volume-label parent crate | implemented | TASK-255 / TASK-282 |
 | Bootstrap `_Serato_` on a rekordbox-only stick | planned | TASK-076 |
 | `Serato Markers2` hot cues | planned | TASK-082 |
 | `Serato BeatGrid` / `Autotags` | planned | TASK-083 |

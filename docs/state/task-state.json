@@ -610,6 +610,11 @@
       "id": "TASK-281",
       "title": "Parallel analysis tag writes",
       "completed_at": "2026-08-29T00:00:00Z"
+    },
+    {
+      "id": "TASK-282",
+      "title": "Write the volume parent crate file",
+      "completed_at": "2026-08-29T00:00:00Z"
     }
   ],
   "history": [
@@ -1342,6 +1347,12 @@
     {
       "id": "TASK-281",
       "title": "Parallel analysis tag writes",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-282",
+      "title": "Write the volume parent crate file",
       "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }

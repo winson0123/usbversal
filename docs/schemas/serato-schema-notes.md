@@ -123,7 +123,9 @@ rekordbox  Gigs / Played / safety day   ->   Subcrates/Gigs%%Played%%safety day.
 crate files are required — `Gigs%%Played%%safety day.crate` alone is enough.
 
 TASK-255 prefixes the thumbdrive label as the outermost parent:
-`WONSIN%%Gigs%%Played%%safety day.crate`. See [volume-crate.md](../workflows/volume-crate.md).
+`WONSIN%%Gigs%%Played%%safety day.crate`. TASK-282 also writes an empty
+`WONSIN.crate` so Serato has a real folder node. See
+[volume-crate.md](../workflows/volume-crate.md).
 
 ---
 

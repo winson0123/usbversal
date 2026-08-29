@@ -241,10 +241,30 @@ def test_existing_crate_order_is_preserved(tmp_path: Path) -> None:
 
     sync_playlists(library, [1])
 
+    volume = volume_label_for(mount)
     assert read_crate_order(mount / "_Serato_") == [
+        volume,
         "Pocket",
-        f"{volume_label_for(mount)}%%test",
+        f"{volume}%%test",
     ]
+
+
+def test_sync_writes_empty_volume_parent_crate(tmp_path: Path) -> None:
+    """The thumbdrive name is a real parent crate wrapping every child."""
+    mount = _stick(tmp_path, indexed=[])
+    playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
+    library = _library(mount, [playlist], {1: TRACKS}, [_content(t) for t in TRACKS])
+
+    sync_playlists(library, [1])
+
+    volume = volume_label_for(mount)
+    subcrates = mount / "_Serato_" / "Subcrates"
+    parent = subcrates / f"{volume}.crate"
+    child = subcrates / f"{volume}%%test.crate"
+    assert parent.is_file()
+    assert read_crate_track_paths(parent) == []
+    assert child.is_file()
+    assert read_crate_order(mount / "_Serato_")[0] == volume
 
 
 def test_unknown_playlist_is_rejected(tmp_path: Path) -> None:

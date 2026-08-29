@@ -982,6 +982,18 @@ ANLZ reads and GEOB rewrites run in a pool of 4 threads (cap 8; `USBVERSAL_SYNC_
 
 ---
 
+## TASK-282 — Write the volume parent crate file
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Write a real thumbdrive-named parent crate that wraps every synced child playlist |
+| Verification | ruff ✓ ruff format ✓ pytest 291 passed / 4 skipped |
+
+Sync writes an empty `{volume}.crate` (the mount folder name) and lists it first in `neworder.pref`. Children stay `{volume}%%…`. Rekordbox folder ancestors still have no empty files of their own.
+
+---
+
 ## Template (for future entries)
 
 ```markdown
