@@ -116,7 +116,8 @@
     "markers2_tolerates_leftover_base64": true,
     "index_bpm_corrected_on_wonsin": true,
     "anlz_cue_colour_at_offset_28": true,
-    "crate_slash_is_fullwidth_solidus": true
+    "crate_slash_is_fullwidth_solidus": true,
+    "omits_cue_analysis_playlist": true
   },
   "packaging": {
     "pyinstaller": true,
@@ -129,8 +130,8 @@
     "ruff": "pass",
     "ruff_format": "pass",
     "pytest": "pass",
-    "last_run": "2026-08-28T00:00:00Z",
-    "tests_passed": 287,
+    "last_run": "2026-08-29T00:00:00Z",
+    "tests_passed": 289,
     "tests_skipped": 4,
     "tests_failed": 0,
     "note": "run with no stick mounted and no dist/usbversal built; the 4 skips are 2 integration tests gated on USBVERSAL_TEST_MOUNT (no default path), the opt-in full PyInstaller build (USBVERSAL_PACKAGING_BUILD=1), and the binary-existence smoke test that needs a prior ./scripts/build-release.sh -- a real build was run and verified during TASK-206, then cleaned up"

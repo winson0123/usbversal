@@ -676,6 +676,18 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-256 — Omit Rekordbox "CUE Analysis Playlist"
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Do not list or sync Rekordbox's regenerated analysis playlist |
+| Verification | ruff ✓ ruff format ✓ pytest 289 passed / 4 skipped |
+
+Rekordbox recreates `CUE Analysis Playlist` (also seen as `Cue Analysis Playlist`) on every export. Folders with that name are left alone.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

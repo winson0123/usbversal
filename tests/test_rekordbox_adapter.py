@@ -85,6 +85,41 @@ def test_rbox_adapter_maps_playlists() -> None:
     assert playlists[0].is_folder is True
 
 
+def test_include_playlist_omits_cue_analysis() -> None:
+    """Rekordbox's regenerated analysis playlist is not a crate we sync."""
+    from app.adapters.rekordbox.reader import include_playlist
+
+    assert include_playlist("CUE Analysis Playlist", is_folder=False) is False
+    assert include_playlist("Cue Analysis Playlist", is_folder=False) is False
+    assert include_playlist("House", is_folder=False) is True
+    assert include_playlist("CUE Analysis Playlist", is_folder=True) is True
+
+
+def test_list_playlists_skips_cue_analysis() -> None:
+    """list_playlists drops the default analysis playlist from the adapter."""
+    library = RekordboxLibrary(
+        mount_path=Path("/mnt/usb"),
+        database_path=Path("/mnt/usb/PIONEER/rekordbox/exportLibrary.db"),
+        db_format=RekordboxDbFormat.ONE_LIBRARY,
+    )
+    keep = MagicMock()
+    keep.id = 2
+    keep.name = "House"
+    keep.parent_id = 0
+    keep.items = []
+    drop = MagicMock()
+    drop.id = 3
+    drop.name = "CUE Analysis Playlist"
+    drop.parent_id = 0
+    drop.items = [1, 2]
+    db = MagicMock()
+    db.get_playlists.return_value = [keep, drop]
+    keep.attribute = 0
+    drop.attribute = 0
+    playlists = RboxOneLibraryAdapter(library, db).list_playlists()
+    assert [p.name for p in playlists] == ["House"]
+
+
 def test_list_rekordbox_playlists_integration() -> None:
     """Integration test against a real mount when exportLibrary.db is present."""
     mount = integration_mount()

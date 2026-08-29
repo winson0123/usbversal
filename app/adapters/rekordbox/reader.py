@@ -18,6 +18,26 @@ from app.core.domain import Playlist, RekordboxDbFormat, RekordboxLibrary
 
 logger = structlog.get_logger(__name__)
 
+# Rekordbox recreates this playlist on every export. It is not a crate
+# the operator built.
+_OMITTED_PLAYLIST_NAMES = frozenset({"cue analysis playlist"})
+
+
+def include_playlist(name: str, *, is_folder: bool) -> bool:
+    """
+    Return whether a Rekordbox playlist should appear in Usbversal.
+
+    Args:
+        name: Playlist or folder name from Rekordbox.
+        is_folder: True when the row is a folder, not a track list.
+
+    Returns:
+        False for the default analysis playlist. Folders always stay.
+    """
+    if is_folder:
+        return True
+    return name.strip().casefold() not in _OMITTED_PLAYLIST_NAMES
+
 
 class RboxOneLibraryAdapter(RekordboxReadAdapter):
     """Read Rekordbox One Library (exportLibrary.db) via rbox."""
@@ -60,10 +80,13 @@ class RboxOneLibraryAdapter(RekordboxReadAdapter):
                 except (TypeError, AttributeError):
                     track_count = None
             raw_parent = int(row.parent_id) if row.parent_id is not None else 0
+            name = str(row.name)
+            if not include_playlist(name, is_folder=is_folder):
+                continue
             result.append(
                 Playlist(
                     id=int(row.id),
-                    name=str(row.name),
+                    name=name,
                     parent_id=None if raw_parent == 0 else raw_parent,
                     is_folder=is_folder,
                     track_count=track_count,

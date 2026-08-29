@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-28T00:00:00Z",
+  "updated_at": "2026-08-29T00:00:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -490,6 +490,11 @@
     {
       "id": "TASK-254",
       "title": "Keep slash in crate names as fullwidth solidus",
+      "completed_at": "2026-08-29T00:00:00Z"
+    },
+    {
+      "id": "TASK-256",
+      "title": "Omit Rekordbox CUE Analysis Playlist",
       "completed_at": "2026-08-29T00:00:00Z"
     }
   ],
@@ -1061,6 +1066,12 @@
     {
       "id": "TASK-254",
       "title": "Keep slash in crate names as fullwidth solidus",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-256",
+      "title": "Omit Rekordbox CUE Analysis Playlist",
       "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }
