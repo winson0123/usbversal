@@ -17,6 +17,7 @@ from textual.driver import Driver
 
 from app.services.library import MountWatcher
 from app.tui.screens.home import HomeScreen
+from app.tui.screens.quit_hint import QuitHintScreen
 
 _T = TypeVar("_T")
 _MISSING = object()
@@ -155,7 +156,10 @@ class UsbversalApp(RekordboxThreadMixin, App):
     """
 
     TITLE = "usbversal"
-    BINDINGS = [Binding("ctrl+q", "quit", "Quit", show=True, key_display="^Q")]
+    BINDINGS = [
+        Binding("ctrl+q", "quit", "Quit", show=True, key_display="^Q"),
+        Binding("q", "quit_hint", "Quit", show=False),
+    ]
 
     # Textual's built-in dark theme still leaks through on a few stock
     # widgets even with ansi_color=True: none of these have a :ansi rule of
@@ -222,6 +226,12 @@ class UsbversalApp(RekordboxThreadMixin, App):
         if not headless and not inline and conpty_alt_screen_is_slow():
             suppress_alt_screen(driver)
         return driver
+
+    def action_quit_hint(self) -> None:
+        """Show that quit is Ctrl+Q. A stray ``q`` must not exit."""
+        if isinstance(self.screen, QuitHintScreen):
+            return
+        self.push_screen(QuitHintScreen())
 
     async def action_quit(self) -> None:
         """Park library handles and leave the UI; Drop runs after unmount."""

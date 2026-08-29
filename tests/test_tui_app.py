@@ -23,6 +23,7 @@ from app.tui.app import (
     suppress_alt_screen,
 )
 from app.tui.screens.home import HomeScreen
+from app.tui.screens.quit_hint import QuitHintScreen
 
 
 class _Harness(RekordboxThreadMixin, App):
@@ -154,11 +155,27 @@ async def test_quit_from_home_does_not_hop_to_the_rekordbox_thread() -> None:
 
 @pytest.mark.asyncio
 async def test_plain_q_does_not_quit() -> None:
-    """A stray q must not exit, including while a sync is on screen."""
+    """A stray q must not exit; it shows that quit is Ctrl+Q."""
     app = UsbversalApp()
     async with app.run_test() as pilot:
         await pilot.pause()
         await pilot.press("q")
+        await pilot.pause()
+        assert isinstance(app.screen, QuitHintScreen)
+        hint = str(app.screen.query_one("#quit-hint").render())
+        assert "^Q" in hint
+        assert app.is_running
+
+
+@pytest.mark.asyncio
+async def test_plain_q_hint_dismisses_without_quitting() -> None:
+    """Enter closes the hint and leaves the app running."""
+    app = UsbversalApp()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("q")
+        await pilot.pause()
+        await pilot.press("enter")
         await pilot.pause()
         assert isinstance(app.screen, HomeScreen)
         assert app.is_running

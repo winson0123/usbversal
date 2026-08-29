@@ -794,6 +794,16 @@ The bar's `Center` had been shrink-wrapping to the ProgressBar default, so a sho
 
 ---
 
+## TASK-267 — Bare q shows a use-^Q-to-quit popup
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Pressing `q` shows a popup that quit is `^Q` |
+| Verification | ruff ✓ ruff format ✓ pytest 300 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown
