@@ -10,10 +10,6 @@
   },
   "pending_tasks": [
     {
-      "id": "TASK-262",
-      "title": "Done screen lists failures + error.log"
-    },
-    {
       "id": "TASK-263",
       "title": "AIFF / AIF Serato tags"
     },
@@ -572,6 +568,11 @@
     {
       "id": "TASK-271",
       "title": "Grow MP3 ID3 when Serato frames do not fit",
+      "completed_at": "2026-08-29T00:00:00Z"
+    },
+    {
+      "id": "TASK-262",
+      "title": "Done screen lists failures + error.log",
       "completed_at": "2026-08-29T00:00:00Z"
     }
   ],
@@ -1233,6 +1234,12 @@
     {
       "id": "TASK-271",
       "title": "Grow MP3 ID3 when Serato frames do not fit",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-262",
+      "title": "Done screen lists failures + error.log",
       "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }

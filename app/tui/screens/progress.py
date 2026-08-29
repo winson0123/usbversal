@@ -19,6 +19,11 @@ from textual.widgets import Footer, ProgressBar, RichLog, Static
 
 from app.jobs.progress_rate import ProgressRateTracker, format_duration
 from app.services.library import UsbLibrary
+from app.services.sync_errors import (
+    failures_from_report,
+    format_failure_lines,
+    write_error_log,
+)
 from app.services.sync_progress import SyncProgress, display_title
 from app.services.sync_service import SyncReport, sync_playlists
 
@@ -34,6 +39,7 @@ _BAR_ID = "sync-progress"
 _PLAYLIST_ID = "sync-playlist"
 _LOG_ID = "sync-log"
 _SUMMARY_ID = "done-summary"
+_ERRORS_ID = "done-errors"
 
 
 class ProgressScreen(Screen):
@@ -172,6 +178,17 @@ class DoneScreen(Screen):
         Binding("escape", "app.quit", "Quit", show=True),
     ]
 
+    DEFAULT_CSS = """
+    DoneScreen #done-summary {
+        height: auto;
+        padding: 1 2;
+    }
+    DoneScreen #done-errors {
+        height: 1fr;
+        margin: 0 2 1 2;
+    }
+    """
+
     def __init__(self, *, report: SyncReport | None = None, error: str | None = None) -> None:
         """
         Args:
@@ -181,10 +198,28 @@ class DoneScreen(Screen):
         super().__init__()
         self._report = report
         self._error = error
+        self._failures = failures_from_report(report) if report is not None else ()
 
     def compose(self) -> ComposeResult:
+        """Show the summary and, when anything failed, a scrollable error list."""
         yield Static(self._summary(), id=_SUMMARY_ID)
+        if self._failures:
+            yield RichLog(id=_ERRORS_ID, max_lines=500, auto_scroll=False, wrap=True)
         yield Footer()
+
+    def on_mount(self) -> None:
+        """Fill the error list and write the host error.log."""
+        if not self._failures:
+            return
+        log = self.query_one(f"#{_ERRORS_ID}", RichLog)
+        for failure in self._failures:
+            log.write(Text(format_failure_lines(failure), style="red"))
+        if self._report is not None:
+            write_error_log(
+                self._report.mount,
+                self._failures,
+                backup_id=self._report.backup_id,
+            )
 
     def _summary(self) -> Text:
         if self._error is not None:

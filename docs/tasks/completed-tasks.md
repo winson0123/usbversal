@@ -848,6 +848,16 @@ A file in Untagged failed because new frames exceeded ID3 padding. Growing is al
 
 ---
 
+## TASK-262 — Done screen lists failures + error.log
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Scrollable title / path / reason on Done; same lines in host `error.log` |
+| Verification | ruff ✓ ruff format ✓ pytest 306 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

@@ -13,6 +13,7 @@ from textual.widgets import ProgressBar, RichLog, Static
 
 from app.services.sync_progress import SyncProgress
 from app.services.sync_service import SyncReport
+from app.storage.backup import default_backup_root
 from app.tui.app import RekordboxThreadMixin
 from app.tui.screens.progress import DoneScreen, ProgressScreen
 
@@ -130,6 +131,14 @@ async def test_analysis_errors_are_called_out_in_the_summary() -> None:
             summary = str(app.screen.query_one("#done-summary", Static).render())
             assert "1 track" in summary
             assert "could not be analysed" in summary
+            log = app.screen.query_one("#done-errors", RichLog)
+            text = "".join(segment.text for line in log.lines for segment in line)
+            assert "a.mp3" in text
+            assert "Contents/a.mp3" in text
+            assert "bad grid" in text
+            error_log = default_backup_root(Path("/mnt/usb")) / "error.log"
+            assert error_log.is_file()
+            assert "a.mp3" in error_log.read_text(encoding="utf-8")
 
 
 class _MarkerScreen(Screen):

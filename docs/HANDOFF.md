@@ -36,7 +36,7 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 9 | ~~`TASK-269`~~ | That hint is Textual's `notify` toast, not a modal |
 | 10 | ~~`TASK-270`~~ | Toast copy is "Press ^Q to quit"; narrower toast |
 | 11 | ~~`TASK-271`~~ | Grow a tight MP3 ID3 so BeatGrid/Markers2 fit |
-| 12 | `TASK-262` | Done screen: scrollable failures; host `error.log` (title, path, reason) |
+| 12 | ~~`TASK-262`~~ | Done screen: scrollable failures; host `error.log` |
 | 13 | `TASK-263` | `.aif` / `.aiff` tag read/write |
 | 14 | `TASK-252` | Library two-pane (original ask, last) |
 

@@ -10,8 +10,8 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-271` |
-| Objective | Grow an MP3 ID3 tag when new Serato frames do not fit |
+| Task ID | `TASK-262` |
+| Objective | Show each failed track on Done; write host `error.log` |
 | Completed | 2026-08-29 |
 
 ### Verification log
@@ -20,8 +20,8 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 301 passed, 4 skipped |
+| `.venv/bin/pytest` | 306 passed, 4 skipped |
 
 ## Next
 
-`TASK-262` — Done screen lists failures + host `error.log`.
+`TASK-263` — AIFF / AIF Serato tags.
