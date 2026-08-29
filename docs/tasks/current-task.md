@@ -10,8 +10,8 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-272` |
-| Objective | Read and write Serato frames on ID3v2.2 MP3s (`GEO`, 6-byte headers) |
+| Task ID | `TASK-273` |
+| Objective | Done screen: drop Esc Quit; center the summary mid-screen |
 | Completed | 2026-08-29 |
 
 ### Verification log
@@ -20,9 +20,7 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 309 passed, 4 skipped |
-
-Replayed BeatGrid write on the two WONSIN `20260829T075133Z` delta heads (dummy audio). Both read back; Overview kept; Humble still has `Offsets_` and did not need to grow.
+| `.venv/bin/pytest` | 311 passed, 4 skipped |
 
 ## Next
 

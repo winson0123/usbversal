@@ -178,6 +178,28 @@ async def test_enter_on_done_returns_to_the_screen_under_progress() -> None:
             assert isinstance(app.screen, _MarkerScreen)
 
 
+def test_done_screen_has_no_escape_quit_binding() -> None:
+    """Quit on Done is ^Q only; Esc must not appear as a footer action."""
+    keys = {binding.key for binding in DoneScreen.BINDINGS}
+    assert "escape" not in keys
+    assert "enter" in keys
+
+
+@pytest.mark.asyncio
+async def test_done_summary_sits_in_the_middle_of_the_screen() -> None:
+    """The completion message is centered, not stuck at the top."""
+    with patch("app.tui.screens.progress.sync_playlists", _fake_sync()):
+        app = _Harness(library=object(), playlist_ids=[1])
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+
+            middle = app.screen.query_one(CenterMiddle)
+            assert middle.query_one("#done-summary", Static)
+            assert middle.query_one(Center)
+
+
 @pytest.mark.asyncio
 async def test_progress_bar_reflects_the_last_sample() -> None:
     """_update_progress sets the bar's total/progress and a rate-bearing status line.

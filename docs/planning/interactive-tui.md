@@ -23,7 +23,7 @@ rather than retrofitted later.
 | 2 | Detect | A USB plugged in **while the screen is open** is picked up automatically and checked for rekordbox→Serato sync validity |
 | 3 | Library | Playlist tree. Select all at top level or descend per playlist. Arrow keys move, space toggles, enter confirms. Traffic-light text: **red** not synced, **yellow** partially synced, **green** fully synced |
 | 4 | Progress | Progress bar with estimated time to completion |
-| 5 | Done | Completion summary. Enter returns to the library view, Esc exits |
+| 5 | Done | Completion summary. Enter returns to the library view. Quit is ^Q. |
 
 ## What the service layer already provides
 

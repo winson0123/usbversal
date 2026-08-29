@@ -171,20 +171,26 @@ class ProgressScreen(Screen):
 
 
 class DoneScreen(Screen):
-    """Step 5: completion summary. Enter returns to Library, Esc exits."""
+    """Step 5: completion summary. Enter returns to Library."""
 
     BINDINGS = [
         Binding("enter", "return_to_library", "Back to Library", show=True),
-        Binding("escape", "app.quit", "Quit", show=True),
     ]
 
     DEFAULT_CSS = """
+    DoneScreen CenterMiddle {
+        width: 100%;
+    }
     DoneScreen #done-summary {
+        width: auto;
         height: auto;
+        text-align: center;
         padding: 1 2;
     }
     DoneScreen #done-errors {
-        height: 1fr;
+        dock: bottom;
+        width: 100%;
+        height: 12;
         margin: 0 2 1 2;
     }
     """
@@ -201,8 +207,10 @@ class DoneScreen(Screen):
         self._failures = failures_from_report(report) if report is not None else ()
 
     def compose(self) -> ComposeResult:
-        """Show the summary and, when anything failed, a scrollable error list."""
-        yield Static(self._summary(), id=_SUMMARY_ID)
+        """Keep the summary mid-screen; dock failures below when present."""
+        with CenterMiddle():
+            with Center():
+                yield Static(self._summary(), id=_SUMMARY_ID)
         if self._failures:
             yield RichLog(id=_ERRORS_ID, max_lines=500, auto_scroll=False, wrap=True)
         yield Footer()

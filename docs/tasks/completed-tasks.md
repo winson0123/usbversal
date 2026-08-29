@@ -870,6 +870,16 @@ WONSIN `error.log` (`20260829T075133Z`) refused Memories and Humble with `'Serat
 
 ---
 
+## TASK-273 — Done: drop Esc Quit, center summary
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Remove Esc Quit from Done; put the completion message in the middle |
+| Verification | ruff ✓ ruff format ✓ pytest 311 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown
