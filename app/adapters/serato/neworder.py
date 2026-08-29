@@ -100,3 +100,30 @@ def with_parent_first(order: list[str], parent: str) -> list[str]:
         Order with ``parent`` first and no later duplicate.
     """
     return [parent, *[name for name in order if name != parent]]
+
+
+def with_ancestors(order: list[str]) -> list[str]:
+    """
+    Insert every ``%%`` ancestor stem so Serato can nest child crates.
+
+    Serato builds the crate tree from ``neworder.pref``. Folder nodes such
+    as ``Gigs`` and ``Gigs%%Played`` are listed there without a matching
+    ``.crate`` file. A leaf listed without those ancestors is not shown.
+
+    Args:
+        order: Crate names, typically leaves plus the volume parent.
+
+    Returns:
+        The same names with each ancestor inserted once, before its first
+        descendant.
+    """
+    seen: list[str] = []
+    known: set[str] = set()
+    for name in order:
+        parts = name.split("%%")
+        for end in range(1, len(parts) + 1):
+            stem = "%%".join(parts[:end])
+            if stem not in known:
+                known.add(stem)
+                seen.append(stem)
+    return seen

@@ -23,7 +23,12 @@ from app.adapters.serato.library_db import (
     read_track_analysis,
     update_track_analysis,
 )
-from app.adapters.serato.neworder import merge_crate_order, with_parent_first, write_crate_order
+from app.adapters.serato.neworder import (
+    merge_crate_order,
+    with_ancestors,
+    with_parent_first,
+    write_crate_order,
+)
 from app.adapters.serato.paths import list_crate_files
 from app.adapters.serato.writer import (
     CrateExistsError,
@@ -682,7 +687,9 @@ def _publish_crate_order(
     Write the empty volume parent crate and refresh ``neworder.pref``.
 
     Children keep ``{volume}%%…`` names. The parent is listed first so Serato
-    shows the thumbdrive folder at the top of the crate list.
+    shows the thumbdrive folder at the top of the crate list. Every ``%%``
+    ancestor stem is listed too; Serato will not show a nested crate whose
+    folder nodes are missing from ``neworder.pref``.
 
     Args:
         serato_root: Path to ``_Serato_``.
@@ -693,9 +700,11 @@ def _publish_crate_order(
     write_volume_parent_crate(serato_root=serato_root, volume=volume)
     write_crate_order(
         serato_root,
-        with_parent_first(
-            drop_legacy_slash_names(merge_crate_order(serato_root, written), written),
-            volume,
+        with_ancestors(
+            with_parent_first(
+                drop_legacy_slash_names(merge_crate_order(serato_root, written), written),
+                volume,
+            )
         ),
     )
 

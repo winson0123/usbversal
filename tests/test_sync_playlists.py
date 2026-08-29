@@ -249,6 +249,25 @@ def test_existing_crate_order_is_preserved(tmp_path: Path) -> None:
     ]
 
 
+def test_sync_lists_nested_folder_stems_in_neworder(tmp_path: Path) -> None:
+    """A Gigs / Played / pocket crate is listed with its ancestor folder names."""
+    mount = _stick(tmp_path, indexed=[])
+    gigs = Playlist(id=1, name="Gigs", parent_id=None, is_folder=True)
+    played = Playlist(id=2, name="Played", parent_id=1, is_folder=True)
+    pocket = Playlist(id=3, name="pocket", parent_id=2, is_folder=False)
+    library = _library(mount, [gigs, played, pocket], {3: TRACKS}, [_content(t) for t in TRACKS])
+
+    sync_playlists(library, [3])
+
+    volume = volume_label_for(mount)
+    assert read_crate_order(mount / "_Serato_") == [
+        volume,
+        f"{volume}%%Gigs",
+        f"{volume}%%Gigs%%Played",
+        f"{volume}%%Gigs%%Played%%pocket",
+    ]
+
+
 def test_sync_writes_empty_volume_parent_crate(tmp_path: Path) -> None:
     """The thumbdrive name is a real parent crate wrapping every child."""
     mount = _stick(tmp_path, indexed=[])

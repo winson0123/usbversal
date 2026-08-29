@@ -120,7 +120,12 @@ rekordbox  Gigs / Played / safety day   ->   Subcrates/Gigs%%Played%%safety day.
 `crate_name_for()` walks each ancestor folder, then the playlist, joined with
 `%%`. Confirmed in Serato after syncing Rekordbox `Gigs → Played → safety day`
 (TASK-245/246): the crate appears under Played under Gigs. No empty parent
-crate files are required — `Gigs%%Played%%safety day.crate` alone is enough.
+crate *files* are required — `Gigs%%Played%%safety day.crate` alone is enough.
+The parent *names* (`Gigs`, `Gigs%%Played`) must still appear in
+`neworder.pref`. A live WONSIN `neworder.pref` listed those folder stems
+with no matching `.crate`. After a fresh export we only listed the volume
+and the leaves, so Serato had nothing to hang `WONSIN%%Gigs%%pocket …` on
+(TASK-289).
 
 TASK-255 prefixes the thumbdrive label as the outermost parent:
 `WONSIN%%Gigs%%Played%%safety day.crate`. TASK-282 also writes an empty

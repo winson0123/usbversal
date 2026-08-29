@@ -1066,6 +1066,18 @@ A Serato rename on WONSIN wrote `Dance-pop ␛␛2f Dancehall` (U+241B twice + h
 
 ---
 
+## TASK-289 — List `%%` ancestor stems in `neworder.pref`
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | List every `%%` ancestor in `neworder.pref` so Serato can show nested crates |
+| Verification | ruff ✓ ruff format ✓ pytest 312 passed / 4 skipped |
+
+A working WONSIN `neworder.pref` listed `Gigs` and `Gigs%%Played` with no matching `.crate` files. Sync now inserts those folder stems before each leaf.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

@@ -645,6 +645,11 @@
       "id": "TASK-288",
       "title": "Skip leftover 0-byte crates when reading",
       "completed_at": "2026-08-30T00:00:00Z"
+    },
+    {
+      "id": "TASK-289",
+      "title": "List %% ancestor stems in neworder.pref",
+      "completed_at": "2026-08-30T00:00:00Z"
     }
   ],
   "history": [
@@ -1419,6 +1424,12 @@
     {
       "id": "TASK-288",
       "title": "Skip leftover 0-byte crates when reading",
+      "completed_at": "2026-08-30T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-289",
+      "title": "List %% ancestor stems in neworder.pref",
       "completed_at": "2026-08-30T00:00:00Z",
       "status": "completed"
     }

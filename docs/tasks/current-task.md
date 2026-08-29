@@ -8,4 +8,4 @@
 
 No active task. Next: `TASK-252` — Library two-pane window.
 
-Last done: `TASK-288` — Skip leftover 0-byte crates when reading.
+Last done: `TASK-289` — List `%%` ancestor stems in `neworder.pref`.

@@ -10,8 +10,10 @@ shows one folder wrapping the Rekordbox tree.
 ```
 
 `WONSIN.crate` is written empty on every sync. Children keep the `%%`
-path. `neworder.pref` lists `WONSIN` first, then any older unprefixed
-crates, then the children.
+path. `neworder.pref` lists `WONSIN` first, then every `%%` ancestor
+(`WONSIN%%Gigs`, `WONSIN%%Gigs%%Played`) even when those folder nodes
+have no `.crate` file, then the leaves. Serato will not show a nested
+crate whose ancestors are missing from that list.
 
 The label is the mount folder name (`WONSIN` on `/media/$USER/WONSIN` or
 `/Volumes/WONSIN`). A path with no folder name (a bare drive letter)

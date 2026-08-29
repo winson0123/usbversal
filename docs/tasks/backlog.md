@@ -212,6 +212,7 @@ and none of them exist yet.
 | ~~`TASK-286`~~ | ~~Do not leave a 0-byte song after a failed replace~~ | Done — fsync `.tmp`, refuse empty/truncated payloads, write the original bytes back if replace leaves a short file. See `docs/workflows/audio-commit.md`. |
 | ~~`TASK-287`~~ | ~~Fsync crate, database V2, and neworder writes~~ | Done — `replace_flushed`; a zero-byte `database V2` is treated as missing. |
 | ~~`TASK-288`~~ | ~~Skip leftover 0-byte crates when reading~~ | Done — empty or unparseable `.crate` is missing tracks, not a crash. |
+| ~~`TASK-289`~~ | ~~List `%%` ancestor stems in `neworder.pref`~~ | Done — Serato needs `Gigs` / `Gigs%%Played` in the order file even with no matching `.crate`. |
 | `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |
 
 ---
