@@ -1030,6 +1030,18 @@ A Serato rename on WONSIN wrote `Dance-pop ␛␛2f Dancehall` (U+241B twice + h
 
 ---
 
+## TASK-286 — Do not leave a 0-byte song after a failed replace
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | A failed audio replace must not leave a 0-byte song |
+| Verification | ruff ✓ ruff format ✓ pytest 299 passed / 4 skipped |
+
+`write_geob` fsyncs the sibling `.tmp` and writes the original bytes back if replace leaves a short file. Empty and half-size rebuilds are refused. See `docs/workflows/audio-commit.md`.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

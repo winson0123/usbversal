@@ -6,8 +6,8 @@ below — that's what a session picking this up should do next.
 
 | | |
 |---|---|
-| Tests | 295 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-285` — Fix hot-cue colours and write Markers_ |
+| Tests | 299 passed, 4 skipped (`ruff` and `ruff format` clean) |
+| Last done | `TASK-286` — Do not leave a 0-byte song after a failed replace |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -52,7 +52,8 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 25 | ~~`TASK-283`~~ | Normal-width slash in crate names |
 | 26 | ~~`TASK-284`~~ | Serato's slash escape in crate names |
 | 27 | ~~`TASK-285`~~ | Fix hot-cue colours and write Markers_ |
-| 28 | `TASK-252` | Library two-pane (original ask, last) |
+| 28 | ~~`TASK-286`~~ | Do not leave a 0-byte song after a failed replace |
+| 29 | `TASK-252` | Library two-pane (original ask, last) |
 
 Progress screen target layout:
 
@@ -237,7 +238,7 @@ and hot cues into the audio tags and, when a grid was written, updates
 | `adapters/rekordbox/anlz.py` | reads hot cues (`PCO2`) and beats (`PQTZ`) |
 | `adapters/serato/beatgrid.py` | encodes `Serato BeatGrid` |
 | `adapters/serato/markers2.py` | encodes/decodes `Serato Markers2` |
-| `adapters/serato/tags.py` | reads/writes GEOB (v2.3/v2.4) and GEO (v2.2) in MP3 / WAV / AIFF, Vorbis comments on FLAC, and `----:com.serato.dj` atoms on M4A / MP4; verifies audio hash and frame read-back before any byte reaches disk |
+| `adapters/serato/tags.py` | reads/writes GEOB (v2.3/v2.4) and GEO (v2.2) in MP3 / WAV / AIFF, Vorbis comments on FLAC, and `----:com.serato.dj` atoms on M4A / MP4; verifies audio hash and frame read-back, fsyncs a sibling `.tmp`, and writes the original bytes back if replace leaves a short file |
 | `adapters/serato/library_db.py` | reads/updates `location.sqlite` |
 
 `sync_playlists()` now writes crates, `database V2` records, `neworder.pref`,
@@ -245,8 +246,9 @@ grids, cues, and the index in one pass. A track whose audio or
 ANLZ data cannot be read is skipped and recorded in `SyncReport.analysis_errors`
 rather than aborting the run. `correct_index_bpm()` (TASK-132) does the same
 first-beat-tempo correction library-wide, not only for tracks in a playlist
-being synced. `write_geob` (TASK-131) verifies size, audio hash, and frame
-read-back before any byte reaches disk, and `tests/test_never_clobber.py`
+being synced. `write_geob` (TASK-131 / TASK-286) verifies size, audio hash,
+and frame read-back, then fsyncs a sibling `.tmp` and restores the original
+bytes if replace leaves a short file. `tests/test_never_clobber.py`
 (TASK-133) proves that verification, and the writer generally, never disturbs
 a Mixed In Key or other foreign vendor frame. What none of this has done yet:
 

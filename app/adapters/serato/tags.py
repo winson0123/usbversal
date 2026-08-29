@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import binascii
 import hashlib
+import os
 import struct
 from pathlib import Path
 
@@ -958,6 +959,113 @@ def _already_on_disk(
     return all(existing.get(name) == payload for name, payload in updates.items())
 
 
+def _audio_tmp_path(target: Path) -> Path:
+    """Return the sibling temporary path used while rewriting ``target``."""
+    return target.with_suffix(target.suffix + ".tmp")
+
+
+def _recover_empty_from_tmp(target: Path) -> None:
+    """
+    Promote a leftover sibling ``.tmp`` when ``target`` is missing or empty.
+
+    Args:
+        target: Live audio path that should hold the song.
+    """
+    if target.is_file() and target.stat().st_size > 0:
+        return
+    temporary = _audio_tmp_path(target)
+    if not temporary.is_file() or temporary.stat().st_size == 0:
+        return
+    temporary.replace(target)
+
+
+def _write_flushed(path: Path, data: bytes) -> None:
+    """
+    Write ``data`` to ``path`` and fsync the file.
+
+    Args:
+        path: Destination file.
+        data: Bytes to write.
+    """
+    with path.open("wb") as handle:
+        handle.write(data)
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
+def _restore_audio_bytes(target: Path, original: bytes) -> None:
+    """
+    Write ``original`` over ``target``.
+
+    Args:
+        target: Live audio path to restore.
+        original: File contents read at the start of this write.
+    """
+    _write_flushed(target, original)
+
+
+def _discard_or_keep_tmp(temporary: Path, target: Path, new_data: bytes, original: bytes) -> None:
+    """
+    Remove a leftover tmp unless the destination is empty and the tmp is complete.
+
+    Args:
+        temporary: Sibling ``.tmp`` path.
+        target: Live audio path.
+        new_data: Verified rebuilt file contents.
+        original: File contents read at the start of this write.
+    """
+    if not temporary.is_file():
+        return
+    dest_size = target.stat().st_size if target.is_file() else 0
+    dest_ok = dest_size > 0 and dest_size in {len(new_data), len(original)}
+    if dest_ok or temporary.stat().st_size != len(new_data):
+        temporary.unlink()
+
+
+def _commit_audio_bytes(target: Path, new_data: bytes, original: bytes) -> None:
+    """
+    Replace ``target`` with ``new_data`` after a flushed temporary write.
+
+    The rebuilt file is written to a sibling ``.tmp``, flushed to disk, and
+    size-checked. Only then is it swapped onto ``target``. If the destination
+    is missing or shorter than ``new_data`` after the swap, ``original`` is
+    written back.
+
+    Args:
+        target: Live audio path to replace.
+        new_data: Verified rebuilt file contents.
+        original: File contents read at the start of this write.
+
+    Raises:
+        TagFormatError: The original file is empty, the rebuilt file is
+            less than half the original size, the temporary write was
+            truncated, or the destination could not be restored after a
+            failed swap.
+    """
+    if not original:
+        raise TagFormatError("audio file is empty")
+    minimum = max(1, len(original) // 2)
+    if len(new_data) < minimum:
+        raise TagFormatError(
+            f"refusing to write a truncated file ({len(original)} -> {len(new_data)} bytes)"
+        )
+    temporary = _audio_tmp_path(target)
+    try:
+        _write_flushed(temporary, new_data)
+        if temporary.stat().st_size != len(new_data):
+            raise TagFormatError("temporary audio write was truncated")
+        temporary.replace(target)
+        if target.is_file() and target.stat().st_size == len(new_data):
+            return
+        _restore_audio_bytes(target, original)
+        raise TagFormatError("audio replace left a short file; original restored")
+    except OSError as exc:
+        _restore_audio_bytes(target, original)
+        raise TagFormatError(f"audio replace failed: {exc}") from exc
+    finally:
+        _discard_or_keep_tmp(temporary, target, new_data, original)
+
+
 def write_geob(
     path: str | Path,
     updates: dict[str, bytes],
@@ -975,7 +1083,9 @@ def write_geob(
     chunk may grow or be created. FLAC Vorbis comments and MP4 ``moov`` may
     grow; STREAMINFO / ``mdat`` stay identical. Before anything reaches disk,
     the rebuilt file is verified against the original. The original file is
-    untouched if verification fails. When every requested payload already
+    untouched if verification fails. The swap onto the live path is fsynced
+    first; a short or missing destination is overwritten with the original
+    bytes. An empty file is refused. When every requested payload already
     matches and nothing is being removed, the file is not rewritten.
 
     Args:
@@ -988,13 +1098,17 @@ def write_geob(
         True if the file was rewritten, False if every update already matched.
 
     Raises:
-        TagFormatError: The container or tag cannot be parsed, the new frames
-            do not fit and the tag cannot grow, or the rebuilt file fails
-            verification against the original.
+        TagFormatError: The container or tag cannot be parsed, the file is
+            empty, the new frames do not fit and the tag cannot grow, the
+            rebuilt file fails verification, or the live path could not be
+            restored after a failed swap.
     """
     dropped_geob = remove_geob or set()
     dropped_frames = remove_frames or set()
     target = Path(path)
+    _recover_empty_from_tmp(target)
+    if not target.is_file() or target.stat().st_size == 0:
+        raise TagFormatError("audio file is empty")
     data = target.read_bytes()
     if _already_on_disk(data, updates, dropped_geob, dropped_frames):
         logger.info("audio_tags_unchanged", path=str(target), frames=sorted(updates))
@@ -1002,9 +1116,7 @@ def write_geob(
     if data[:4] == b"fLaC":
         new_data = _write_flac_bytes(data, updates, dropped_geob)
         verify_geob_rewrite(data, new_data, updates, remove_geob=dropped_geob)
-        temporary = target.with_suffix(target.suffix + ".tmp")
-        temporary.write_bytes(new_data)
-        temporary.replace(target)
+        _commit_audio_bytes(target, new_data, data)
         logger.info("audio_tags_written", path=str(target), frames=sorted(updates))
         return True
     if _is_mp4(data):
@@ -1012,9 +1124,7 @@ def write_geob(
 
         new_data = write_mp4_bytes(data, updates, dropped_geob)
         verify_geob_rewrite(data, new_data, updates, remove_geob=dropped_geob)
-        temporary = target.with_suffix(target.suffix + ".tmp")
-        temporary.write_bytes(new_data)
-        temporary.replace(target)
+        _commit_audio_bytes(target, new_data, data)
         logger.info("audio_tags_written", path=str(target), frames=sorted(updates))
         return True
     if _is_aiff(data):
@@ -1043,8 +1153,6 @@ def write_geob(
 
     verify_geob_rewrite(bytes(data), bytes(new_data), updates, remove_geob=dropped_geob)
 
-    temporary = target.with_suffix(target.suffix + ".tmp")
-    temporary.write_bytes(bytes(new_data))
-    temporary.replace(target)
+    _commit_audio_bytes(target, bytes(new_data), data)
     logger.info("audio_tags_written", path=str(target), frames=sorted(updates))
     return True

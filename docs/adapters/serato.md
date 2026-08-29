@@ -40,7 +40,7 @@ Vendor formats still change without notice; treat versions defensively.
 | Constraint | Enforcement |
 |------------|-------------|
 | Rekordbox files | Never write under `PIONEER/` |
-| Tag rewrite | Verify audio hash and frame read-back before replace |
+| Tag rewrite | Verify, fsync `.tmp`, restore original if replace leaves a short file |
 | Read-only if parse confidence low | Adapter returns error, does not guess |
 | No schema rebuild | Never regenerate entire database from scratch |
 
