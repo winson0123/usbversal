@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import struct
+from statistics import median
 
 from app.adapters.rekordbox.anlz import Beat
 
@@ -33,14 +34,34 @@ def _anchors(beats: list[Beat]) -> list[Beat]:
     return chosen
 
 
+def _section_tempo(beats: list[Beat], start: Beat) -> float:
+    """
+    Return the tempo that holds from ``start`` to the end of the track.
+
+    The last anchor is the first beat of the final section. Its own BPM is
+    often still mid-ramp. Serato displays the terminal marker's BPM, so
+    that value must be the tempo that actually holds.
+
+    Args:
+        beats: Downbeats in time order.
+        start: First beat of the final section.
+
+    Returns:
+        Median BPM of every downbeat from ``start`` onward, or ``start.bpm``
+        when that slice is empty.
+    """
+    section = [beat.bpm for beat in beats if beat.time_ms >= start.time_ms]
+    return float(median(section)) if section else start.bpm
+
+
 def encode_beatgrid(beats: list[Beat]) -> bytes | None:
     """
     Build a Serato BeatGrid payload from Rekordbox beats.
 
     A steady track becomes the single terminal marker Serato writes itself:
-    the first downbeat and the tempo. A track whose tempo moves gains a
-    non-terminal marker at each change, which is how transitions and other
-    variable-tempo edits keep their grid.
+    the first downbeat and that beat's tempo. A track whose tempo moves
+    gains a non-terminal marker at each change. The last marker's BPM is
+    the median of the final section, not the first reading of that section.
 
     Args:
         beats: Beats in time order, as read from ANLZ.
@@ -62,5 +83,6 @@ def encode_beatgrid(beats: list[Beat]) -> bytes | None:
             bars = max(1, round((following.time_ms - anchor.time_ms) / (240000.0 / anchor.bpm)))
             payload += struct.pack(">fI", position, bars * 4)
         else:
-            payload += struct.pack(">ff", position, anchor.bpm)
+            bpm = anchor.bpm if len(anchors) == 1 else _section_tempo(downbeats, anchor)
+            payload += struct.pack(">ff", position, bpm)
     return bytes(payload)

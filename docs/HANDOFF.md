@@ -242,12 +242,13 @@ Backups on the stick, newest last:
 
 ## Do this next
 
-### Confirm a variable-tempo grid in Serato, then the Library window
+### Library two-pane window
 
 `correct_index_bpm` has been run on WONSIN. Still not in the TUI — operators
-cannot repeat that pass without a script. Next: load Apt X Blue in Serato
-and confirm the 4-marker grid (TASK-251). Then the Library two-pane window
-(TASK-252). See `docs/tasks/backlog.md`.
+cannot repeat that pass without a script. Apt X Blue's 4-marker grid is
+confirmed in Serato (TASK-251); re-sync after TASK-257 so the last marker
+is 140, not 140.9. Next is the Library two-pane window (TASK-252).
+See `docs/tasks/backlog.md`.
 
 ---
 

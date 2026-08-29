@@ -252,6 +252,20 @@ def test_a_ramp_is_anchored_at_each_step() -> None:
     assert 3 <= count <= 6, count
 
 
+def test_terminal_bpm_is_the_settled_last_section() -> None:
+    """The last anchor sits at the start of the final section, often still
+    mid-ramp. Serato shows that marker's BPM, so it must be the tempo that
+    holds, not the first reading of the section."""
+    beats = _bars([148.8] * 8 + [146.0, 144.0, 142.0] + [140.87] + [140.0] * 8)
+
+    payload = encode_beatgrid(beats)
+    count = struct.unpack(">I", payload[2:6])[0]
+    _, terminal_bpm = struct.unpack(">ff", payload[-8:])
+
+    assert count >= 2
+    assert round(terminal_bpm, 1) == 140.0
+
+
 def test_non_terminal_markers_count_beats_to_the_next() -> None:
     """Every marker but the last says how many beats reach the next one."""
     beats = _bars([128.0] * 4 + [94.0] * 4)

@@ -175,11 +175,12 @@ and none of them exist yet.
 | ~~`TASK-242`~~ | ~~FLAC Vorbis-comment Serato tags~~ | Done — `SERATO_BEATGRID` / `SERATO_MARKERS_V2` via base64-wrapped payloads. STREAMINFO and audio frames stay byte-identical. MP4 still out of scope. |
 | ~~`TASK-243`~~ | ~~Progress covers index and crate writes~~ | Done — `SyncProgress` with `index` / `analysis` / `crates`. Progress screen labels each phase; backup is the opening status line. |
 | ~~`TASK-250`~~ | ~~Run `correct_index_bpm` on a real stick~~ | Done — WONSIN 2026-08-28: 7 of 1286 rows written, backup `20260828T072224Z`. Still not in the TUI. Findings in `docs/workflows/index-bpm-wonsin.md`. |
-| `TASK-251` | Confirm a variable-tempo grid in Serato | Apt X Blue already has a 4-marker grid on disk. Deck check still missing. |
+| ~~`TASK-251`~~ | ~~Confirm a variable-tempo grid in Serato~~ | Done — 2026-08-29 deck load: four-marker 149→140 grid follows. Last marker was 140.9, not 140 (TASK-257). |
 | ~~`TASK-253`~~ | ~~Hot cue colours are black in Serato~~ | Done — RGB at PCP2 offset 28. Findings in `docs/workflows/cue-colour-offset.md`. |
 | ~~`TASK-254`~~ | ~~Keep `/` in crate names~~ | Done — `/` becomes U+FF0F fullwidth solidus. See `docs/workflows/crate-slash.md`. |
 | ~~`TASK-255`~~ | ~~Parent crate named after the volume~~ | Done — `crate_name_for(..., volume=)` prefixes the mount folder name. No empty parent `.crate`. See `docs/workflows/volume-crate.md`. |
 | ~~`TASK-256`~~ | ~~Omit Rekordbox "CUE Analysis Playlist"~~ | Done — `include_playlist()` drops it (any casing) from `list_playlists`, so the tree and sync never see it. |
+| ~~`TASK-257`~~ | ~~Terminal beatgrid BPM is the settled last section~~ | Done — median of downbeats from the last anchor, not the first mid-ramp reading. Apt X Blue 140.87 → 140. |
 | `TASK-252` | Library two-pane window | Last. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green: not in crate / crate but analysis not ported / fully ported. Spec in HANDOFF.md. |
 
 ---

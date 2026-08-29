@@ -9,13 +9,7 @@
     "blocked_reason": null
   },
   "pending_tasks": [],
-  "blocked_tasks": [
-    {
-      "id": "TASK-251",
-      "title": "Confirm a variable-tempo grid in Serato",
-      "blocked_reason": "On-disk grid matches the encoder; needs a Serato deck load of Apt X Blue"
-    }
-  ],
+  "blocked_tasks": [],
   "completed_tasks": [
     {
       "id": "TASK-INIT-001",
@@ -500,6 +494,16 @@
     {
       "id": "TASK-255",
       "title": "Parent crate named after the volume",
+      "completed_at": "2026-08-29T00:00:00Z"
+    },
+    {
+      "id": "TASK-251",
+      "title": "Confirm a variable-tempo grid in Serato",
+      "completed_at": "2026-08-29T00:00:00Z"
+    },
+    {
+      "id": "TASK-257",
+      "title": "Terminal beatgrid BPM is the settled last section",
       "completed_at": "2026-08-29T00:00:00Z"
     }
   ],
@@ -1083,6 +1087,18 @@
     {
       "id": "TASK-255",
       "title": "Parent crate named after the volume",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-251",
+      "title": "Confirm a variable-tempo grid in Serato",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-257",
+      "title": "Terminal beatgrid BPM is the settled last section",
       "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }

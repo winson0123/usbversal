@@ -700,6 +700,30 @@ Rekordbox recreates `CUE Analysis Playlist` (also seen as `Cue Analysis Playlist
 
 ---
 
+## TASK-251 — Confirm a variable-tempo grid in Serato
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Load Apt X Blue on a Serato deck and confirm the 4-marker ramp |
+| Verification | User: grid follows; last marker 140.9 not 140 |
+
+**Findings:** [apt-x-blue-grid.md](../workflows/apt-x-blue-grid.md)
+
+---
+
+## TASK-257 — Terminal beatgrid BPM is the settled last section
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Last marker BPM is the tempo that holds, not the first mid-ramp reading |
+| Verification | ruff ✓ ruff format ✓ pytest 293 passed / 4 skipped |
+
+**Findings:** [apt-x-blue-grid.md](../workflows/apt-x-blue-grid.md) — median of the final section. Re-sync Apt X Blue.
+
+---
+
 ## Template (for future entries)
 
 ```markdown
