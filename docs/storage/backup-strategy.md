@@ -58,7 +58,8 @@ size trade-off: a 200 GB stick does not need a 200 GB backup.
 
 1. Resolve all file paths the operation will touch
 2. If the latest snapshot already has an identical copy of every file
-   (size + `original_sha256`), reuse that directory
+   (size + `original_mtime_ns`, falling back to `original_sha256` when
+   mtime is missing or differs), reuse that directory
 3. Otherwise create a timestamped snapshot directory
 4. For each file: reuse the previous object when the live bytes match;
    otherwise write a new object
@@ -73,7 +74,13 @@ size trade-off: a 200 GB stick does not need a 200 GB backup.
 | `backup_id` | Unique id for rollback |
 | `created_at` | ISO timestamp |
 | `source_mount` | Original mount path |
-| `files` | `{relative_path, sha256, size, kind, stored_as, original_sha256, original_size}` |
+| `files` | `{relative_path, sha256, size, kind, stored_as, original_sha256, original_size, original_mtime_ns}` |
+
+A live file whose size and mtime still match the snapshot is not hashed
+again (same rule rsync and restic use). Older rows without
+`original_mtime_ns` are hashed once, then the mtime is written back onto
+that snapshot. Inode is not used: USB and WSL filesystems do not keep a
+stable one. Same-size, same-mtime, different bytes is the accepted miss.
 
 `kind` is `full` or `delta`. `stored_as` is `objects/<sha256>` for new
 writes. Checksums are of the stored artifact (the object, not the song).

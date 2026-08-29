@@ -8,7 +8,7 @@ import os
 import re
 import shutil
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -50,6 +50,8 @@ class BackupFileEntry:
             keep an in-directory path (``relative_path`` or ``*.delta``).
         original_sha256: Source file hash before the write, when known.
         original_size: Source file size before the write, when known.
+        original_mtime_ns: Source ``st_mtime_ns`` when the snapshot was taken.
+            Used to skip a full-file hash when size and mtime still match.
     """
 
     relative_path: str
@@ -59,6 +61,7 @@ class BackupFileEntry:
     stored_as: str | None = None
     original_sha256: str | None = None
     original_size: int | None = None
+    original_mtime_ns: int | None = None
 
     def artifact_path(self) -> str:
         """
@@ -146,6 +149,11 @@ class BackupManifest:
                     str(item["original_sha256"]) if item.get("original_sha256") else None
                 ),
                 original_size=(int(item["original_size"]) if item.get("original_size") else None),
+                original_mtime_ns=(
+                    int(item["original_mtime_ns"])
+                    if item.get("original_mtime_ns") is not None
+                    else None
+                ),
             )
             for item in data.get("files", [])
         )
@@ -388,16 +396,49 @@ def _latest_backup_dir(root: Path) -> Path | None:
     return max(candidates, key=lambda path: path.name)
 
 
+def _mtime_ns(path: Path) -> int:
+    """
+    Return the file's modification time in nanoseconds.
+
+    Args:
+        path: File to stat.
+
+    Returns:
+        ``st_mtime_ns`` from the live inode.
+    """
+    return path.stat().st_mtime_ns
+
+
+def _with_mtime(entry: BackupFileEntry, mtime_ns: int) -> BackupFileEntry:
+    """
+    Return ``entry`` with ``original_mtime_ns`` set to ``mtime_ns``.
+
+    Args:
+        entry: Manifest row.
+        mtime_ns: Live ``st_mtime_ns`` to record.
+
+    Returns:
+        The same entry, or a copy with the new mtime.
+    """
+    if entry.original_mtime_ns == mtime_ns:
+        return entry
+    return replace(entry, original_mtime_ns=mtime_ns)
+
+
 def _source_matches_entry(source: Path, entry: BackupFileEntry) -> bool:
     """
     Return True when ``source`` is still the file this entry backed up.
+
+    Size plus a stored mtime is enough: that is how restic and rsync avoid
+    re-reading unchanged files. A missing mtime (older snapshots) or a
+    mismatch falls through to a SHA-256 of the live bytes.
 
     Args:
         source: Live file on the mount.
         entry: Manifest row from the latest backup.
 
     Returns:
-        True when size and content still match the pre-write snapshot.
+        True when size and mtime match, or when size and content match.
     """
     expected_hash = entry.original_sha256
     expected_size = entry.original_size
@@ -406,8 +447,11 @@ def _source_matches_entry(source: Path, entry: BackupFileEntry) -> bool:
             return False
         expected_hash = entry.sha256
         expected_size = entry.size
-    if expected_size is not None and source.stat().st_size != expected_size:
+    info = source.stat()
+    if expected_size is not None and info.st_size != expected_size:
         return False
+    if entry.original_mtime_ns is not None and info.st_mtime_ns == entry.original_mtime_ns:
+        return True
     return sha256_file(source) == expected_hash
 
 
@@ -466,6 +510,7 @@ def _reusable_backup(
         for source, relative in sources
     ):
         return None
+    manifest = _stamp_source_mtimes(latest, manifest, sources)
     if on_progress is not None:
         total = sum(source.stat().st_size for source, _ in sources) or len(sources)
         on_progress(0, total)
@@ -477,6 +522,39 @@ def _reusable_backup(
         file_count=len(sources),
     )
     return BackupResult(backup_id=manifest.backup_id, backup_dir=latest, manifest=manifest)
+
+
+def _stamp_source_mtimes(
+    backup_dir: Path,
+    manifest: BackupManifest,
+    sources: list[tuple[Path, str]],
+) -> BackupManifest:
+    """
+    Persist live mtimes onto the snapshot so the next run can skip hashing.
+
+    Older manifests have no ``original_mtime_ns``. After a hash confirmed the
+    bytes, write the current mtimes back so reuse is a ``stat`` next time.
+
+    Args:
+        backup_dir: Snapshot directory whose manifest may be rewritten.
+        manifest: Loaded snapshot.
+        sources: Live files this run compared, as ``(path, relative)``.
+
+    Returns:
+        The manifest, unchanged or rewritten with mtimes.
+    """
+    by_relative = {relative: source for source, relative in sources}
+    stamped = tuple(
+        _with_mtime(entry, _mtime_ns(by_relative[entry.relative_path]))
+        if entry.relative_path in by_relative
+        else entry
+        for entry in manifest.files
+    )
+    if stamped == manifest.files:
+        return manifest
+    updated = replace(manifest, files=stamped)
+    updated.write(backup_dir)
+    return updated
 
 
 def _previous_snapshot(
@@ -529,6 +607,7 @@ def _promote_legacy_entry(
         stored_as=f"{_OBJECTS}/{digest}",
         original_sha256=previous.original_sha256,
         original_size=previous.original_size,
+        original_mtime_ns=previous.original_mtime_ns,
     )
 
 
@@ -558,8 +637,10 @@ def _entry_for_source(
             if artifact.is_file():
                 stored = prior.stored_as or ""
                 if stored.startswith(f"{_OBJECTS}/"):
-                    return prior
-                return _promote_legacy_entry(artifact, prior, backup_dir)
+                    return _with_mtime(prior, _mtime_ns(source))
+                return _with_mtime(
+                    _promote_legacy_entry(artifact, prior, backup_dir), _mtime_ns(source)
+                )
     return _store_backup_file(source, backup_dir, relative)
 
 
@@ -599,18 +680,20 @@ def _store_backup_file(source: Path, backup_dir: Path, relative: str) -> BackupF
                 stored_as=f"{_OBJECTS}/{digest}",
                 original_sha256=hashlib.sha256(data).hexdigest(),
                 original_size=len(data),
+                original_mtime_ns=_mtime_ns(source),
             )
     digest = _put_object_file(objects, source)
     logger.info("backup_copy", source=str(source), destination=str(objects / digest))
-    size = source.stat().st_size
+    info = source.stat()
     return BackupFileEntry(
         relative_path=relative,
         sha256=digest,
-        size=size,
+        size=info.st_size,
         kind=_KIND_FULL,
         stored_as=f"{_OBJECTS}/{digest}",
         original_sha256=digest,
-        original_size=size,
+        original_size=info.st_size,
+        original_mtime_ns=info.st_mtime_ns,
     )
 
 

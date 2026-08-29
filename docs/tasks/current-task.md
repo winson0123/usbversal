@@ -10,8 +10,8 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-277` |
-| Objective | Skip `write_geob` when every requested payload already matches |
+| Task ID | `TASK-278` |
+| Objective | Skip the backup SHA-256 when size and mtime still match |
 | Completed | 2026-08-29 |
 
 ### Verification log
@@ -20,7 +20,7 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 333 passed, 4 skipped |
+| `.venv/bin/pytest` | 336 passed, 4 skipped |
 
 ## Next
 

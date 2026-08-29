@@ -1,6 +1,7 @@
 """Tests for backup copy and manifest."""
 
 import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from app.services.backup_service import (
     serato_files_on_mount,
 )
 from app.storage.backup import (
+    BackupFileEntry,
     BackupManifest,
     atomic_copy_file,
     create_backup,
@@ -51,6 +53,7 @@ def test_create_backup_writes_manifest(tmp_path: Path) -> None:
     stored = resolve_artifact(result.backup_dir, loaded.files[0])
     assert stored.read_bytes() == b"test-db-content"
     assert loaded.files[0].stored_as == f"objects/{loaded.files[0].sha256}"
+    assert loaded.files[0].original_mtime_ns == db.stat().st_mtime_ns
 
 
 def test_create_backup_reports_byte_progress(tmp_path: Path) -> None:
@@ -210,6 +213,98 @@ def test_unchanged_files_reuse_the_latest_backup(tmp_path: Path) -> None:
     ]
     assert len(snapshots) == 1
     assert WriteContext(backup_path=second.backup_dir).backup_path == first.backup_dir
+    assert second.manifest.files[0].original_mtime_ns == db.stat().st_mtime_ns
+
+
+def test_matching_size_and_mtime_does_not_hash_the_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A second backup of an untouched file does not read it for SHA-256."""
+    mount = tmp_path / "usb"
+    rb = mount / "PIONEER/rekordbox"
+    rb.mkdir(parents=True)
+    db = rb / "exportLibrary.db"
+    db.write_bytes(b"same-bytes")
+    backups_root = tmp_path / "backups"
+    create_backup(source_mount=mount, files=[db], backup_root=backups_root)
+    calls = {"n": 0}
+    real = sha256_file
+
+    def counted(path: Path) -> str:
+        """Count SHA-256 calls, then hash as usual."""
+        calls["n"] += 1
+        return real(path)
+
+    monkeypatch.setattr("app.storage.backup.sha256_file", counted)
+    create_backup(source_mount=mount, files=[db], backup_root=backups_root)
+
+    assert calls["n"] == 0
+
+
+def test_legacy_snapshot_without_mtime_hashes_once_then_skips(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An older manifest row with no mtime is hashed, then stamped for next time."""
+    mount = tmp_path / "usb"
+    rb = mount / "PIONEER/rekordbox"
+    rb.mkdir(parents=True)
+    db = rb / "exportLibrary.db"
+    db.write_bytes(b"legacy")
+    backups_root = tmp_path / "backups"
+    first = create_backup(source_mount=mount, files=[db], backup_root=backups_root)
+    stripped = BackupManifest(
+        backup_id=first.manifest.backup_id,
+        created_at=first.manifest.created_at,
+        source_mount=first.manifest.source_mount,
+        files=(
+            BackupFileEntry(
+                relative_path=first.manifest.files[0].relative_path,
+                sha256=first.manifest.files[0].sha256,
+                size=first.manifest.files[0].size,
+                kind=first.manifest.files[0].kind,
+                stored_as=first.manifest.files[0].stored_as,
+                original_sha256=first.manifest.files[0].original_sha256,
+                original_size=first.manifest.files[0].original_size,
+            ),
+        ),
+    )
+    stripped.write(first.backup_dir)
+    hashes = {"n": 0}
+    real = sha256_file
+
+    def counted(path: Path) -> str:
+        """Count SHA-256 calls, then hash as usual."""
+        hashes["n"] += 1
+        return real(path)
+
+    monkeypatch.setattr("app.storage.backup.sha256_file", counted)
+    second = create_backup(source_mount=mount, files=[db], backup_root=backups_root)
+    first_hashes = hashes["n"]
+    hashes["n"] = 0
+    third = create_backup(source_mount=mount, files=[db], backup_root=backups_root)
+
+    assert second.backup_id == first.backup_id
+    assert first_hashes == 1
+    assert hashes["n"] == 0
+    assert third.manifest.files[0].original_mtime_ns == db.stat().st_mtime_ns
+
+
+def test_touched_file_with_same_bytes_still_reuses(tmp_path: Path) -> None:
+    """A mtime-only change is hashed, then the same snapshot is reused."""
+    mount = tmp_path / "usb"
+    rb = mount / "PIONEER/rekordbox"
+    rb.mkdir(parents=True)
+    db = rb / "exportLibrary.db"
+    db.write_bytes(b"same-bytes")
+    backups_root = tmp_path / "backups"
+    first = create_backup(source_mount=mount, files=[db], backup_root=backups_root)
+    later = db.stat().st_mtime + 2
+    os.utime(db, (later, later))
+
+    second = create_backup(source_mount=mount, files=[db], backup_root=backups_root)
+
+    assert second.backup_id == first.backup_id
+    assert second.manifest.files[0].original_mtime_ns == db.stat().st_mtime_ns
 
 
 def test_changed_file_creates_a_new_backup(tmp_path: Path) -> None:

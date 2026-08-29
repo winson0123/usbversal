@@ -934,6 +934,18 @@ AIFF/AIFC store ID3 GEOB in a big-endian `ID3 ` chunk; audio is `SSND` after its
 
 ---
 
+## TASK-278 — Skip backup hash when size and mtime match
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Do not SHA-256 a live file whose size and mtime still match the snapshot |
+| Verification | ruff ✓ ruff format ✓ pytest 336 passed / 4 skipped |
+
+Same change-detection rule as rsync and restic. Inode is not used. Older snapshots without `original_mtime_ns` are hashed once; the mtime is then written onto that snapshot.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

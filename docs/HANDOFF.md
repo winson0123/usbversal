@@ -6,8 +6,8 @@ below — that's what a session picking this up should do next.
 
 | | |
 |---|---|
-| Tests | 333 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-277` — Skip GEOB rewrite when payload already matches |
+| Tests | 336 passed, 4 skipped (`ruff` and `ruff format` clean) |
+| Last done | `TASK-278` — Skip backup hash when size and mtime match |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -44,7 +44,8 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 17 | ~~`TASK-276`~~ | ETA uses recent rate; resets when the phase changes |
 | 18 | ~~`TASK-263`~~ | `.aif` / `.aiff` / `.m4a` / `.mp4` tag read/write |
 | 19 | ~~`TASK-277`~~ | Skip GEOB rewrite when BeatGrid/Markers2 already match |
-| 20 | `TASK-252` | Library two-pane (original ask, last) |
+| 20 | ~~`TASK-278`~~ | Skip backup SHA-256 when size and mtime match |
+| 21 | `TASK-252` | Library two-pane (original ask, last) |
 
 Progress screen target layout:
 
