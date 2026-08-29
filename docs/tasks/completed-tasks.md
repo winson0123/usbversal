@@ -1102,6 +1102,18 @@ Linux: `os.syncfs` or libc `syncfs`, then `BLKFLSBUF`. macOS: `F_FULLFSYNC`. Win
 
 ---
 
+## TASK-292 — q shows the same quit toast as ^C
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Bare `q` uses Textual's `help_quit` toast, same as `^C` |
+| Verification | ruff ✓ ruff format ✓ pytest 322 passed / 4 skipped |
+
+`action_quit_hint` calls `action_help_quit`. Title is "Do you want to quit?"; body is "Press **ctrl+q** to quit the app". The compact custom toast CSS is gone.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

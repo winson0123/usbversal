@@ -152,19 +152,45 @@ async def test_quit_from_home_does_not_hop_to_the_rekordbox_thread() -> None:
         assert hops == 0
 
 
+def _quit_hint_notes(app: UsbversalApp) -> list[tuple[str, str]]:
+    """
+    Return ``(title, message)`` for each on-screen notification.
+
+    Args:
+        app: Running TUI.
+
+    Returns:
+        Title and message of every current notification.
+    """
+    return [(note.title, note.message) for note in app._notifications]
+
+
 @pytest.mark.asyncio
 async def test_plain_q_does_not_quit() -> None:
-    """A stray q must not exit; it toasts that quit is Ctrl+Q."""
+    """A stray q must not exit; it uses the same toast as Ctrl+C."""
     app = UsbversalApp()
     async with app.run_test(notifications=True) as pilot:
         await pilot.pause()
         await pilot.press("q")
         await pilot.pause()
         assert isinstance(app.screen, HomeScreen)
-        messages = [note.message for note in app._notifications]
-        assert messages == ["Press ^Q to quit"]
-        toast = app.screen.query_one("Toast")
-        assert toast.region.width <= 24
+        assert _quit_hint_notes(app) == [
+            ("Do you want to quit?", "Press [b]ctrl+q[/b] to quit the app")
+        ]
+        assert app.is_running
+
+
+@pytest.mark.asyncio
+async def test_ctrl_c_shows_the_same_quit_hint_as_q() -> None:
+    """Ctrl+C must not exit; it toasts the real quit key."""
+    app = UsbversalApp()
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+c")
+        await pilot.pause()
+        assert _quit_hint_notes(app) == [
+            ("Do you want to quit?", "Press [b]ctrl+q[/b] to quit the app")
+        ]
         assert app.is_running
 
 

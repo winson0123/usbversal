@@ -184,7 +184,8 @@ and none of them exist yet.
 | ~~`TASK-258`~~ | ~~Quit is Ctrl+Q only~~ | Done — app binding is `ctrl+q` with footer `^Q`. Bare `q` does nothing. |
 | ~~`TASK-267`~~ | ~~Bare q shows a use-^Q-to-quit popup~~ | Done — then replaced in TASK-269. |
 | ~~`TASK-269`~~ | ~~Bare q uses Textual notify toast~~ | Done — `q` calls `App.notify`, not a custom modal. |
-| ~~`TASK-270`~~ | ~~Shorter quit toast~~ | Done — "Press ^Q to quit"; toast `width: auto` / `max-width: 24`. |
+| ~~`TASK-270`~~ | ~~Shorter quit toast~~ | Done — then replaced in TASK-292. |
+| ~~`TASK-292`~~ | ~~q shows the same quit toast as ^C~~ | Done — both keys use Textual `help_quit`. |
 | ~~`TASK-271`~~ | ~~Grow MP3 ID3 when Serato frames do not fit~~ | Done — tight tags grow unless `Serato Offsets_` is present. |
 | ~~`TASK-259`~~ | ~~Backup bar, then sync bar~~ | Done — backup bar is bytes + ETA. Sync bar is index+analysis+crates as one total. Not one bar across both. |
 | ~~`TASK-260`~~ | ~~One run-wide bar and ETA~~ | Folded into TASK-259. |

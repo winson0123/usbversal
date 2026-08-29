@@ -20,7 +20,6 @@ from app.tui.screens.home import HomeScreen
 
 _T = TypeVar("_T")
 _MISSING = object()
-_QUIT_HINT = "Press ^Q to quit"
 _ALT_SCREEN_ON = "\x1b[?1049h"
 _ALT_SCREEN_OFF = "\x1b[?1049l"
 _CLEAR_SCREEN = "\x1b[2J\x1b[H"
@@ -180,11 +179,6 @@ class UsbversalApp(RekordboxThreadMixin, App):
         background: transparent;
         color: ansi_default;
     }
-    Toast {
-        width: auto;
-        max-width: 24;
-        padding: 0 1;
-    }
     """
 
     def __init__(self, watcher: MountWatcher | None = None) -> None:
@@ -233,8 +227,8 @@ class UsbversalApp(RekordboxThreadMixin, App):
         return driver
 
     def action_quit_hint(self) -> None:
-        """Show that quit is Ctrl+Q. A stray ``q`` must not exit."""
-        self.notify(_QUIT_HINT)
+        """Show the same quit toast as ``^C``. A stray ``q`` must not exit."""
+        self.action_help_quit()
 
     async def action_quit(self) -> None:
         """Park library handles and leave the UI; Drop runs after unmount."""

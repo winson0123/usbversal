@@ -8,10 +8,10 @@
 
 No active task. Next: `TASK-252` — Library two-pane window.
 
-Last done: `TASK-291` — Portable volume flush after sync.
+Last done: `TASK-292` — `q` shows the same quit toast as `^C`.
 
-## TASK-291 verification log
+## TASK-292 verification log
 
 - `.venv/bin/ruff check .` — pass
 - `.venv/bin/ruff format --check .` — pass
-- `.venv/bin/pytest` — 321 passed / 4 skipped
+- `.venv/bin/pytest` — 322 passed / 4 skipped

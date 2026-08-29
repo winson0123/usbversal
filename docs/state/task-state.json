@@ -660,6 +660,11 @@
       "id": "TASK-291",
       "title": "Portable volume flush after sync",
       "completed_at": "2026-08-30T00:00:00Z"
+    },
+    {
+      "id": "TASK-292",
+      "title": "q shows the same quit toast as ^C",
+      "completed_at": "2026-08-30T00:00:00Z"
     }
   ],
   "history": [
@@ -1452,6 +1457,12 @@
     {
       "id": "TASK-291",
       "title": "Portable volume flush after sync",
+      "completed_at": "2026-08-30T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-292",
+      "title": "q shows the same quit toast as ^C",
       "completed_at": "2026-08-30T00:00:00Z",
       "status": "completed"
     }
