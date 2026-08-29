@@ -1078,6 +1078,18 @@ A working WONSIN `neworder.pref` listed `Gigs` and `Gigs%%Played` with no matchi
 
 ---
 
+## TASK-290 — Flush the USB filesystem at the end of sync
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Flush leftover FAT and directory pages after sync; do not unmount |
+| Verification | ruff ✓ ruff format ✓ pytest 316 passed / 4 skipped |
+
+`flush_mount` is `syncfs` (or `sync`) on the mount directory. `replace_flushed` also fsyncs the parent directory. The TUI does not eject. See `docs/workflows/volume-flush.md`.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

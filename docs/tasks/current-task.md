@@ -8,4 +8,10 @@
 
 No active task. Next: `TASK-252` — Library two-pane window.
 
-Last done: `TASK-289` — List `%%` ancestor stems in `neworder.pref`.
+Last done: `TASK-290` — Flush the USB filesystem at the end of sync.
+
+## TASK-290 verification log
+
+- `.venv/bin/ruff check .` — pass
+- `.venv/bin/ruff format --check .` — pass
+- `.venv/bin/pytest` — 316 passed / 4 skipped

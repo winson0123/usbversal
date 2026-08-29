@@ -55,6 +55,7 @@ from app.services.track_records import (
     load_lookups,
     serato_path,
 )
+from app.storage.mounts import flush_mount
 
 logger = structlog.get_logger(__name__)
 
@@ -823,57 +824,60 @@ def sync_playlists(
     if dry_run:
         return _dry_run_report(library, selected, by_id, tracks_by_playlist, missing)
 
-    lookups = load_lookups(library.rekordbox.database)
-    by_path = {c.path: c for c in library.rekordbox.database.get_contents()}
-    analysis_targets = _tracks_with_analysis(library.mount, all_paths, by_path)
-    groups = [(p.name, tracks_by_playlist[p.id]) for p in selected]
-    index_paths, index_meta = playlist_path_meta(groups, set(missing))
-    analysis_paths, analysis_meta = playlist_path_meta(groups, analysis_targets)
-    sync_total = len(missing) + len(analysis_targets) + len(selected)
-    records_added = _index_missing_tracks(
-        database_path,
-        index_paths,
-        by_path,
-        lookups,
-        attach_playlist(rebase_progress(on_progress, 0, sync_total), index_meta),
-    )
-    analysis = _sync_analysis(
-        library.mount,
-        _existing_index_path(serato_root),
-        by_path,
-        analysis_paths,
-        lookups,
-        attach_playlist(rebase_progress(on_progress, len(missing), sync_total), analysis_meta),
-    )
-    volume = volume_label_for(library.mount)
-    results = _write_playlist_crates(
-        serato_root,
-        selected,
-        by_id,
-        tracks_by_playlist,
-        rebase_progress(on_progress, len(missing) + len(analysis_targets), sync_total),
-        volume=volume,
-    )
-    _publish_crate_order(serato_root, results, volume)
+    try:
+        lookups = load_lookups(library.rekordbox.database)
+        by_path = {c.path: c for c in library.rekordbox.database.get_contents()}
+        analysis_targets = _tracks_with_analysis(library.mount, all_paths, by_path)
+        groups = [(p.name, tracks_by_playlist[p.id]) for p in selected]
+        index_paths, index_meta = playlist_path_meta(groups, set(missing))
+        analysis_paths, analysis_meta = playlist_path_meta(groups, analysis_targets)
+        sync_total = len(missing) + len(analysis_targets) + len(selected)
+        records_added = _index_missing_tracks(
+            database_path,
+            index_paths,
+            by_path,
+            lookups,
+            attach_playlist(rebase_progress(on_progress, 0, sync_total), index_meta),
+        )
+        analysis = _sync_analysis(
+            library.mount,
+            _existing_index_path(serato_root),
+            by_path,
+            analysis_paths,
+            lookups,
+            attach_playlist(rebase_progress(on_progress, len(missing), sync_total), analysis_meta),
+        )
+        volume = volume_label_for(library.mount)
+        results = _write_playlist_crates(
+            serato_root,
+            selected,
+            by_id,
+            tracks_by_playlist,
+            rebase_progress(on_progress, len(missing) + len(analysis_targets), sync_total),
+            volume=volume,
+        )
+        _publish_crate_order(serato_root, results, volume)
 
-    logger.info(
-        "sync_completed",
-        playlists=len(results),
-        records_added=records_added,
-        grids_written=analysis.grids_written,
-        cues_written=analysis.cues_written,
-        index_rows_updated=analysis.index_rows_updated,
-    )
-    return SyncReport(
-        mount=library.mount,
-        dry_run=False,
-        records_added=records_added,
-        results=tuple(results),
-        grids_written=analysis.grids_written,
-        cues_written=analysis.cues_written,
-        index_rows_updated=analysis.index_rows_updated,
-        analysis_errors=analysis.errors,
-    )
+        logger.info(
+            "sync_completed",
+            playlists=len(results),
+            records_added=records_added,
+            grids_written=analysis.grids_written,
+            cues_written=analysis.cues_written,
+            index_rows_updated=analysis.index_rows_updated,
+        )
+        return SyncReport(
+            mount=library.mount,
+            dry_run=False,
+            records_added=records_added,
+            results=tuple(results),
+            grids_written=analysis.grids_written,
+            cues_written=analysis.cues_written,
+            index_rows_updated=analysis.index_rows_updated,
+            analysis_errors=analysis.errors,
+        )
+    finally:
+        flush_mount(library.mount)
 
 
 @dataclass(frozen=True)

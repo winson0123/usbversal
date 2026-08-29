@@ -184,6 +184,32 @@ def test_dry_run_writes_nothing(tmp_path: Path) -> None:
     assert not list((mount / "_Serato_" / "Subcrates").glob("*.crate"))
 
 
+def test_dry_run_does_not_flush_the_mount(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A dry run must not syncfs the stick."""
+    flushed: list[Path] = []
+    monkeypatch.setattr("app.services.sync_service.flush_mount", flushed.append)
+    mount = _stick(tmp_path, indexed=[])
+    playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
+    library = _library(mount, [playlist], {1: TRACKS})
+
+    sync_playlists(library, [1], dry_run=True)
+
+    assert flushed == []
+
+
+def test_sync_flushes_the_mount(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A real sync must push leftover FAT and directory pages to the device."""
+    flushed: list[Path] = []
+    monkeypatch.setattr("app.services.sync_service.flush_mount", flushed.append)
+    mount = _stick(tmp_path, indexed=[])
+    playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
+    library = _library(mount, [playlist], {1: TRACKS}, [_content(t) for t in TRACKS])
+
+    sync_playlists(library, [1])
+
+    assert flushed == [mount]
+
+
 def test_sync_indexes_missing_tracks_and_writes_a_crate(tmp_path: Path) -> None:
     """Tracks Serato does not know are added, then placed in a crate."""
     mount = _stick(tmp_path, indexed=[])

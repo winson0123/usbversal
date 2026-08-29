@@ -650,6 +650,11 @@
       "id": "TASK-289",
       "title": "List %% ancestor stems in neworder.pref",
       "completed_at": "2026-08-30T00:00:00Z"
+    },
+    {
+      "id": "TASK-290",
+      "title": "Flush the USB filesystem at the end of sync",
+      "completed_at": "2026-08-30T00:00:00Z"
     }
   ],
   "history": [
@@ -1430,6 +1435,12 @@
     {
       "id": "TASK-289",
       "title": "List %% ancestor stems in neworder.pref",
+      "completed_at": "2026-08-30T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-290",
+      "title": "Flush the USB filesystem at the end of sync",
       "completed_at": "2026-08-30T00:00:00Z",
       "status": "completed"
     }

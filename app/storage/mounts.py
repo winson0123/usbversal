@@ -1,5 +1,7 @@
 """Cross-platform mount point enumeration."""
 
+from __future__ import annotations
+
 import getpass
 import os
 import platform
@@ -34,6 +36,32 @@ def resolve_mount_path(mount: str | Path) -> Path:
     if not path.is_dir():
         raise NotADirectoryError(f"Mount path is not a directory: {path}")
     return path
+
+
+def flush_mount(mount: Path) -> None:
+    """
+    Push every dirty page on ``mount`` to the device.
+
+    File-level fsync does not flush FAT, directory, or boot-sector updates.
+    ``syncfs`` on the mount directory does. When ``syncfs`` is missing, the
+    whole-system ``sync`` is used instead.
+
+    Args:
+        mount: Mount root that was written.
+
+    Raises:
+        OSError: The directory could not be opened or flushed.
+    """
+    fd = os.open(mount, os.O_RDONLY)
+    try:
+        syncfs = getattr(os, "syncfs", None)
+        if syncfs is not None:
+            syncfs(fd)
+        else:
+            os.sync()
+        os.fsync(fd)
+    finally:
+        os.close(fd)
 
 
 class MountScanner(ABC):

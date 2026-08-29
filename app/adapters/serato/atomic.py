@@ -35,6 +35,7 @@ def replace_flushed(target: Path, data: bytes) -> None:
         if temporary.stat().st_size != len(data):
             raise OSError("temporary write was truncated")
         temporary.replace(target)
+        _fsync_directory(target.parent)
         if target.is_file() and target.stat().st_size == len(data):
             return
         if original:
@@ -49,6 +50,20 @@ def replace_flushed(target: Path, data: bytes) -> None:
             dest_ok = target.is_file() and target.stat().st_size in {len(data), len(original)}
             if dest_ok or temporary.stat().st_size != len(data):
                 temporary.unlink()
+
+
+def _fsync_directory(path: Path) -> None:
+    """
+    Fsync ``path`` so the directory entry from a replace reaches disk.
+
+    Args:
+        path: Parent directory of the file that was replaced.
+    """
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
 
 
 def _write_flushed(path: Path, data: bytes) -> None:
