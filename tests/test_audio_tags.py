@@ -108,13 +108,47 @@ def test_untouched_frames_are_preserved(wav: Path) -> None:
     assert after["Serato Autotags"] == before["Serato Autotags"]
 
 
+def _tagless_wav() -> bytes:
+    """
+    Build a RIFF WAVE that has fmt and data only.
+
+    Returns:
+        A complete WAVE file with no ``id3 `` chunk.
+    """
+    fmt = struct.pack("<HHIIHH", 1, 1, 44100, 88200, 2, 16)
+    pcm = b"\x00\x00" * 16
+    chunks = b"fmt " + struct.pack("<I", 16) + fmt + b"data" + struct.pack("<I", len(pcm)) + pcm
+    return b"RIFF" + struct.pack("<I", 4 + len(chunks)) + b"WAVE" + chunks
+
+
 def test_non_riff_input_is_rejected(tmp_path: Path) -> None:
-    """A file with no id3 chunk fails rather than being mangled."""
+    """A RIFF file that is not WAVE fails rather than being mangled."""
     junk = tmp_path / "x.wav"
     junk.write_bytes(b"RIFF" + b"\x00" * 40)
 
     with pytest.raises(TagFormatError):
         read_geob(junk)
+
+
+def test_read_geob_on_tagless_wav_is_empty(tmp_path: Path) -> None:
+    """A valid WAVE with no id3 chunk has no Serato frames yet."""
+    path = tmp_path / "bare.wav"
+    path.write_bytes(_tagless_wav())
+
+    assert read_geob(path) == {}
+
+
+def test_tagless_wav_gains_id3_chunk(tmp_path: Path) -> None:
+    """A WAVE without id3 gets a chunk; the data payload stays the same."""
+    path = tmp_path / "bare.wav"
+    path.write_bytes(_tagless_wav())
+    before = _audio_chunk(path)
+
+    write_geob(path, {"Serato BeatGrid": b"\x01\x00\x00\x00\x00\x00\x00"})
+
+    assert read_geob(path)["Serato BeatGrid"] == b"\x01\x00\x00\x00\x00\x00\x00"
+    assert _audio_chunk(path) == before
+    assert b"id3 " in path.read_bytes()
 
 
 def test_a_frame_the_file_never_carried_reads_back(wav: Path) -> None:

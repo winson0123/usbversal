@@ -440,8 +440,8 @@ for why this is being revisited.
 
 | Container | Where the Serato payload lives |
 |-----------|-------------------------------|
-| **MP3** | ID3v2 encapsulated-object frames at the head of the file. v2.2 uses 3-byte `GEO` ids and 3-byte sizes (no flags). v2.3 uses 4-byte `GEOB` and raw 32-bit sizes. v2.4 uses synchsafe sizes. |
-| **WAV** | The ID3 stream is wrapped in a RIFF chunk with id `id3 `. The chunk must be rewritten **and the RIFF size field fixed**. |
+| **MP3** | ID3v2 encapsulated-object frames at the head of the file. v2.2 uses 3-byte `GEO` ids and 3-byte sizes (no flags). v2.3 uses 4-byte `GEOB` and raw 32-bit sizes. v2.4 uses synchsafe sizes. A file that starts at an MPEG frame (no ID3) gets an ID3v2.4 tag prepended. |
+| **WAV** | The ID3 stream is wrapped in a RIFF chunk with id `id3 `. The chunk must be rewritten **and the RIFF size field fixed**. A WAVE with no `id3 ` chunk gets one appended. |
 | **AIFF / AIFC** | Same ID3 GEOB as MP3, in a big-endian `ID3 ` chunk. Audio is `SSND` after an 8-byte offset/blockSize header. A file with no ID3 chunk gets one. |
 | **FLAC** | Vorbis comments `SERATO_BEATGRID` / `SERATO_MARKERS_V2`. Value is base64 (no padding, newline every 72 characters) of `application/octet-stream\\0\\0` + description + payload. |
 | **MP4 / M4A** | Freeform atoms `----:com.serato.dj:<name>`. `beatgrid` / `markersv2` / `markers` map to BeatGrid / Markers2 / Markers_. Decoded value is the same wrapper as FLAC. `markers` and `markersv2` wrap base64 every 72 characters; the others do not. |
@@ -452,7 +452,8 @@ The Serato **marker payloads are identical across containers** — only the
 wrapper differs.
 
 ID3 writes keep the original tag size when padding allows. An MP3 tag with no
-`Serato Offsets_` may grow. An AIFF `ID3 ` chunk may grow or be inserted.
+`Serato Offsets_` may grow. A tagless MPEG MP3 or WAVE may gain an ID3 tag.
+An AIFF `ID3 ` chunk may grow or be inserted.
 FLAC comment blocks and MP4 `moov` may grow; STREAMINFO / `mdat` stay
 byte-identical. Growing `moov` rewrites `stco` / `co64` so samples still
 point at `mdat`.

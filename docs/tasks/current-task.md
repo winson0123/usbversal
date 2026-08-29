@@ -8,10 +8,10 @@
 
 No active task. Next: `TASK-252` — Library two-pane window.
 
-Last done: `TASK-292` — `q` shows the same quit toast as `^C`.
+Last done: `TASK-293` — Create ID3 on tagless MP3 and WAV.
 
-## TASK-292 verification log
+## TASK-293 verification log
 
 - `.venv/bin/ruff check .` — pass
 - `.venv/bin/ruff format --check .` — pass
-- `.venv/bin/pytest` — 322 passed / 4 skipped
+- `.venv/bin/pytest` — 326 passed / 4 skipped

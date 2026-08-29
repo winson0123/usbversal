@@ -162,6 +162,29 @@ def test_mp3_tag_grows_when_padding_cannot_hold_new_frames(tmp_path: Path) -> No
     assert path.stat().st_size > before_size
 
 
+def test_read_geob_on_tagless_mp3_is_empty(tmp_path: Path) -> None:
+    """A raw MPEG file has no Serato frames yet."""
+    path = tmp_path / "bare.mp3"
+    path.write_bytes(_AUDIO)
+
+    assert read_geob(path) == {}
+
+
+def test_tagless_mp3_gains_id3(tmp_path: Path) -> None:
+    """A tagless MPEG file gets an ID3v2.4 tag; the frames stay identical."""
+    path = tmp_path / "bare.mp3"
+    path.write_bytes(_AUDIO)
+
+    write_geob(path, {"Serato BeatGrid": _GRID, "Serato Markers2": _MARKERS})
+
+    frames = read_geob(path)
+    assert frames["Serato BeatGrid"] == _GRID
+    assert frames["Serato Markers2"] == _MARKERS
+    assert _audio_after_tag(path.read_bytes()) == _AUDIO
+    assert path.read_bytes()[:3] == b"ID3"
+    assert path.read_bytes()[3] == 4
+
+
 def test_id3v22_tight_tag_grows_when_padding_cannot_hold_new_frames(
     tmp_path: Path,
 ) -> None:

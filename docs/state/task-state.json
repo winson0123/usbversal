@@ -665,6 +665,11 @@
       "id": "TASK-292",
       "title": "q shows the same quit toast as ^C",
       "completed_at": "2026-08-30T00:00:00Z"
+    },
+    {
+      "id": "TASK-293",
+      "title": "Create ID3 on tagless MP3 and WAV",
+      "completed_at": "2026-08-30T00:00:00Z"
     }
   ],
   "history": [
@@ -1463,6 +1468,12 @@
     {
       "id": "TASK-292",
       "title": "q shows the same quit toast as ^C",
+      "completed_at": "2026-08-30T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-293",
+      "title": "Create ID3 on tagless MP3 and WAV",
       "completed_at": "2026-08-30T00:00:00Z",
       "status": "completed"
     }

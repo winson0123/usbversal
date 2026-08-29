@@ -1114,6 +1114,18 @@ Linux: `os.syncfs` or libc `syncfs`, then `BLKFLSBUF`. macOS: `F_FULLFSYNC`. Win
 
 ---
 
+## TASK-293 — Create ID3 on tagless MP3 and WAV
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Create an ID3 tag on tagless MPEG MP3 and WAV so analysis can write |
+| Verification | ruff ✓ ruff format ✓ pytest 326 passed / 4 skipped |
+
+A raw MPEG file (frame sync at byte 0) gets an ID3v2.4 tag prepended. A WAVE with no `id3 ` chunk gets one appended. Audio payload is unchanged. Junk RIFF that is not WAVE is still rejected.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

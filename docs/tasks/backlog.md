@@ -94,7 +94,7 @@ plus per-file backup required.** Sequenced strictly after M8.
 | ~~`TASK-081`~~ | ~~Rekordbox → Serato cue colour table~~ | Dropped — Rekordbox stores RGB in the ANLZ entry, so no table is needed |
 | ~~`TASK-082`~~ | ~~`Serato Markers2` GEOB writer (hot cues)~~ | Done — TASK-115, byte-exact against the fixture pair |
 | ~~`TASK-083`~~ | ~~`Serato BeatGrid` + `Autotags` GEOB writer~~ | Done — TASK-117/119; `Autotags` deliberately not written |
-| ~~`TASK-084`~~ | ~~Container tag I/O — MP3 / WAV / FLAC~~ | Done — WAV fixtures, ID3v2.3/v2.4 MP3 unit tests (TASK-241), FLAC (TASK-242), AIFF + M4A (TASK-263). Live Serato confirmation still outstanding. |
+| ~~`TASK-084`~~ | ~~Container tag I/O — MP3 / WAV / FLAC~~ | Done — WAV fixtures, ID3v2.3/v2.4 MP3 unit tests (TASK-241), FLAC (TASK-242), AIFF + M4A (TASK-263). Tagless MPEG MP3 and WAVE gain an ID3 tag (TASK-293). Live Serato confirmation still outstanding. |
 | ~~`TASK-085`~~ | ~~`sync-analysis` CLI (re-introduce)~~ | Dropped — CLI removed in TASK-240. Analysis already runs from the TUI. |
 | ~~`TASK-249`~~ | ~~Do not abort sync on leftover Markers2 base64~~ | Done — drop one `4n+1` character; remaining decode errors skip the track. Findings in ADR 0010. |
 
@@ -216,6 +216,7 @@ and none of them exist yet.
 | ~~`TASK-289`~~ | ~~List `%%` ancestor stems in `neworder.pref`~~ | Done — Serato needs `Gigs` / `Gigs%%Played` in the order file even with no matching `.crate`. |
 | ~~`TASK-290`~~ | ~~Flush the USB filesystem at the end of sync~~ | Done — `flush_mount` / `syncfs`. TUI does not unmount. |
 | ~~`TASK-291`~~ | ~~Portable volume flush after sync~~ | Done — Linux syncfs, macOS F_FULLFSYNC, Windows FlushFileBuffers. |
+| ~~`TASK-293`~~ | ~~Create ID3 on tagless MP3 and WAV~~ | Done — MPEG frame-sync MP3 prepends ID3v2.4; WAVE without `id3 ` appends a chunk. |
 | `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |
 
 ---

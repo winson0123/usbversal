@@ -4,6 +4,11 @@
 frame read-back before any byte is meant to reach the live path. The live
 swap still uses a sibling `.tmp` and `Path.replace`.
 
+A tagless MPEG MP3 (frame sync at byte 0, no ID3v2) gets an empty ID3v2.4
+tag prepended, then grown for the Serato frames. A WAVE with no `id3 `
+chunk gets one appended. The audio payload (MPEG frames / WAV `data`)
+stays identical. A RIFF file that is not WAVE is still rejected.
+
 On exFAT that replace is not atomic. The destination can be truncated
 before the new bytes land. A re-sync after TASK-285 left every track in
 `WONSIN%%Gigs%%pocket 29aug2026` at 0 bytes.
