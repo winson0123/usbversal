@@ -890,6 +890,16 @@ WONSIN `error.log` (`20260829T075133Z`) refused Memories and Humble with `'Serat
 
 ---
 
+## TASK-275 — Content-addressed incremental backups
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Store each artifact once; a new snapshot only adds what changed |
+| Verification | ruff ✓ ruff format ✓ pytest 316 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

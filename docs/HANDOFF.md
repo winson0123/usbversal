@@ -40,8 +40,9 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 13 | ~~`TASK-272`~~ | ID3v2.2 `GEO` read/write (Memories / Humble BeatGrid) |
 | 14 | ~~`TASK-273`~~ | Done: no Esc Quit; summary mid-screen |
 | 15 | ~~`TASK-274`~~ | Reuse latest backup when live files are unchanged |
-| 16 | `TASK-263` | `.aif` / `.aiff` tag read/write |
-| 17 | `TASK-252` | Library two-pane (original ask, last) |
+| 16 | ~~`TASK-275`~~ | Content-addressed backups; one changed file is one new object |
+| 17 | `TASK-263` | `.aif` / `.aiff` tag read/write |
+| 18 | `TASK-252` | Library two-pane (original ask, last) |
 
 Progress screen target layout:
 

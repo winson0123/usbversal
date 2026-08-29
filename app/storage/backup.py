@@ -30,6 +30,8 @@ _KIND_FULL = "full"
 _KIND_DELTA = "delta"
 _VOLUME_KEY = re.compile(r"[^A-Za-z0-9._-]+")
 _BACKUP_ID_NAME = re.compile(r"^\d{8}T\d{6}Z(?:-\d+)?$")
+_OBJECTS = "objects"
+_LATEST = "latest"
 
 
 @dataclass(frozen=True)
@@ -43,8 +45,9 @@ class BackupFileEntry:
         size: Stored artifact size in bytes.
         kind: ``full`` for a byte-identical copy, ``delta`` for an audio
             tag-region snapshot.
-        stored_as: Path of the artifact inside the backup directory. Defaults
-            to ``relative_path`` for full copies.
+        stored_as: Where the artifact lives. New writes use
+            ``objects/<sha256>`` under the volume root. Older snapshots
+            keep an in-directory path (``relative_path`` or ``*.delta``).
         original_sha256: Source file hash before the write, when known.
         original_size: Source file size before the write, when known.
     """
@@ -59,7 +62,10 @@ class BackupFileEntry:
 
     def artifact_path(self) -> str:
         """
-        Return the path of the stored artifact inside the backup directory.
+        Return the stored-as path recorded on this entry.
+
+        This is not always on-disk relative to the snapshot directory.
+        Use ``resolve_artifact`` to open the file.
 
         Returns:
             ``stored_as`` when set, otherwise ``relative_path``.
@@ -207,6 +213,88 @@ def _volume_key(mount: Path) -> str:
     return cleaned or "usb"
 
 
+def resolve_artifact(backup_dir: Path, entry: BackupFileEntry) -> Path:
+    """
+    Return the on-disk path of a manifest entry's stored artifact.
+
+    Content-addressed objects live in ``<volume>/objects/<sha256>``.
+    Legacy snapshots keep the file inside the timestamped directory.
+
+    Args:
+        backup_dir: Timestamped snapshot directory (contains manifest.json).
+        entry: One row from that snapshot's manifest.
+
+    Returns:
+        Absolute path of the full copy or delta blob.
+    """
+    stored = entry.artifact_path()
+    if stored.startswith(f"{_OBJECTS}/"):
+        return backup_dir.parent / stored
+    return backup_dir / stored
+
+
+def _write_latest(root: Path, backup_id: str) -> None:
+    """
+    Point ``latest`` at this snapshot when the id is a timestamp.
+
+    Args:
+        root: Volume backup parent.
+        backup_id: Directory name just written or reused.
+    """
+    if not _BACKUP_ID_NAME.match(backup_id):
+        return
+    (root / _LATEST).write_text(f"{backup_id}\n", encoding="utf-8")
+
+
+def _put_object(objects: Path, data: bytes) -> str:
+    """
+    Store ``data`` under ``objects/<sha256>`` if it is not already there.
+
+    Args:
+        objects: Volume ``objects`` directory.
+        data: Artifact bytes (full file or UVSD1 delta).
+
+    Returns:
+        Hex digest, also the object filename.
+    """
+    digest = hashlib.sha256(data).hexdigest()
+    destination = objects / digest
+    if destination.is_file():
+        return digest
+    objects.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_suffix(destination.suffix + ".tmp")
+    replaced = False
+    try:
+        temporary.write_bytes(data)
+        with temporary.open("rb") as handle:
+            os.fsync(handle.fileno())
+        os.replace(temporary, destination)
+        replaced = True
+    finally:
+        if not replaced:
+            temporary.unlink(missing_ok=True)
+    return digest
+
+
+def _put_object_file(objects: Path, source: Path) -> str:
+    """
+    Copy ``source`` into the object store when that hash is new.
+
+    Args:
+        objects: Volume ``objects`` directory.
+        source: Live file on the mount.
+
+    Returns:
+        Hex digest of ``source``.
+    """
+    digest = sha256_file(source)
+    destination = objects / digest
+    if not destination.is_file():
+        objects.mkdir(parents=True, exist_ok=True)
+        atomic_copy_file(source, destination)
+    return digest
+
+
 def sha256_file(path: Path) -> str:
     """
     Compute SHA-256 hex digest of a file.
@@ -344,7 +432,7 @@ def _entry_covers_source(
     entry = by_relative.get(relative)
     if entry is None:
         return False
-    if not (backup_dir / entry.artifact_path()).is_file():
+    if not resolve_artifact(backup_dir, entry).is_file():
         return False
     return _source_matches_entry(source, entry)
 
@@ -391,57 +479,138 @@ def _reusable_backup(
     return BackupResult(backup_id=manifest.backup_id, backup_dir=latest, manifest=manifest)
 
 
-def _store_backup_file(source: Path, backup_dir: Path, relative: str) -> BackupFileEntry:
+def _previous_snapshot(
+    root: Path,
+) -> tuple[Path, dict[str, BackupFileEntry]] | None:
     """
-    Store one source file as a full copy or an audio tag delta.
+    Load the latest snapshot's entries, if one exists.
+
+    Args:
+        root: Volume backup parent.
+
+    Returns:
+        Snapshot directory and entries keyed by relative path, or None.
+    """
+    latest = _latest_backup_dir(root)
+    if latest is None:
+        return None
+    try:
+        manifest = BackupManifest.load(latest)
+    except (OSError, ValueError, KeyError):
+        return None
+    return latest, {entry.relative_path: entry for entry in manifest.files}
+
+
+def _promote_legacy_entry(
+    artifact: Path, previous: BackupFileEntry, backup_dir: Path
+) -> BackupFileEntry:
+    """
+    Copy a pre-CAS artifact into ``objects/`` and retarget the entry.
+
+    Args:
+        artifact: File inside an older snapshot directory.
+        previous: Manifest row that still points at that in-snapshot path.
+        backup_dir: Snapshot being written (its parent holds ``objects/``).
+
+    Returns:
+        The same logical file, now stored as ``objects/<sha256>``.
+    """
+    objects = backup_dir.parent / _OBJECTS
+    digest = previous.sha256
+    destination = objects / digest
+    if not destination.is_file():
+        objects.mkdir(parents=True, exist_ok=True)
+        atomic_copy_file(artifact, destination)
+    return BackupFileEntry(
+        relative_path=previous.relative_path,
+        sha256=digest,
+        size=previous.size,
+        kind=previous.kind,
+        stored_as=f"{_OBJECTS}/{digest}",
+        original_sha256=previous.original_sha256,
+        original_size=previous.original_size,
+    )
+
+
+def _entry_for_source(
+    source: Path,
+    relative: str,
+    backup_dir: Path,
+    previous: tuple[Path, dict[str, BackupFileEntry]] | None,
+) -> BackupFileEntry:
+    """
+    Reuse a prior object when the live file is unchanged, otherwise store one.
 
     Args:
         source: File on the mount.
-        backup_dir: Timestamped backup directory.
+        relative: Path relative to the mount root.
+        backup_dir: Snapshot directory being written.
+        previous: Latest snapshot and its entries, if any.
+
+    Returns:
+        Manifest entry for this source.
+    """
+    if previous is not None:
+        previous_dir, by_relative = previous
+        prior = by_relative.get(relative)
+        if prior is not None and _source_matches_entry(source, prior):
+            artifact = resolve_artifact(previous_dir, prior)
+            if artifact.is_file():
+                stored = prior.stored_as or ""
+                if stored.startswith(f"{_OBJECTS}/"):
+                    return prior
+                return _promote_legacy_entry(artifact, prior, backup_dir)
+    return _store_backup_file(source, backup_dir, relative)
+
+
+def _store_backup_file(source: Path, backup_dir: Path, relative: str) -> BackupFileEntry:
+    """
+    Store one source file as a content-addressed full copy or audio delta.
+
+    Args:
+        source: File on the mount.
+        backup_dir: Timestamped snapshot directory.
         relative: Path relative to the mount root.
 
     Returns:
         Manifest entry describing the stored artifact.
     """
+    objects = backup_dir.parent / _OBJECTS
     if is_audio_backup_path(source):
+        data = source.read_bytes()
         try:
-            payload = encode_audio_delta(source.read_bytes())
+            payload = encode_audio_delta(data)
         except AudioDeltaError:
             payload = None
         if payload is not None:
-            stored_as = f"{relative}.delta"
-            destination = backup_dir / stored_as
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(payload)
-            with destination.open("rb") as handle:
-                os.fsync(handle.fileno())
+            digest = _put_object(objects, payload)
             logger.info(
                 "backup_delta",
                 source=str(source),
-                destination=str(destination),
-                original_size=source.stat().st_size,
+                destination=str(objects / digest),
+                original_size=len(data),
                 delta_size=len(payload),
             )
             return BackupFileEntry(
                 relative_path=relative,
-                sha256=sha256_file(destination),
-                size=destination.stat().st_size,
+                sha256=digest,
+                size=len(payload),
                 kind=_KIND_DELTA,
-                stored_as=stored_as,
-                original_sha256=sha256_file(source),
-                original_size=source.stat().st_size,
+                stored_as=f"{_OBJECTS}/{digest}",
+                original_sha256=hashlib.sha256(data).hexdigest(),
+                original_size=len(data),
             )
-    destination = backup_dir / relative
-    logger.info("backup_copy", source=str(source), destination=str(destination))
-    atomic_copy_file(source, destination)
-    digest = sha256_file(destination)
+    digest = _put_object_file(objects, source)
+    logger.info("backup_copy", source=str(source), destination=str(objects / digest))
+    size = source.stat().st_size
     return BackupFileEntry(
         relative_path=relative,
         sha256=digest,
-        size=destination.stat().st_size,
+        size=size,
         kind=_KIND_FULL,
+        stored_as=f"{_OBJECTS}/{digest}",
         original_sha256=digest,
-        original_size=destination.stat().st_size,
+        original_size=size,
     )
 
 
@@ -454,11 +623,12 @@ def create_backup(
     on_progress: BackupProgressCallback | None = None,
 ) -> BackupResult:
     """
-    Copy files from a mount into a timestamped backup directory.
+    Snapshot the given files into a timestamped backup directory.
 
-    When ``backup_id`` is omitted and the latest backup already holds an
-    identical copy of every file in ``files``, that backup is reused and
-    no new directory is created.
+    Artifacts live once under ``objects/<sha256>``. A new snapshot writes
+    only blobs that are not already stored. When ``backup_id`` is omitted
+    and every file still matches the latest snapshot, that snapshot is
+    reused and no new directory is created.
 
     Args:
         source_mount: Mount root; relative paths in manifest are from here.
@@ -487,7 +657,9 @@ def create_backup(
     if backup_id is None:
         reused = _reusable_backup(root, sources, on_progress)
         if reused is not None:
+            _write_latest(root, reused.backup_id)
             return reused
+    previous = _previous_snapshot(root)
 
     if backup_id is not None:
         backup_dir = root / backup_id
@@ -519,7 +691,7 @@ def create_backup(
     entries: list[BackupFileEntry] = []
     copied = 0
     for (source, relative), size in zip(sources, sizes, strict=True):
-        entries.append(_store_backup_file(source, backup_dir, relative))
+        entries.append(_entry_for_source(source, relative, backup_dir, previous))
         copied += size if use_bytes else 1
         if on_progress is not None:
             on_progress(copied, total)
@@ -531,6 +703,7 @@ def create_backup(
         files=tuple(entries),
     )
     manifest.write(backup_dir)
+    _write_latest(root, backup_id)
     logger.info(
         "backup_completed",
         backup_id=backup_id,

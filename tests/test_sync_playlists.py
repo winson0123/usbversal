@@ -21,7 +21,7 @@ from app.core.domain import Playlist
 from app.services.migration_service import PlaylistNotFoundError, SeratoLibraryRequiredError
 from app.services.sync_progress import SyncProgress
 from app.services.sync_service import correct_index_bpm, sync_playlists
-from app.storage.backup import BackupManifest, default_backup_root
+from app.storage.backup import BackupManifest, default_backup_root, resolve_artifact
 from tests.conftest import EMPTY_DATABASE_V2, make_library
 
 TRACKS = ["/Contents/a.mp3", "/Contents/b.mp3"]
@@ -399,7 +399,7 @@ def test_analysis_targets_are_backed_up(tmp_path: Path) -> None:
     backup_dir = default_backup_root(mount) / report.backup_id
     manifest = BackupManifest.load(backup_dir)
     entry = next(e for e in manifest.files if e.relative_path == "Contents/track.wav")
-    assert (backup_dir / entry.artifact_path()).is_file()
+    assert resolve_artifact(backup_dir, entry).is_file()
     assert not (mount / "backups").exists()
 
 

@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from app.adapters.base import WriteContext
-from app.storage.backup import BackupManifest
+from app.storage.backup import BackupManifest, resolve_artifact
 from app.storage.rollback import BackupVerificationError
 
 
@@ -67,7 +67,7 @@ def test_rejects_empty_manifest(tmp_path: Path) -> None:
 def test_rejects_tampered_backup(make_backup) -> None:
     """A backup whose contents do not match the manifest is rejected."""
     backup = make_backup()
-    copied = backup.backup_dir / backup.manifest.files[0].relative_path
+    copied = resolve_artifact(backup.backup_dir, backup.manifest.files[0])
     copied.write_bytes(b"corrupted after the fact")
 
     with pytest.raises(BackupVerificationError):
@@ -77,7 +77,7 @@ def test_rejects_tampered_backup(make_backup) -> None:
 def test_rejects_backup_with_missing_file(make_backup) -> None:
     """A manifest entry with no corresponding copy is rejected."""
     backup = make_backup()
-    (backup.backup_dir / backup.manifest.files[0].relative_path).unlink()
+    resolve_artifact(backup.backup_dir, backup.manifest.files[0]).unlink()
 
     with pytest.raises(BackupVerificationError):
         WriteContext(backup_path=backup.backup_dir)

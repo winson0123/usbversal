@@ -6,7 +6,7 @@ import struct
 from pathlib import Path
 
 from app.storage.audio_delta import apply_audio_delta, encode_audio_delta
-from app.storage.backup import BackupManifest, create_backup, default_backup_root
+from app.storage.backup import BackupManifest, create_backup, default_backup_root, resolve_artifact
 from app.storage.rollback import rollback_from_backup
 
 
@@ -76,9 +76,10 @@ def test_create_backup_stores_mp3_as_a_delta_on_the_host(tmp_path: Path) -> None
     assert not (mount / "backups").exists()
     entry = next(e for e in result.manifest.files if e.relative_path.endswith("song.mp3"))
     assert entry.kind == "delta"
-    stored = result.backup_dir / entry.artifact_path()
+    stored = resolve_artifact(result.backup_dir, entry)
     assert stored.is_file()
     assert stored.stat().st_size < track.stat().st_size // 10
+    assert entry.stored_as == f"objects/{entry.sha256}"
     assert not (result.backup_dir / "Contents/song.mp3").exists()
 
 
@@ -117,5 +118,5 @@ def test_manifest_round_trips_delta_fields(tmp_path: Path) -> None:
     result = create_backup(source_mount=mount, files=[track], backup_root=tmp_path / "b")
     loaded = BackupManifest.load(result.backup_dir)
     assert loaded.files[0].kind == "delta"
-    assert loaded.files[0].stored_as == "t.mp3.delta"
+    assert loaded.files[0].stored_as == f"objects/{loaded.files[0].sha256}"
     assert loaded.files[0].original_size == track.stat().st_size

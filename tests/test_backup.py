@@ -18,6 +18,7 @@ from app.storage.backup import (
     BackupManifest,
     atomic_copy_file,
     create_backup,
+    resolve_artifact,
     sha256_file,
 )
 
@@ -47,7 +48,9 @@ def test_create_backup_writes_manifest(tmp_path: Path) -> None:
     assert loaded.backup_id == result.backup_id
     assert len(loaded.files) == 1
     assert loaded.files[0].relative_path == "PIONEER/rekordbox/exportLibrary.db"
-    assert (result.backup_dir / loaded.files[0].relative_path).read_bytes() == b"test-db-content"
+    stored = resolve_artifact(result.backup_dir, loaded.files[0])
+    assert stored.read_bytes() == b"test-db-content"
+    assert loaded.files[0].stored_as == f"objects/{loaded.files[0].sha256}"
 
 
 def test_create_backup_reports_byte_progress(tmp_path: Path) -> None:
@@ -202,8 +205,10 @@ def test_unchanged_files_reuse_the_latest_backup(tmp_path: Path) -> None:
 
     assert second.backup_id == first.backup_id
     assert second.backup_dir == first.backup_dir
-    dirs = [path for path in backups_root.iterdir() if path.is_dir()]
-    assert len(dirs) == 1
+    snapshots = [
+        path for path in backups_root.iterdir() if path.is_dir() and path.name != "objects"
+    ]
+    assert len(snapshots) == 1
     assert WriteContext(backup_path=second.backup_dir).backup_path == first.backup_dir
 
 
@@ -222,7 +227,7 @@ def test_changed_file_creates_a_new_backup(tmp_path: Path) -> None:
 
     assert second.backup_id != first.backup_id
     assert second.backup_dir != first.backup_dir
-    assert (second.backup_dir / "PIONEER/rekordbox/exportLibrary.db").read_bytes() == b"after"
+    assert resolve_artifact(second.backup_dir, second.manifest.files[0]).read_bytes() == b"after"
 
 
 def test_new_file_not_in_the_latest_backup_creates_a_new_copy(tmp_path: Path) -> None:
@@ -262,6 +267,37 @@ def test_explicit_backup_id_always_writes_a_new_directory(tmp_path: Path) -> Non
 
     assert forced.backup_id == "forced-copy"
     assert forced.backup_dir != first.backup_dir
+
+
+def test_one_changed_file_reuses_unchanged_objects(tmp_path: Path) -> None:
+    """A new snapshot only stores the file that changed."""
+    mount = tmp_path / "usb"
+    rb = mount / "PIONEER/rekordbox"
+    rb.mkdir(parents=True)
+    db = rb / "exportLibrary.db"
+    pdb = rb / "export.pdb"
+    db.write_bytes(b"db-v1")
+    pdb.write_bytes(b"pdb-unchanged")
+    backups_root = tmp_path / "backups"
+
+    first = create_backup(source_mount=mount, files=[db, pdb], backup_root=backups_root)
+    db.write_bytes(b"db-v2")
+    second = create_backup(source_mount=mount, files=[db, pdb], backup_root=backups_root)
+
+    assert second.backup_id != first.backup_id
+    first_by_rel = {entry.relative_path: entry for entry in first.manifest.files}
+    second_by_rel = {entry.relative_path: entry for entry in second.manifest.files}
+    assert (
+        second_by_rel["PIONEER/rekordbox/export.pdb"].sha256
+        == first_by_rel["PIONEER/rekordbox/export.pdb"].sha256
+    )
+    assert (
+        second_by_rel["PIONEER/rekordbox/exportLibrary.db"].sha256
+        != first_by_rel["PIONEER/rekordbox/exportLibrary.db"].sha256
+    )
+    objects = [path for path in (backups_root / "objects").iterdir() if path.is_file()]
+    assert len(objects) == 3
+    assert (backups_root / "latest").read_text(encoding="utf-8").strip() == second.backup_id
 
 
 def test_backup_mount_for_migration_ignores_missing_extra_files(tmp_path: Path) -> None:

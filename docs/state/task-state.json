@@ -589,6 +589,11 @@
       "id": "TASK-274",
       "title": "Reuse unchanged backup",
       "completed_at": "2026-08-29T00:00:00Z"
+    },
+    {
+      "id": "TASK-275",
+      "title": "Content-addressed incremental backups",
+      "completed_at": "2026-08-29T00:00:00Z"
     }
   ],
   "history": [
@@ -1273,6 +1278,12 @@
     {
       "id": "TASK-274",
       "title": "Reuse unchanged backup",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-275",
+      "title": "Content-addressed incremental backups",
       "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }

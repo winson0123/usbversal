@@ -10,8 +10,8 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-274` |
-| Objective | Reuse the latest backup when live files are unchanged |
+| Task ID | `TASK-275` |
+| Objective | Store backup artifacts once by hash; a new snapshot only adds what changed |
 | Completed | 2026-08-29 |
 
 ### Verification log
@@ -20,7 +20,7 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 315 passed, 4 skipped |
+| `.venv/bin/pytest` | 316 passed, 4 skipped |
 
 ## Next
 

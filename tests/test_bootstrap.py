@@ -13,7 +13,7 @@ from app.adapters.serato.paths import resolve_serato_library
 from app.core.domain import Playlist
 from app.services.bootstrap_service import bootstrap_serato_library
 from app.services.sync_service import sync_playlists
-from app.storage.backup import default_backup_root
+from app.storage.backup import BackupManifest, default_backup_root, resolve_artifact
 from tests.conftest import make_library
 
 
@@ -63,7 +63,12 @@ def test_backup_covers_the_rekordbox_files(tmp_path: Path) -> None:
     result = bootstrap_serato_library(mount)
 
     backup_dir = default_backup_root(mount) / result.backup_id
-    assert (backup_dir / "PIONEER" / "rekordbox" / "exportLibrary.db").is_file()
+    entry = next(
+        item
+        for item in BackupManifest.load(backup_dir).files
+        if item.relative_path.endswith("exportLibrary.db")
+    )
+    assert resolve_artifact(backup_dir, entry).is_file()
     assert not (mount / "backups").exists()
 
 

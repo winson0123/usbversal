@@ -13,6 +13,7 @@ from app.storage.backup import (
     atomic_copy_file,
     create_backup,
     default_backup_root,
+    resolve_artifact,
     sha256_file,
 )
 
@@ -91,7 +92,7 @@ def verify_backup_integrity(backup_dir: Path, manifest: BackupManifest) -> None:
         BackupVerificationError: If a file is missing or checksum/size mismatch.
     """
     for entry in manifest.files:
-        path = backup_dir / entry.artifact_path()
+        path = resolve_artifact(backup_dir, entry)
         if not path.is_file():
             raise BackupVerificationError(f"Backup file missing: {path}")
         actual_size = path.stat().st_size
@@ -211,7 +212,7 @@ def rollback_from_backup(
 
     restored: list[str] = []
     for entry in manifest.files:
-        backup_copy = resolved_backup / entry.artifact_path()
+        backup_copy = resolve_artifact(resolved_backup, entry)
         if not backup_copy.is_file():
             raise FileNotFoundError(f"Backup copy missing: {backup_copy}")
         target = mount / entry.relative_path

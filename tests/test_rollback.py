@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from app.services.rollback_service import rollback_mount_libraries
-from app.storage.backup import BackupManifest, create_backup, sha256_file
+from app.storage.backup import BackupManifest, create_backup, resolve_artifact, sha256_file
 from app.storage.rollback import (
     BackupNotFoundError,
     BackupVerificationError,
@@ -40,7 +40,7 @@ def test_verify_backup_integrity_detects_tampering(tmp_path: Path) -> None:
     db.write_bytes(b"original")
     result = create_backup(source_mount=mount, files=[db], backup_root=tmp_path / "backups")
     manifest = BackupManifest.load(result.backup_dir)
-    tampered = result.backup_dir / manifest.files[0].relative_path
+    tampered = resolve_artifact(result.backup_dir, manifest.files[0])
     tampered.write_bytes(b"tampered")
     with pytest.raises(BackupVerificationError):
         verify_backup_integrity(result.backup_dir, manifest)
@@ -84,7 +84,7 @@ def test_rollback_pre_rollback_creates_safety_copy(tmp_path: Path) -> None:
     assert rollback.pre_rollback_backup_dir is not None
     assert rollback.pre_rollback_backup_dir.is_dir()
     pre_manifest = BackupManifest.load(rollback.pre_rollback_backup_dir)
-    pre_path = rollback.pre_rollback_backup_dir / pre_manifest.files[0].relative_path
+    pre_path = resolve_artifact(rollback.pre_rollback_backup_dir, pre_manifest.files[0])
     assert pre_path.read_bytes() == b"v2-before-restore"
     assert db.read_bytes() == b"v1"
 
