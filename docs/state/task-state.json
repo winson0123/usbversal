@@ -584,6 +584,11 @@
       "id": "TASK-273",
       "title": "Done: drop Esc Quit, center summary",
       "completed_at": "2026-08-29T00:00:00Z"
+    },
+    {
+      "id": "TASK-274",
+      "title": "Reuse unchanged backup",
+      "completed_at": "2026-08-29T00:00:00Z"
     }
   ],
   "history": [
@@ -1262,6 +1267,12 @@
     {
       "id": "TASK-273",
       "title": "Done: drop Esc Quit, center summary",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-274",
+      "title": "Reuse unchanged backup",
       "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }

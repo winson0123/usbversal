@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from app.adapters.base import WriteContext
 from app.adapters.serato.library_db import library_db_path
 from app.services.backup_service import (
     backup_mount_for_migration,
@@ -185,6 +186,82 @@ def test_create_backup_with_an_explicit_id_still_raises_on_collision(tmp_path: P
 
     with pytest.raises(FileExistsError):
         create_backup(source_mount=mount, files=[db], backup_root=backups_root, backup_id="fixed")
+
+
+def test_unchanged_files_reuse_the_latest_backup(tmp_path: Path) -> None:
+    """A second backup of the same bytes does not create another directory."""
+    mount = tmp_path / "usb"
+    rb = mount / "PIONEER/rekordbox"
+    rb.mkdir(parents=True)
+    db = rb / "exportLibrary.db"
+    db.write_bytes(b"same-bytes")
+    backups_root = tmp_path / "backups"
+
+    first = create_backup(source_mount=mount, files=[db], backup_root=backups_root)
+    second = create_backup(source_mount=mount, files=[db], backup_root=backups_root)
+
+    assert second.backup_id == first.backup_id
+    assert second.backup_dir == first.backup_dir
+    dirs = [path for path in backups_root.iterdir() if path.is_dir()]
+    assert len(dirs) == 1
+    assert WriteContext(backup_path=second.backup_dir).backup_path == first.backup_dir
+
+
+def test_changed_file_creates_a_new_backup(tmp_path: Path) -> None:
+    """A live file that no longer matches the latest snapshot is copied again."""
+    mount = tmp_path / "usb"
+    rb = mount / "PIONEER/rekordbox"
+    rb.mkdir(parents=True)
+    db = rb / "exportLibrary.db"
+    db.write_bytes(b"before")
+    backups_root = tmp_path / "backups"
+
+    first = create_backup(source_mount=mount, files=[db], backup_root=backups_root)
+    db.write_bytes(b"after")
+    second = create_backup(source_mount=mount, files=[db], backup_root=backups_root)
+
+    assert second.backup_id != first.backup_id
+    assert second.backup_dir != first.backup_dir
+    assert (second.backup_dir / "PIONEER/rekordbox/exportLibrary.db").read_bytes() == b"after"
+
+
+def test_new_file_not_in_the_latest_backup_creates_a_new_copy(tmp_path: Path) -> None:
+    """Reuse requires every requested file to already be in the latest backup."""
+    mount = tmp_path / "usb"
+    rb = mount / "PIONEER/rekordbox"
+    rb.mkdir(parents=True)
+    db = rb / "exportLibrary.db"
+    pdb = rb / "export.pdb"
+    db.write_bytes(b"db")
+    pdb.write_bytes(b"pdb")
+    backups_root = tmp_path / "backups"
+
+    first = create_backup(source_mount=mount, files=[db], backup_root=backups_root)
+    second = create_backup(source_mount=mount, files=[db, pdb], backup_root=backups_root)
+
+    assert second.backup_id != first.backup_id
+    assert len(second.manifest.files) == 2
+
+
+def test_explicit_backup_id_always_writes_a_new_directory(tmp_path: Path) -> None:
+    """Caller-chosen ids (pre-rollback) are never collapsed into reuse."""
+    mount = tmp_path / "usb"
+    rb = mount / "PIONEER/rekordbox"
+    rb.mkdir(parents=True)
+    db = rb / "exportLibrary.db"
+    db.write_bytes(b"same")
+    backups_root = tmp_path / "backups"
+
+    first = create_backup(source_mount=mount, files=[db], backup_root=backups_root)
+    forced = create_backup(
+        source_mount=mount,
+        files=[db],
+        backup_root=backups_root,
+        backup_id="forced-copy",
+    )
+
+    assert forced.backup_id == "forced-copy"
+    assert forced.backup_dir != first.backup_dir
 
 
 def test_backup_mount_for_migration_ignores_missing_extra_files(tmp_path: Path) -> None:

@@ -34,12 +34,17 @@ size trade-off: a 200 GB stick does not need a 200 GB backup.
 ## Procedure
 
 1. Resolve all file paths the operation will touch
-2. Create timestamped backup directory on the host
-3. Copy small files; encode audio deltas
-4. Compute checksums of the **stored artifacts**
-5. Write `manifest.json`
-6. Pass `backup_path` into `WriteContext`
-7. Proceed with adapter write only after steps 1–6 succeed
+2. If the latest timestamped backup already has an identical snapshot of
+   every file (size + `original_sha256`), reuse that directory
+3. Otherwise create a timestamped backup directory on the host
+4. Copy small files; encode audio deltas
+5. Compute checksums of the **stored artifacts**
+6. Write `manifest.json`
+7. Pass `backup_path` into `WriteContext`
+8. Proceed with adapter write only after the gate succeeds
+
+An explicit `backup_id` (pre-rollback snapshots) always writes a new
+directory. Reuse is only for the automatic timestamp id.
 
 ## manifest.json
 

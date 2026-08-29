@@ -196,6 +196,7 @@ and none of them exist yet.
 | ~~`TASK-262`~~ | ~~Done screen lists failures + `error.log`~~ | Done — scrollable title / path / reason; host `error.log` next to that volume's backups. |
 | ~~`TASK-272`~~ | ~~ID3v2.2 GEO read/write~~ | Done — v2.2 uses 6-byte `GEO` frames, not 10-byte `GEOB`. WONSIN Memories / Humble BeatGrid verify failures. |
 | ~~`TASK-273`~~ | ~~Done: drop Esc Quit, center summary~~ | Done — footer is Enter + ^Q; summary uses `CenterMiddle` like Progress. |
+| ~~`TASK-274`~~ | ~~Reuse unchanged backup~~ | Done — latest timestamped backup is reused when every requested file still matches size + original hash. |
 | `TASK-263` | AIFF / AIF Serato tags | `write_geob` / `read_geob` for `.aif` / `.aiff` (ID3 GEOB, same family as WAV/MP3). Tests like TASK-241. MP4 still out of scope. |
 | `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |
 

@@ -880,6 +880,16 @@ WONSIN `error.log` (`20260829T075133Z`) refused Memories and Humble with `'Serat
 
 ---
 
+## TASK-274 — Reuse unchanged backup
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Skip a new backup directory when the latest one still matches |
+| Verification | ruff ✓ ruff format ✓ pytest 315 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

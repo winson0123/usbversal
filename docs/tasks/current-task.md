@@ -10,8 +10,8 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-273` |
-| Objective | Done screen: drop Esc Quit; center the summary mid-screen |
+| Task ID | `TASK-274` |
+| Objective | Reuse the latest backup when live files are unchanged |
 | Completed | 2026-08-29 |
 
 ### Verification log
@@ -20,7 +20,7 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 311 passed, 4 skipped |
+| `.venv/bin/pytest` | 315 passed, 4 skipped |
 
 ## Next
 

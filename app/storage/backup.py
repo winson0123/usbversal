@@ -29,6 +29,7 @@ BACKUP_ROOT_ENV = "USBVERSAL_BACKUP_ROOT"
 _KIND_FULL = "full"
 _KIND_DELTA = "delta"
 _VOLUME_KEY = re.compile(r"[^A-Za-z0-9._-]+")
+_BACKUP_ID_NAME = re.compile(r"^\d{8}T\d{6}Z(?:-\d+)?$")
 
 
 @dataclass(frozen=True)
@@ -248,6 +249,148 @@ def atomic_copy_file(source: Path, destination: Path) -> None:
             temporary.unlink(missing_ok=True)
 
 
+def _backup_sources(mount: Path, files: list[Path]) -> list[tuple[Path, str]]:
+    """
+    Resolve each backup source to an absolute path and mount-relative name.
+
+    Args:
+        mount: Mount root; relative paths in the manifest are from here.
+        files: Absolute or mount-relative file paths to copy.
+
+    Returns:
+        ``(source, relative)`` pairs in the order given.
+
+    Raises:
+        FileNotFoundError: If a source file does not exist.
+    """
+    sources: list[tuple[Path, str]] = []
+    for file_path in files:
+        source = file_path.resolve()
+        if not source.is_file():
+            raise FileNotFoundError(f"Backup source not found: {source}")
+        try:
+            relative = source.relative_to(mount).as_posix()
+        except ValueError:
+            relative = source.name
+        sources.append((source, relative))
+    return sources
+
+
+def _latest_backup_dir(root: Path) -> Path | None:
+    """
+    Return the newest timestamped backup directory under ``root``.
+
+    Ignores ``pre-rollback-*`` snapshots and anything without a manifest.
+
+    Args:
+        root: Host backup parent for one volume.
+
+    Returns:
+        The latest backup directory, or None when none exist.
+    """
+    if not root.is_dir():
+        return None
+    candidates = [
+        path
+        for path in root.iterdir()
+        if path.is_dir() and _BACKUP_ID_NAME.match(path.name) and (path / "manifest.json").is_file()
+    ]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda path: path.name)
+
+
+def _source_matches_entry(source: Path, entry: BackupFileEntry) -> bool:
+    """
+    Return True when ``source`` is still the file this entry backed up.
+
+    Args:
+        source: Live file on the mount.
+        entry: Manifest row from the latest backup.
+
+    Returns:
+        True when size and content still match the pre-write snapshot.
+    """
+    expected_hash = entry.original_sha256
+    expected_size = entry.original_size
+    if expected_hash is None:
+        if entry.kind != _KIND_FULL:
+            return False
+        expected_hash = entry.sha256
+        expected_size = entry.size
+    if expected_size is not None and source.stat().st_size != expected_size:
+        return False
+    return sha256_file(source) == expected_hash
+
+
+def _entry_covers_source(
+    source: Path,
+    relative: str,
+    by_relative: dict[str, BackupFileEntry],
+    backup_dir: Path,
+) -> bool:
+    """
+    Return True when ``backup_dir`` already holds a matching snapshot of ``source``.
+
+    Args:
+        source: Live file on the mount.
+        relative: Path relative to the mount root.
+        by_relative: Manifest entries keyed by ``relative_path``.
+        backup_dir: Directory of the candidate backup.
+
+    Returns:
+        True when the artifact exists and the live file has not changed.
+    """
+    entry = by_relative.get(relative)
+    if entry is None:
+        return False
+    if not (backup_dir / entry.artifact_path()).is_file():
+        return False
+    return _source_matches_entry(source, entry)
+
+
+def _reusable_backup(
+    root: Path,
+    sources: list[tuple[Path, str]],
+    on_progress: BackupProgressCallback | None,
+) -> BackupResult | None:
+    """
+    Return the latest backup when it already covers every source file.
+
+    Args:
+        root: Host backup parent for one volume.
+        sources: Files this run would copy, as ``(path, relative)``.
+        on_progress: Optional bar callback; fired only when reuse succeeds.
+
+    Returns:
+        The existing ``BackupResult``, or None when a new copy is required.
+    """
+    latest = _latest_backup_dir(root)
+    if latest is None:
+        return None
+    try:
+        manifest = BackupManifest.load(latest)
+    except (OSError, ValueError, KeyError):
+        return None
+    by_relative = {entry.relative_path: entry for entry in manifest.files}
+    if any(
+        not _entry_covers_source(source, relative, by_relative, latest)
+        for source, relative in sources
+    ):
+        return None
+    if on_progress is not None:
+        total = sum(source.stat().st_size for source, _ in sources) or len(sources)
+        on_progress(0, total)
+        on_progress(total, total)
+    logger.info(
+        "backup_reused",
+        backup_id=manifest.backup_id,
+        backup_dir=str(latest),
+        file_count=len(sources),
+    )
+    return BackupResult(backup_id=manifest.backup_id, backup_dir=latest, manifest=manifest)
+
+
 def _store_backup_file(source: Path, backup_dir: Path, relative: str) -> BackupFileEntry:
     """
     Store one source file as a full copy or an audio tag delta.
@@ -313,12 +456,17 @@ def create_backup(
     """
     Copy files from a mount into a timestamped backup directory.
 
+    When ``backup_id`` is omitted and the latest backup already holds an
+    identical copy of every file in ``files``, that backup is reused and
+    no new directory is created.
+
     Args:
         source_mount: Mount root; relative paths in manifest are from here.
         files: Absolute or mount-relative file paths to copy.
         backup_root: Parent directory for backups; defaults to a host
             directory from ``default_backup_root``, not the USB.
         backup_id: Optional directory name; defaults to UTC timestamp.
+            An explicit id always writes a new directory.
         on_progress: Optional ``(bytes_done, bytes_total)`` callback. Fired
             at 0 and after each file so a bar can show backup ETA.
 
@@ -335,6 +483,11 @@ def create_backup(
     mount = source_mount.resolve()
     created_at = datetime.now(UTC)
     root = (backup_root or default_backup_root(mount)).resolve()
+    sources = _backup_sources(mount, files)
+    if backup_id is None:
+        reused = _reusable_backup(root, sources, on_progress)
+        if reused is not None:
+            return reused
 
     if backup_id is not None:
         backup_dir = root / backup_id
@@ -357,16 +510,6 @@ def create_backup(
                 suffix += 1
                 backup_id = f"{stem}-{suffix}"
 
-    sources: list[tuple[Path, str]] = []
-    for file_path in files:
-        source = file_path.resolve()
-        if not source.is_file():
-            raise FileNotFoundError(f"Backup source not found: {source}")
-        try:
-            relative = source.relative_to(mount).as_posix()
-        except ValueError:
-            relative = source.name
-        sources.append((source, relative))
     sizes = [source.stat().st_size for source, _ in sources]
     total_bytes = sum(sizes)
     use_bytes = total_bytes > 0
