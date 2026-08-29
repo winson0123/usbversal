@@ -533,6 +533,11 @@
       "id": "TASK-261",
       "title": "Progress screen: playlist + titles",
       "completed_at": "2026-08-29T00:00:00Z"
+    },
+    {
+      "id": "TASK-264",
+      "title": "Progress bar sits in the middle of the screen",
+      "completed_at": "2026-08-29T00:00:00Z"
     }
   ],
   "history": [
@@ -1145,6 +1150,12 @@
     {
       "id": "TASK-261",
       "title": "Progress screen: playlist + titles",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-264",
+      "title": "Progress bar sits in the middle of the screen",
       "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }

@@ -758,6 +758,18 @@ Backup reports bytes so the bar can estimate time. Sync does not reset between i
 
 ---
 
+## TASK-264 — Progress bar sits in the middle of the screen
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Vertically and horizontally center status + bar + playlist |
+| Verification | ruff ✓ ruff format ✓ pytest 299 passed / 4 skipped |
+
+Same `CenterMiddle` + nested `Center` pattern as Home. The log stays hidden until the first track so backup is a true mid-screen bar.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

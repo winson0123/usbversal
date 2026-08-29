@@ -123,7 +123,8 @@
     "beatgrid_terminal_bpm_is_last_section_median": true,
     "quit_is_ctrl_q": true,
     "backup_then_sync_progress_bars": true,
-    "progress_shows_playlist_and_titles": true
+    "progress_shows_playlist_and_titles": true,
+    "progress_bar_mid_screen": true
   },
   "packaging": {
     "pyinstaller": true,

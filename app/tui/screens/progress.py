@@ -13,7 +13,7 @@ from collections.abc import Sequence
 from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Center, Vertical
+from textual.containers import Center, CenterMiddle
 from textual.screen import Screen
 from textual.widgets import Footer, ProgressBar, RichLog, Static
 
@@ -41,20 +41,20 @@ class ProgressScreen(Screen):
 
     DEFAULT_CSS = """
     ProgressScreen #sync-status, ProgressScreen #sync-playlist {
-        width: 100%;
+        width: auto;
         text-align: center;
-    }
-    ProgressScreen #sync-bar-row {
-        width: 100%;
-        height: auto;
-        align: center middle;
     }
     ProgressScreen #sync-progress {
         width: 60%;
         margin: 1 0;
     }
     ProgressScreen #sync-log {
-        height: 1fr;
+        width: 80%;
+        height: 12;
+        margin-top: 1;
+    }
+    ProgressScreen #sync-log.empty, ProgressScreen #sync-playlist.empty {
+        display: none;
     }
     """
 
@@ -71,12 +71,18 @@ class ProgressScreen(Screen):
         self._bar_run: str | None = None
 
     def compose(self) -> ComposeResult:
-        with Vertical():
-            yield Static("Taking backup…", id=_STATUS_ID)
-            with Center(id="sync-bar-row"):
-                yield ProgressBar(id=_BAR_ID, show_eta=False)
-            yield Static("", id=_PLAYLIST_ID)
-            yield RichLog(id=_LOG_ID, max_lines=500, auto_scroll=True, wrap=True)
+        """Center status, bar, playlist, and log as one mid-screen cluster."""
+        with CenterMiddle():
+            with Center():
+                yield Static("Taking backup…", id=_STATUS_ID)
+            with Center():
+                yield ProgressBar(id=_BAR_ID, show_eta=False, show_percentage=False)
+            with Center():
+                yield Static("", id=_PLAYLIST_ID, classes="empty")
+            with Center():
+                yield RichLog(
+                    id=_LOG_ID, max_lines=500, auto_scroll=True, wrap=True, classes="empty"
+                )
         yield Footer()
 
     def on_mount(self) -> None:
@@ -93,7 +99,9 @@ class ProgressScreen(Screen):
                 on_progress=self._report_progress,
             )
         except Exception as exc:  # reported on the Done screen, not raised
-            self.query_one(RichLog).write(Text(f"Sync failed: {exc}", style="red"))
+            log = self.query_one(RichLog)
+            log.remove_class("empty")
+            log.write(Text(f"Sync failed: {exc}", style="red"))
             self.app.switch_screen(DoneScreen(error=str(exc)))
             return
         self.app.switch_screen(DoneScreen(report=report))
@@ -129,14 +137,18 @@ class ProgressScreen(Screen):
             message += f" ({estimate.rate_per_second:.1f}/s)"
         self.query_one(f"#{_STATUS_ID}", Static).update(message)
 
-        playlist_line = ""
+        playlist = self.query_one(f"#{_PLAYLIST_ID}", Static)
         if sample.playlist and sample.playlist_total:
-            playlist_line = f"{sample.playlist}  {sample.playlist_done}/{sample.playlist_total}"
-        self.query_one(f"#{_PLAYLIST_ID}", Static).update(playlist_line)
+            playlist.remove_class("empty")
+            playlist.update(f"{sample.playlist}  {sample.playlist_done}/{sample.playlist_total}")
+        else:
+            playlist.add_class("empty")
+            playlist.update("")
 
         if sample.phase == "backup":
             return
         log = self.query_one(RichLog)
+        log.remove_class("empty")
         line = f"[{sample.done}/{sample.total}] {display_title(sample.item)}"
         if sample.error is None:
             log.write(Text(line, style="green"))

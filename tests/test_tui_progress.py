@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 from textual.app import App
-from textual.containers import Center
+from textual.containers import Center, CenterMiddle
 from textual.screen import Screen
 from textual.widgets import ProgressBar, RichLog, Static
 
@@ -227,12 +227,14 @@ async def test_backup_samples_drive_the_bar_and_do_not_log_files() -> None:
                 assert bar.total == 100
                 assert bar.progress == 40
                 assert len(screen.query_one(RichLog).lines) == 0
+                assert "empty" in screen.query_one(RichLog).classes
                 assert str(screen.query_one("#sync-playlist", Static).render()) == ""
 
                 screen._update_progress(SyncProgress("analysis", 1, 3, "Contents/a.mp3"))
                 bar = screen.query_one(ProgressBar)
                 assert bar.total == 3
                 assert bar.progress == 1
+                assert "empty" not in screen.query_one(RichLog).classes
             finally:
                 hold.set()
 
@@ -254,7 +256,10 @@ async def test_progress_shows_the_playlist_and_centers_the_bar() -> None:
             screen = app.screen
             try:
                 assert isinstance(screen, ProgressScreen)
-                assert isinstance(screen.query_one("#sync-progress").parent, Center)
+                bar = screen.query_one("#sync-progress")
+                assert isinstance(bar.parent, Center)
+                assert isinstance(bar.parent.parent, CenterMiddle)
+                assert "empty" in screen.query_one(RichLog).classes
                 screen._update_progress(
                     SyncProgress(
                         "analysis",

@@ -10,8 +10,8 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-261` |
-| Objective | Center the bar, show playlist `x/x`, log titles |
+| Task ID | `TASK-264` |
+| Objective | Sit the progress bar in the middle of the screen |
 | Completed | 2026-08-29 |
 
 ### Verification log
