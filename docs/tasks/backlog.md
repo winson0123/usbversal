@@ -178,7 +178,7 @@ and none of them exist yet.
 | `TASK-251` | Confirm a variable-tempo grid in Serato | Apt X Blue already has a 4-marker grid on disk. Deck check still missing. |
 | ~~`TASK-253`~~ | ~~Hot cue colours are black in Serato~~ | Done — RGB at PCP2 offset 28. Findings in `docs/workflows/cue-colour-offset.md`. |
 | ~~`TASK-254`~~ | ~~Keep `/` in crate names~~ | Done — `/` becomes U+FF0F fullwidth solidus. See `docs/workflows/crate-slash.md`. |
-| `TASK-255` | Parent crate named after the volume | Prefix every synced crate with the thumbdrive label (`WONSIN%%…`). Empty parent file not required. |
+| ~~`TASK-255`~~ | ~~Parent crate named after the volume~~ | Done — `crate_name_for(..., volume=)` prefixes the mount folder name. No empty parent `.crate`. See `docs/workflows/volume-crate.md`. |
 | ~~`TASK-256`~~ | ~~Omit Rekordbox "CUE Analysis Playlist"~~ | Done — `include_playlist()` drops it (any casing) from `list_playlists`, so the tree and sync never see it. |
 | `TASK-252` | Library two-pane window | Last. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green: not in crate / crate but analysis not ported / fully ported. Spec in HANDOFF.md. |
 

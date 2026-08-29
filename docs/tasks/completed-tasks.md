@@ -688,6 +688,18 @@ Rekordbox recreates `CUE Analysis Playlist` (also seen as `Cue Analysis Playlist
 
 ---
 
+## TASK-255 — Parent crate named after the volume
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | House every synced crate under a parent named after the thumbdrive |
+| Verification | ruff ✓ ruff format ✓ pytest 292 passed / 4 skipped |
+
+**Decision:** [volume-crate.md](../workflows/volume-crate.md) — `WONSIN%%Contents`, no empty parent file.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

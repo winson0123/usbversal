@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 from app.core.domain import Playlist
 
@@ -12,6 +13,24 @@ from app.core.domain import Playlist
 _INVALID_CRATE_CHARS = re.compile(r'[<>:"\\|?*]')
 _SLASH = "/"
 _SLASH_STAND_IN = "\uff0f"
+
+
+def volume_label_for(mount: Path) -> str:
+    """
+    Return the Serato parent-crate name for a USB mount.
+
+    Uses the mount folder name, which is the volume label on Linux
+    (``/media/$USER/WONSIN``) and macOS (``/Volumes/WONSIN``). A path with
+    no folder name (a bare drive letter) becomes ``USB``.
+
+    Args:
+        mount: Mount root of the stick.
+
+    Returns:
+        Sanitized crate-name segment for the volume parent.
+    """
+    name = mount.resolve().name.strip()
+    return sanitize_crate_name(name) if name else "USB"
 
 
 def sanitize_crate_name(name: str) -> str:
@@ -33,7 +52,11 @@ def sanitize_crate_name(name: str) -> str:
     return cleaned or "Untitled"
 
 
-def crate_name_for(playlist: Playlist, by_id: dict[int, Playlist]) -> str:
+def crate_name_for(
+    playlist: Playlist,
+    by_id: dict[int, Playlist],
+    volume: str | None = None,
+) -> str:
     """
     Return the crate filename stem a playlist maps to.
 
@@ -44,6 +67,9 @@ def crate_name_for(playlist: Playlist, by_id: dict[int, Playlist]) -> str:
     Rekordbox ``Gigs / Played / safety day`` playlist appears under Played
     under Gigs. No empty parent crate files are required.
 
+    When ``volume`` is set, it is the outermost parent (the thumbdrive
+    label). ``Contents`` on WONSIN becomes ``WONSIN%%Contents``.
+
     Sync state and the crate writer must agree on this mapping, so both call
     here rather than deriving names independently.
 
@@ -53,6 +79,7 @@ def crate_name_for(playlist: Playlist, by_id: dict[int, Playlist]) -> str:
             ancestor folders. A playlist whose parent chain is not fully
             present here (never observed, but not assumed impossible) stops
             at the last resolvable ancestor rather than raising.
+        volume: Optional thumbdrive label prefixed as the crate parent.
 
     Returns:
         Crate filename stem, without the .crate extension.
@@ -67,4 +94,7 @@ def crate_name_for(playlist: Playlist, by_id: dict[int, Playlist]) -> str:
         names.append(sanitize_crate_name(parent.name))
         seen.add(parent_id)
         parent_id = parent.parent_id
-    return "%%".join(reversed(names))
+    stem = "%%".join(reversed(names))
+    if not volume:
+        return stem
+    return f"{sanitize_crate_name(volume)}%%{stem}"

@@ -122,6 +122,9 @@ rekordbox  Gigs / Played / safety day   ->   Subcrates/Gigs%%Played%%safety day.
 (TASK-245/246): the crate appears under Played under Gigs. No empty parent
 crate files are required — `Gigs%%Played%%safety day.crate` alone is enough.
 
+TASK-255 prefixes the thumbdrive label as the outermost parent:
+`WONSIN%%Gigs%%Played%%safety day.crate`. See [volume-crate.md](../workflows/volume-crate.md).
+
 ---
 
 ## `location.sqlite` — the library Serato actually reads [confirmed]

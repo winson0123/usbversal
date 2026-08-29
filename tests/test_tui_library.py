@@ -9,6 +9,7 @@ from textual.app import App
 from textual.screen import Screen
 from textual.widgets import Static, Tree
 
+from app.adapters.serato.naming import volume_label_for
 from app.core.domain import Playlist
 from app.tui.app import RekordboxThreadMixin
 from app.tui.screens.library import LibraryScreen
@@ -97,7 +98,7 @@ def _library_with_two_playlists(tmp_path: Path):
     """One synced, one unsynced top-level playlist."""
     mount = _stick(
         tmp_path,
-        crates={"Techno": ["Contents/a.mp3"]},
+        crates={f"{volume_label_for(tmp_path)}%%Techno": ["Contents/a.mp3"]},
         indexed=["Contents/a.mp3", "Contents/b.mp3"],
     )
     playlists = [
@@ -199,7 +200,11 @@ async def test_returning_to_the_screen_reflects_a_sync_that_just_happened(
         assert "0/1" in before["Trance"]
 
         # Simulate what a completed sync writes: Trance now has a crate.
-        _write_crate(library.mount / "_Serato_", "Trance", ["Contents/b.mp3"])
+        _write_crate(
+            library.mount / "_Serato_",
+            f"{volume_label_for(library.mount)}%%Trance",
+            ["Contents/b.mp3"],
+        )
 
         # Simulate returning from Progress/Done: push another screen, then
         # pop back to this one -- the same path DoneScreen's enter takes.

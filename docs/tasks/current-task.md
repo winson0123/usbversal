@@ -10,8 +10,8 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-256` |
-| Objective | Omit Rekordbox's default CUE Analysis Playlist |
+| Task ID | `TASK-255` |
+| Objective | House every synced crate under a parent named after the thumbdrive |
 | Completed | 2026-08-29 |
 
 ### Verification log
@@ -20,8 +20,8 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 289 passed, 4 skipped |
+| `.venv/bin/pytest` | 292 passed, 4 skipped |
 
 ## Next
 
-`TASK-255` — parent crate named after the volume.
+`TASK-251` — Apt X Blue variable-tempo deck check (blocked). `TASK-252` Library two-pane is last.

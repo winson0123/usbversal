@@ -1,6 +1,8 @@
 """Tests for mapping Rekordbox playlists to Serato crate filenames."""
 
-from app.adapters.serato.naming import crate_name_for
+from pathlib import Path
+
+from app.adapters.serato.naming import crate_name_for, volume_label_for
 from app.core.domain import Playlist
 
 
@@ -74,3 +76,21 @@ def test_a_parent_cycle_does_not_infinite_loop() -> None:
     by_id = {1: a, 2: b, 3: playlist}
 
     assert crate_name_for(playlist, by_id) == "B%%A%%Leaf"
+
+
+def test_volume_label_is_the_mount_folder_name(tmp_path: Path) -> None:
+    """A labelled mount folder becomes the parent crate name."""
+    mount = tmp_path / "WONSIN"
+    mount.mkdir()
+    assert volume_label_for(mount) == "WONSIN"
+
+
+def test_volume_label_falls_back_when_the_folder_has_no_name(tmp_path: Path) -> None:
+    """A path whose name is empty cannot be a crate parent."""
+    assert volume_label_for(Path("/")) == "USB"
+
+
+def test_crate_name_prefixes_the_volume() -> None:
+    """Every synced crate sits under the thumbdrive name."""
+    playlist = Playlist(id=1, name="Contents", parent_id=None, is_folder=False)
+    assert crate_name_for(playlist, {1: playlist}, volume="WONSIN") == "WONSIN%%Contents"

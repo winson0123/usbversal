@@ -4,6 +4,7 @@ import struct
 from pathlib import Path
 from unittest.mock import MagicMock
 
+from app.adapters.serato.naming import volume_label_for
 from app.core.domain import Playlist, SyncState
 from app.services.sync_service import (
     find_crate_name_collisions,
@@ -12,6 +13,11 @@ from app.services.sync_service import (
     sync_states_to_dict,
 )
 from tests.conftest import EMPTY_DATABASE_V2, make_library
+
+
+def _stem(mount: Path, name: str) -> str:
+    """Crate filename stem including the volume parent."""
+    return f"{volume_label_for(mount)}%%{name}"
 
 
 def _tlv(tag: bytes, payload: bytes) -> bytes:
@@ -57,7 +63,7 @@ def test_fully_synced_playlist_is_green(tmp_path: Path) -> None:
     """Every track present in the crate reports as synced."""
     mount = _stick(
         tmp_path,
-        crates={"Pocket": ["Contents/a.mp3", "Contents/b.mp3"]},
+        crates={_stem(tmp_path, "Pocket"): ["Contents/a.mp3", "Contents/b.mp3"]},
         indexed=["Contents/a.mp3", "Contents/b.mp3"],
     )
     playlist = Playlist(id=1, name="Pocket", parent_id=None, is_folder=False)
@@ -73,7 +79,7 @@ def test_partially_synced_playlist_is_yellow(tmp_path: Path) -> None:
     """Some tracks in the crate reports as partial."""
     mount = _stick(
         tmp_path,
-        crates={"Pocket": ["Contents/a.mp3"]},
+        crates={_stem(tmp_path, "Pocket"): ["Contents/a.mp3"]},
         indexed=["Contents/a.mp3", "Contents/b.mp3"],
     )
     playlist = Playlist(id=1, name="Pocket", parent_id=None, is_folder=False)
@@ -137,7 +143,9 @@ def test_folders_are_not_reported(tmp_path: Path) -> None:
 def test_path_matching_ignores_leading_slash_and_case(tmp_path: Path) -> None:
     """Rekordbox /Contents/... matches Serato Contents/... regardless of case."""
     mount = _stick(
-        tmp_path, crates={"P": ["Contents/Artist/Song.mp3"]}, indexed=["Contents/Artist/Song.mp3"]
+        tmp_path,
+        crates={_stem(tmp_path, "P"): ["Contents/Artist/Song.mp3"]},
+        indexed=["Contents/Artist/Song.mp3"],
     )
     playlist = Playlist(id=1, name="P", parent_id=None, is_folder=False)
     library = make_library(mount, _adapter([playlist], {1: ["/contents/artist/song.MP3"]}))
@@ -165,7 +173,10 @@ def test_tree_folder_is_green_only_when_every_child_is_synced(tmp_path: Path) ->
     """A folder rolls up to synced only if all of its children are."""
     mount = _stick(
         tmp_path,
-        crates={"Genres%%Techno": ["Contents/a.mp3"], "Genres%%Trance": ["Contents/b.mp3"]},
+        crates={
+            _stem(tmp_path, "Genres%%Techno"): ["Contents/a.mp3"],
+            _stem(tmp_path, "Genres%%Trance"): ["Contents/b.mp3"],
+        },
         indexed=["Contents/a.mp3", "Contents/b.mp3"],
     )
     folder = Playlist(id=9, name="Genres", parent_id=None, is_folder=True)
@@ -186,7 +197,7 @@ def test_tree_folder_is_yellow_when_children_disagree(tmp_path: Path) -> None:
     """One synced child and one unsynced child rolls the folder up to partial."""
     mount = _stick(
         tmp_path,
-        crates={"Genres%%Techno": ["Contents/a.mp3"]},
+        crates={_stem(tmp_path, "Genres%%Techno"): ["Contents/a.mp3"]},
         indexed=["Contents/a.mp3", "Contents/b.mp3"],
     )
     folder = Playlist(id=9, name="Genres", parent_id=None, is_folder=True)
@@ -217,7 +228,7 @@ def test_tree_leaf_carries_its_own_synced_and_total_counts(tmp_path: Path) -> No
     """A leaf's synced/total match its own crate coverage, not just its state."""
     mount = _stick(
         tmp_path,
-        crates={"Pocket": ["Contents/a.mp3"]},
+        crates={_stem(tmp_path, "Pocket"): ["Contents/a.mp3"]},
         indexed=["Contents/a.mp3", "Contents/b.mp3", "Contents/c.mp3"],
     )
     playlist = Playlist(id=1, name="Pocket", parent_id=None, is_folder=False)
@@ -233,7 +244,7 @@ def test_tree_folder_counts_sum_its_children(tmp_path: Path) -> None:
     """A folder's synced/total are the sum across its descendants."""
     mount = _stick(
         tmp_path,
-        crates={"Genres%%Techno": ["Contents/a.mp3"]},
+        crates={_stem(tmp_path, "Genres%%Techno"): ["Contents/a.mp3"]},
         indexed=["Contents/a.mp3", "Contents/b.mp3", "Contents/c.mp3"],
     )
     folder = Playlist(id=9, name="Genres", parent_id=None, is_folder=True)
@@ -257,7 +268,7 @@ def test_tree_rollup_composes_through_nested_folders(tmp_path: Path) -> None:
     """A folder of folders rolls up through both levels correctly."""
     mount = _stick(
         tmp_path,
-        crates={"Music%%Genres%%Techno": ["Contents/a.mp3"]},
+        crates={_stem(tmp_path, "Music%%Genres%%Techno"): ["Contents/a.mp3"]},
         indexed=["Contents/a.mp3"],
     )
     outer = Playlist(id=8, name="Music", parent_id=None, is_folder=True)
@@ -277,7 +288,9 @@ def test_tree_rollup_composes_through_nested_folders(tmp_path: Path) -> None:
 
 def test_summary_counts_states(tmp_path: Path) -> None:
     """Serialization summarises how many playlists sit in each state."""
-    mount = _stick(tmp_path, crates={"A": ["Contents/a.mp3"]}, indexed=["Contents/a.mp3"])
+    mount = _stick(
+        tmp_path, crates={_stem(tmp_path, "A"): ["Contents/a.mp3"]}, indexed=["Contents/a.mp3"]
+    )
     playlists = [
         Playlist(id=1, name="A", parent_id=None, is_folder=False),
         Playlist(id=2, name="B", parent_id=None, is_folder=False),

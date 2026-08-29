@@ -9,7 +9,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.adapters.serato import read_crate_track_paths, read_database_track_paths
+from app.adapters.serato import (
+    read_crate_track_paths,
+    read_database_track_paths,
+    volume_label_for,
+)
 from app.adapters.serato.library_db import library_db_path, read_track_analysis
 from app.adapters.serato.neworder import read_crate_order, write_crate_order
 from app.adapters.serato.tags import read_geob
@@ -194,7 +198,7 @@ def test_sync_indexes_missing_tracks_and_writes_a_crate(tmp_path: Path) -> None:
     assert report.records_added == 2
     assert report.crates_written == 1
     assert report.backup_id is not None
-    crate = mount / "_Serato_" / "Subcrates" / "test.crate"
+    crate = mount / "_Serato_" / "Subcrates" / f"{volume_label_for(mount)}%%test.crate"
     assert read_crate_track_paths(crate) == ["Contents/a.mp3", "Contents/b.mp3"]
     assert read_database_track_paths(mount / "_Serato_" / "database V2") == [
         "Contents/a.mp3",
@@ -239,7 +243,10 @@ def test_existing_crate_order_is_preserved(tmp_path: Path) -> None:
 
     sync_playlists(library, [1])
 
-    assert read_crate_order(mount / "_Serato_") == ["Pocket", "test"]
+    assert read_crate_order(mount / "_Serato_") == [
+        "Pocket",
+        f"{volume_label_for(mount)}%%test",
+    ]
 
 
 def test_unknown_playlist_is_rejected(tmp_path: Path) -> None:
@@ -279,8 +286,9 @@ def test_each_crate_holds_only_its_own_tracks(tmp_path: Path) -> None:
     sync_playlists(library, [1, 2])
 
     subcrates = mount / "_Serato_" / "Subcrates"
-    assert read_crate_track_paths(subcrates / "one.crate") == ["Contents/one.mp3"]
-    assert read_crate_track_paths(subcrates / "two.crate") == ["Contents/two.mp3"]
+    prefix = volume_label_for(mount)
+    assert read_crate_track_paths(subcrates / f"{prefix}%%one.crate") == ["Contents/one.mp3"]
+    assert read_crate_track_paths(subcrates / f"{prefix}%%two.crate") == ["Contents/two.mp3"]
 
 
 def _place_audio(mount: Path, relative: str) -> Path:
@@ -511,7 +519,7 @@ def test_on_progress_reports_each_analysis_track(tmp_path: Path) -> None:
         SyncProgress("analysis", 1, 2, "/Contents/a.wav"),
         SyncProgress("analysis", 2, 2, "/Contents/b.wav"),
     ]
-    assert crates == [SyncProgress("crates", 1, 1, "test")]
+    assert crates == [SyncProgress("crates", 1, 1, f"{volume_label_for(mount)}%%test")]
 
 
 def test_on_progress_reports_the_failing_track_and_its_error(tmp_path: Path) -> None:
@@ -547,4 +555,4 @@ def test_on_progress_skips_analysis_when_nothing_has_analysis_data(tmp_path: Pat
     sync_playlists(library, [1], on_progress=calls.append)
 
     assert [sample.phase for sample in calls] == ["crates"]
-    assert calls[0] == SyncProgress("crates", 1, 1, "test")
+    assert calls[0] == SyncProgress("crates", 1, 1, f"{volume_label_for(mount)}%%test")

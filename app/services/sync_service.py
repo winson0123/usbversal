@@ -23,6 +23,7 @@ from app.adapters.serato import (
     crate_name_for,
     read_crate_track_paths,
     read_database_track_paths,
+    volume_label_for,
 )
 from app.adapters.serato.beatgrid import encode_beatgrid
 from app.adapters.serato.library_db import (
@@ -150,7 +151,7 @@ def playlist_sync_states(library: UsbLibrary) -> tuple[PlaylistSyncState, ...]:
         tracks = [
             normalize_track_path(t) for t in library.rekordbox.get_playlist_track_paths(playlist.id)
         ]
-        crate_name = crate_name_for(playlist, by_id)
+        crate_name = crate_name_for(playlist, by_id, volume=volume_label_for(library.mount))
         in_crate = crates.get(crate_name, set())
         states.append(
             PlaylistSyncState(
@@ -657,7 +658,7 @@ def _dry_run_report(
             PlaylistSyncResult(
                 playlist_id=p.id,
                 playlist_name=p.name,
-                crate_name=crate_name_for(p, by_id),
+                crate_name=crate_name_for(p, by_id, volume=volume_label_for(library.mount)),
                 tracks=len(tracks_by_playlist[p.id]),
             )
             for p in selected
@@ -739,6 +740,7 @@ def _write_playlist_crates(
     tracks_by_playlist: dict[int, Sequence[str]],
     context: WriteContext,
     on_progress: SyncProgressCallback | None = None,
+    volume: str | None = None,
 ) -> list[PlaylistSyncResult]:
     """
     Write one crate per selected playlist. Failed writes set ``error``.
@@ -750,11 +752,12 @@ def _write_playlist_crates(
         tracks_by_playlist: Rekordbox paths per playlist id.
         context: Validated backup context.
         on_progress: Optional callback after each crate write.
+        volume: Thumbdrive label prefixed onto every crate name.
     """
     results: list[PlaylistSyncResult] = []
     total = len(selected)
     for done, playlist in enumerate(selected, start=1):
-        crate_name = crate_name_for(playlist, by_id)
+        crate_name = crate_name_for(playlist, by_id, volume=volume)
         paths = [serato_path(raw) for raw in tracks_by_playlist[playlist.id]]
         error: str | None = None
         try:
@@ -853,7 +856,13 @@ def sync_playlists(
         on_progress,
     )
     results = _write_playlist_crates(
-        serato_root, selected, by_id, tracks_by_playlist, context, on_progress
+        serato_root,
+        selected,
+        by_id,
+        tracks_by_playlist,
+        context,
+        on_progress,
+        volume=volume_label_for(library.mount),
     )
     write_crate_order(serato_root, merge_crate_order(serato_root, _written_crate_names(results)))
 
