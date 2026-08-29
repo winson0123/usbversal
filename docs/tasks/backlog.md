@@ -204,6 +204,7 @@ and none of them exist yet.
 | ~~`TASK-278`~~ | ~~Skip backup hash when size and mtime match~~ | Done — `original_mtime_ns` on each manifest row; size + mtime match skips SHA-256. Old rows are hashed once, then stamped. |
 | ~~`TASK-279`~~ | ~~Remove backup and rollback~~ | Done — writes go immediately; `error.log` stays on the host. Recovery is restoring the Rekordbox USB. |
 | ~~`TASK-280`~~ | ~~Stable phase-average ETA~~ | Done — remaining time is units left over the average rate since this phase started, not the last 8 items. |
+| ~~`TASK-281`~~ | ~~Parallel analysis tag writes~~ | Done — 4 workers write ANLZ/tags; Rekordbox, index, and crates stay sequential. `USBVERSAL_SYNC_WORKERS` overrides. |
 | `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |
 
 ---

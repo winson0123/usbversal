@@ -970,6 +970,18 @@ The 8-sample window made ETA climb and drop as skip and rewrite tracks interleav
 
 ---
 
+## TASK-281 — Parallel analysis tag writes
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Write analysis tags on several tracks at once |
+| Verification | ruff ✓ ruff format ✓ pytest 290 passed / 4 skipped |
+
+ANLZ reads and GEOB rewrites run in a pool of 4 threads (cap 8; `USBVERSAL_SYNC_WORKERS` overrides). Rekordbox objects stay on the dedicated thread. Index append, crate writes, and `location.sqlite` stay sequential.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

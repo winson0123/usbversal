@@ -528,26 +528,12 @@ def test_on_progress_reports_each_analysis_track(tmp_path: Path) -> None:
 
     analysis = [sample for sample in calls if sample.phase == "analysis"]
     crates = [sample for sample in calls if sample.phase == "crates"]
-    assert analysis == [
-        SyncProgress(
-            "analysis",
-            1,
-            3,
-            "/Contents/a.wav",
-            playlist="test",
-            playlist_done=1,
-            playlist_total=2,
-        ),
-        SyncProgress(
-            "analysis",
-            2,
-            3,
-            "/Contents/b.wav",
-            playlist="test",
-            playlist_done=2,
-            playlist_total=2,
-        ),
-    ]
+    assert {sample.item for sample in analysis} == {"/Contents/a.wav", "/Contents/b.wav"}
+    assert {sample.done for sample in analysis} == {1, 2}
+    assert all(sample.total == 3 for sample in analysis)
+    assert all(sample.playlist == "test" for sample in analysis)
+    assert {sample.playlist_done for sample in analysis} == {1, 2}
+    assert all(sample.playlist_total == 2 for sample in analysis)
     assert crates == [
         SyncProgress(
             "crates",

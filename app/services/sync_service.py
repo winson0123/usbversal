@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import binascii
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -10,31 +9,21 @@ from typing import Any
 
 import structlog
 
-from app.adapters.rekordbox.anlz import (
-    AnlzError,
-    Beat,
-    HotCue,
-    extended_path,
-    read_beats,
-    read_hot_cues,
-)
+from app.adapters.rekordbox.anlz import read_beats
 from app.adapters.serato import (
     crate_name_for,
     read_crate_track_paths,
     read_database_track_paths,
     volume_label_for,
 )
-from app.adapters.serato.beatgrid import encode_beatgrid
 from app.adapters.serato.library_db import (
     TrackAnalysis,
     library_db_path,
     read_track_analysis,
     update_track_analysis,
 )
-from app.adapters.serato.markers2 import Cue, decode_markers, encode_markers, replace_cues
 from app.adapters.serato.neworder import merge_crate_order, write_crate_order
 from app.adapters.serato.paths import list_crate_files
-from app.adapters.serato.tags import TagFormatError, read_geob, write_geob
 from app.adapters.serato.writer import (
     CrateExistsError,
     append_database_tracks,
@@ -45,6 +34,7 @@ from app.core.playlist_tree import PlaylistNode, build_playlist_tree
 from app.core.track_paths import normalize_track_path
 from app.services.library import UsbLibrary
 from app.services.migration_service import PlaylistNotFoundError, SeratoLibraryRequiredError
+from app.services.sync_analysis import AnalysisJob, run_analysis_jobs
 from app.services.sync_progress import (
     SyncProgressCallback,
     attach_playlist,
@@ -426,35 +416,40 @@ def _analysis_dat_path(mount: Path, content: Any) -> Path | None:
     return mount / serato_path(raw)
 
 
-def _write_track_tags(audio_path: Path, beats: list[Beat], cues: list[HotCue]) -> bool:
+def _analysis_jobs(
+    mount: Path,
+    contents: dict[str, Any],
+    paths: Sequence[str],
+    lookups: RekordboxLookups,
+) -> list[AnalysisJob]:
     """
-    Write a track's beatgrid and hot cues into its audio tags.
+    Build worker jobs from rekordbox content rows.
+
+    Must run on the dedicated rekordbox thread: it reads content attributes.
 
     Args:
-        audio_path: Path to the audio file (.mp3, .wav, .flac, .aif, .aiff, .m4a).
-        beats: Beats to encode as a Serato BeatGrid, empty to leave it alone.
-        cues: Hot cues to encode as Serato Markers2, empty to leave them alone.
+        mount: Mount root.
+        contents: Rekordbox path to content row.
+        paths: Rekordbox track paths to process.
+        lookups: Id-to-name tables, for key lookups.
 
     Returns:
-        True when tags were rewritten, False when they already matched.
+        One job per path, with only filesystem paths and key names.
     """
-    updates: dict[str, bytes] = {}
-    if beats:
-        grid = encode_beatgrid(beats)
-        if grid is not None:
-            updates["Serato BeatGrid"] = grid
-    if cues:
-        existing = read_geob(audio_path).get("Serato Markers2")
-        markers = replace_cues(
-            decode_markers(existing) if existing else [],
-            [Cue(slot=cue.slot, position_ms=cue.position_ms, colour=cue.colour) for cue in cues],
+    jobs: list[AnalysisJob] = []
+    for raw in paths:
+        content = contents.get(raw)
+        dat_path = _analysis_dat_path(mount, content) if content is not None else None
+        key = lookups.keys.get(content.key_id) if content is not None else None
+        jobs.append(
+            AnalysisJob(
+                raw=raw,
+                audio_path=mount / serato_path(raw),
+                dat_path=dat_path,
+                key=key,
+            )
         )
-        updates["Serato Markers2"] = encode_markers(
-            markers, payload_size=len(existing) if existing else None
-        )
-    if not updates:
-        return False
-    return write_geob(audio_path, updates)
+    return jobs
 
 
 def _sync_analysis(
@@ -468,10 +463,10 @@ def _sync_analysis(
     """
     Write beatgrids and hot cues from Rekordbox ANLZ data into Serato tags.
 
-    Only a track that gets a real beatgrid updates the library index, so the
-    list stays in step with what the deck now reads from the file. A track
-    this pass could not write is left exactly as Serato had it, rather than
-    guessed at from Rekordbox's own BPM.
+    Tag writes run on a worker pool. Only a track that gets a real beatgrid
+    updates the library index, so the list stays in step with what the deck
+    now reads from the file. A track this pass could not write is left
+    exactly as Serato had it, rather than guessed at from Rekordbox's own BPM.
 
     Args:
         mount: Mount root.
@@ -485,37 +480,18 @@ def _sync_analysis(
     Returns:
         Counts of what was written, and one message per track that failed.
     """
+    results = run_analysis_jobs(_analysis_jobs(mount, contents, paths, lookups), on_progress)
     cues_written = 0
     errors: list[str] = []
     updates: dict[str, TrackAnalysis] = {}
-    ordered = list(paths)
-
-    for done, raw in enumerate(ordered, start=1):
-        track_error: str | None = None
-        try:
-            content = contents.get(raw)
-            audio_path = mount / serato_path(raw)
-            dat_path = _analysis_dat_path(mount, content) if content is not None else None
-            if content is None or dat_path is None or not audio_path.is_file():
-                continue
-            try:
-                beats = read_beats(dat_path)
-                cues = read_hot_cues(extended_path(dat_path))
-                if not beats and not cues:
-                    continue
-                wrote = _write_track_tags(audio_path, beats, cues)
-            except (AnlzError, TagFormatError, OSError, binascii.Error) as exc:
-                track_error = str(exc)
-                errors.append(f"{raw}: {track_error}")
-                continue
-            if wrote and beats:
-                updates[serato_path(raw)] = TrackAnalysis(
-                    bpm=beats[0].bpm, key=lookups.keys.get(content.key_id)
-                )
-            if wrote and cues:
-                cues_written += 1
-        finally:
-            emit_progress(on_progress, "analysis", done, len(ordered), raw, track_error)
+    for result in results:
+        if result.error is not None:
+            errors.append(f"{result.raw}: {result.error}")
+            continue
+        if result.analysis is not None:
+            updates[serato_path(result.raw)] = result.analysis
+        if result.cues_written:
+            cues_written += 1
 
     rows_updated = 0
     if updates and index_path is not None:

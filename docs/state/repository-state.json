@@ -139,6 +139,7 @@
     "backup_content_addressed_objects": false,
     "progress_eta_uses_recent_window": false,
     "progress_eta_uses_phase_average": true,
+    "analysis_tag_writes_parallel": true,
     "audio_tag_write_aiff": true,
     "audio_tag_write_m4a": true,
     "write_geob_skips_matching_payload": true,
@@ -158,7 +159,7 @@
     "ruff_format": "pass",
     "pytest": "pass",
     "last_run": "2026-08-29T00:00:00Z",
-    "tests_passed": 285,
+    "tests_passed": 290,
     "tests_skipped": 4,
     "tests_failed": 0,
     "note": "run with no stick mounted and no dist/usbversal built; the 4 skips are 2 integration tests gated on USBVERSAL_TEST_MOUNT (no default path), the opt-in full PyInstaller build (USBVERSAL_PACKAGING_BUILD=1), and the binary-existence smoke test that needs a prior ./scripts/build-release.sh -- a real build was run and verified during TASK-206, then cleaned up"
