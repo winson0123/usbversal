@@ -1,5 +1,7 @@
 """Tests for job progress rate and ETA estimation."""
 
+import pytest
+
 from app.jobs.progress_rate import ProgressRateTracker, format_duration
 
 
@@ -33,16 +35,32 @@ def test_eta_is_remaining_work_over_rate() -> None:
     assert estimate.eta_seconds == 40.0
 
 
-def test_rate_averages_over_the_whole_run_not_just_the_last_step() -> None:
-    """A slow first step does not get erased by a fast second one."""
+def test_rate_averages_over_recent_samples_not_just_the_last_step() -> None:
+    """A slow first step in the window is not erased by a fast second one."""
     tracker = ProgressRateTracker()
     tracker.observe(current=0, total=100, at=0.0)
     tracker.observe(current=1, total=100, at=10.0)
 
     estimate = tracker.observe(current=11, total=100, at=15.0)
 
-    # 11 units over 15 seconds overall, not 10 units over the last 5.
+    # 11 units over 15 seconds in the window, not 10 units over the last 5.
     assert estimate.rate_per_second < 2.0
+
+
+def test_a_fast_start_does_not_keep_the_eta_optimistic() -> None:
+    """After the window fills with slow steps, remaining work uses that rate."""
+    tracker = ProgressRateTracker()
+    tracker.observe(current=0, total=100, at=0.0)
+    for step in range(1, 20):
+        tracker.observe(current=step, total=100, at=step * 0.01)
+    at = 19 * 0.01
+    estimate = tracker.observe(current=19, total=100, at=at)
+    for step in range(20, 28):
+        at += 2.0
+        estimate = tracker.observe(current=step, total=100, at=at)
+
+    assert estimate.rate_per_second == pytest.approx(0.5)
+    assert estimate.eta_seconds == pytest.approx(146.0)
 
 
 def test_no_total_yields_a_rate_but_no_eta() -> None:

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass
+
+_WINDOW = 8
 
 
 @dataclass(frozen=True)
@@ -11,8 +14,8 @@ class ProgressEstimate:
     Rate and time-to-completion derived from a job's progress so far.
 
     Attributes:
-        rate_per_second: Units completed per second, averaged over the run so
-            far. None until progress has actually advanced.
+        rate_per_second: Units completed per second, averaged over the recent
+            window. None until progress has actually advanced.
         eta_seconds: Estimated seconds remaining at that rate. None when the
             total is unknown, or the run has not advanced yet.
     """
@@ -25,15 +28,13 @@ class ProgressRateTracker:
     """
     Turns successive ``current``/``total`` samples into a rate and an ETA.
 
-    Averages over the whole run rather than only the most recent interval:
-    a sync job's per-track cost varies (a big MP3's tag rewrite next to a
-    small WAV's), so a single slow or fast step should not swing the
-    estimate the way a most-recent-interval rate would.
+    Averages over the last ``_WINDOW`` progress advances, not the whole run.
+    Cheap early steps (index writes, reused backup objects) would otherwise
+    keep the rate high and the ETA climbing once slower tag writes begin.
     """
 
     def __init__(self) -> None:
-        self._start_current: int | None = None
-        self._start_at: float | None = None
+        self._samples: deque[tuple[float, int]] = deque(maxlen=_WINDOW)
 
     def observe(self, *, current: int, total: int | None, at: float) -> ProgressEstimate:
         """
@@ -47,12 +48,14 @@ class ProgressRateTracker:
         Returns:
             The rate/ETA estimate incorporating this sample.
         """
-        if self._start_current is None:
-            self._start_current = current
-            self._start_at = at
+        if not self._samples or current != self._samples[-1][1]:
+            self._samples.append((at, current))
+        if len(self._samples) < 2:
+            return ProgressEstimate(rate_per_second=None, eta_seconds=None)
 
-        elapsed = at - self._start_at
-        completed = current - self._start_current
+        start_at, start_current = self._samples[0]
+        elapsed = at - start_at
+        completed = current - start_current
         if elapsed <= 0 or completed <= 0:
             return ProgressEstimate(rate_per_second=None, eta_seconds=None)
 

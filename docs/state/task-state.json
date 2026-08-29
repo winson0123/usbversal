@@ -594,6 +594,11 @@
       "id": "TASK-275",
       "title": "Content-addressed incremental backups",
       "completed_at": "2026-08-29T00:00:00Z"
+    },
+    {
+      "id": "TASK-276",
+      "title": "ETA from recent rate, reset on phase",
+      "completed_at": "2026-08-29T00:00:00Z"
     }
   ],
   "history": [
@@ -1284,6 +1289,12 @@
     {
       "id": "TASK-275",
       "title": "Content-addressed incremental backups",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-276",
+      "title": "ETA from recent rate, reset on phase",
       "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }

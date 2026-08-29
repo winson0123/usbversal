@@ -41,8 +41,9 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 14 | ~~`TASK-273`~~ | Done: no Esc Quit; summary mid-screen |
 | 15 | ~~`TASK-274`~~ | Reuse latest backup when live files are unchanged |
 | 16 | ~~`TASK-275`~~ | Content-addressed backups; one changed file is one new object |
-| 17 | `TASK-263` | `.aif` / `.aiff` tag read/write |
-| 18 | `TASK-252` | Library two-pane (original ask, last) |
+| 17 | ~~`TASK-276`~~ | ETA uses recent rate; resets when the phase changes |
+| 18 | `TASK-263` | `.aif` / `.aiff` tag read/write |
+| 19 | `TASK-252` | Library two-pane (original ask, last) |
 
 Progress screen target layout:
 

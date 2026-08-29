@@ -85,7 +85,7 @@ class ProgressScreen(Screen):
         self.library = library
         self._playlist_ids = list(playlist_ids)
         self._tracker = ProgressRateTracker()
-        self._bar_run: str | None = None
+        self._phase: str | None = None
 
     def compose(self) -> ComposeResult:
         """Keep status, bar, and playlist mid-screen; dock the log below."""
@@ -131,10 +131,9 @@ class ProgressScreen(Screen):
         Args:
             sample: Phase, counts, item path or crate name, and optional error.
         """
-        run = "backup" if sample.phase == "backup" else "sync"
-        if run != self._bar_run:
+        if sample.phase != self._phase:
             self._tracker = ProgressRateTracker()
-            self._bar_run = run
+            self._phase = sample.phase
         self.query_one(ProgressBar).update(total=sample.total, progress=sample.done)
         estimate = self._tracker.observe(
             current=sample.done, total=sample.total, at=time.monotonic()

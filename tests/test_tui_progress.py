@@ -261,10 +261,12 @@ async def test_backup_samples_drive_the_bar_and_do_not_log_files() -> None:
                 assert "empty" in screen.query_one(RichLog).classes
                 assert str(screen.query_one("#sync-playlist", Static).render()) == ""
 
+                after_backup = screen._tracker
                 screen._update_progress(SyncProgress("analysis", 1, 3, "Contents/a.mp3"))
                 bar = screen.query_one(ProgressBar)
                 assert bar.total == 3
                 assert bar.progress == 1
+                assert screen._tracker is not after_backup
                 assert "empty" not in screen.query_one(RichLog).classes
             finally:
                 hold.set()

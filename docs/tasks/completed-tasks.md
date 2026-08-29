@@ -900,6 +900,16 @@ WONSIN `error.log` (`20260829T075133Z`) refused Memories and Humble with `'Serat
 
 ---
 
+## TASK-276 — ETA from recent rate, reset on phase
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Stop the progress ETA climbing as slower work starts |
+| Verification | ruff ✓ ruff format ✓ pytest 317 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown
