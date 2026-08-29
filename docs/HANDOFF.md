@@ -37,8 +37,9 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 10 | ~~`TASK-270`~~ | Toast copy is "Press ^Q to quit"; narrower toast |
 | 11 | ~~`TASK-271`~~ | Grow a tight MP3 ID3 so BeatGrid/Markers2 fit |
 | 12 | ~~`TASK-262`~~ | Done screen: scrollable failures; host `error.log` |
-| 13 | `TASK-263` | `.aif` / `.aiff` tag read/write |
-| 14 | `TASK-252` | Library two-pane (original ask, last) |
+| 13 | ~~`TASK-272`~~ | ID3v2.2 `GEO` read/write (Memories / Humble BeatGrid) |
+| 14 | `TASK-263` | `.aif` / `.aiff` tag read/write |
+| 15 | `TASK-252` | Library two-pane (original ask, last) |
 
 Progress screen target layout:
 
@@ -223,7 +224,7 @@ and hot cues into the audio tags and, when a grid was written, updates
 | `adapters/rekordbox/anlz.py` | reads hot cues (`PCO2`) and beats (`PQTZ`) |
 | `adapters/serato/beatgrid.py` | encodes `Serato BeatGrid` |
 | `adapters/serato/markers2.py` | encodes/decodes `Serato Markers2` |
-| `adapters/serato/tags.py` | reads/writes GEOB frames in MP3 and WAV, verifying size, audio hash, and frame read-back before any byte reaches disk |
+| `adapters/serato/tags.py` | reads/writes GEOB (v2.3/v2.4) and GEO (v2.2) frames in MP3 and WAV, verifying size, audio hash, and frame read-back before any byte reaches disk |
 | `adapters/serato/library_db.py` | reads/updates `location.sqlite` |
 
 `sync_playlists()` now writes crates, `database V2` records, `neworder.pref`,

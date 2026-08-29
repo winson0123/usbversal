@@ -433,7 +433,7 @@ for why this is being revisited.
 
 | Container | Where the Serato payload lives |
 |-----------|-------------------------------|
-| **MP3** | ID3v2 GEOB at the head of the file. Frame sizes are synchsafe on v2.4, raw 32-bit on v2.3. |
+| **MP3** | ID3v2 encapsulated-object frames at the head of the file. v2.2 uses 3-byte `GEO` ids and 3-byte sizes (no flags). v2.3 uses 4-byte `GEOB` and raw 32-bit sizes. v2.4 uses synchsafe sizes. |
 | **WAV** | The ID3 stream is wrapped in a RIFF chunk with id `id3 `. The chunk must be rewritten **and the RIFF size field fixed**. |
 | **FLAC** | Vorbis comments `SERATO_BEATGRID` / `SERATO_MARKERS_V2`. Value is base64 (no padding, newline every 72 characters) of `application/octet-stream\\0\\0` + description + payload. |
 
@@ -442,7 +442,8 @@ Chunk order observed in the WAV fixtures: `fmt ` / `data` / `DISP` / `iXML` / `_
 The Serato **marker payloads are identical across containers** — only the
 wrapper differs. MP4 atoms are out of scope.
 
-ID3 writes are size-preserving. FLAC comment blocks may grow; STREAMINFO and
+ID3 writes keep the original tag size when padding allows. An MP3 tag with no
+`Serato Offsets_` may grow. FLAC comment blocks may grow; STREAMINFO and
 the audio frames stay byte-identical.
 
 ---

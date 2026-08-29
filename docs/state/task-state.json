@@ -574,6 +574,11 @@
       "id": "TASK-262",
       "title": "Done screen lists failures + error.log",
       "completed_at": "2026-08-29T00:00:00Z"
+    },
+    {
+      "id": "TASK-272",
+      "title": "ID3v2.2 GEO read/write",
+      "completed_at": "2026-08-29T00:00:00Z"
     }
   ],
   "history": [
@@ -1240,6 +1245,12 @@
     {
       "id": "TASK-262",
       "title": "Done screen lists failures + error.log",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-272",
+      "title": "ID3v2.2 GEO read/write",
       "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }

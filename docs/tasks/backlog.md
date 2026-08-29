@@ -171,7 +171,7 @@ and none of them exist yet.
 | ~~`TASK-238`~~ | ~~Fold `sync_analysis.py` back into `sync_service.py`~~ | Done — TASK-235 (`ddcb66c`) was the best state along 233–237: named steps that earn their keep, no extra module. Folded analysis write / BPM correction back into `sync_service.py`. Kept `_COMMANDS` / `_emit_json` and shared backup helpers. File under 1000 lines. |
 | ~~`TASK-239`~~ | ~~Commit the leftover test trim~~ | Done — overlapping Home searching / Enter-retry / count-label tests folded; unique coverage (mid-timeout, stop-polling, Home bootstrap, `e` on a leaf, custom env var) kept. |
 | ~~`TASK-240`~~ | ~~Remove the CLI~~ | Done — `app/cli/` and CLI-only tests gone. `usbversal` / `python -m app.tui` launch the TUI. |
-| ~~`TASK-241`~~ | ~~Confirm ID3v2.3 and v2.4 MP3 GEOB writes~~ | Done — `tests/test_mp3_tags.py` round-trips BeatGrid/Markers2 on hand-built MP3s; audio after the tag unchanged. Not yet confirmed live in Serato. |
+| ~~`TASK-241`~~ | ~~Confirm ID3v2.3 and v2.4 MP3 GEOB writes~~ | Done — `tests/test_mp3_tags.py` round-trips BeatGrid/Markers2 on hand-built MP3s; audio after the tag unchanged. Not yet confirmed live in Serato. v2.2 `GEO` is TASK-272. |
 | ~~`TASK-242`~~ | ~~FLAC Vorbis-comment Serato tags~~ | Done — `SERATO_BEATGRID` / `SERATO_MARKERS_V2` via base64-wrapped payloads. STREAMINFO and audio frames stay byte-identical. MP4 still out of scope. |
 | ~~`TASK-243`~~ | ~~Progress covers index and crate writes~~ | Done — `SyncProgress` with `index` / `analysis` / `crates`. Progress screen labels each phase; backup is the opening status line. |
 | ~~`TASK-250`~~ | ~~Run `correct_index_bpm` on a real stick~~ | Done — WONSIN 2026-08-28: 7 of 1286 rows written, backup `20260828T072224Z`. Still not in the TUI. Findings in `docs/workflows/index-bpm-wonsin.md`. |
@@ -194,6 +194,7 @@ and none of them exist yet.
 | ~~`TASK-266`~~ | ~~Center the progress bar horizontally~~ | Done — bar row is full width so the 60% bar sits in the middle, not a short strip on the left. |
 | ~~`TASK-268`~~ | ~~Stretch the visible progress strip~~ | Done — inner `Bar` is `width: 1fr` so it fills the 60% ProgressBar instead of Textual's 32-cell default. |
 | ~~`TASK-262`~~ | ~~Done screen lists failures + `error.log`~~ | Done — scrollable title / path / reason; host `error.log` next to that volume's backups. |
+| ~~`TASK-272`~~ | ~~ID3v2.2 GEO read/write~~ | Done — v2.2 uses 6-byte `GEO` frames, not 10-byte `GEOB`. WONSIN Memories / Humble BeatGrid verify failures. |
 | `TASK-263` | AIFF / AIF Serato tags | `write_geob` / `read_geob` for `.aif` / `.aiff` (ID3 GEOB, same family as WAV/MP3). Tests like TASK-241. MP4 still out of scope. |
 | `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |
 

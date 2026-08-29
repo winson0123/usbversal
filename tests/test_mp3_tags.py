@@ -1,4 +1,4 @@
-"""ID3v2.3 and ID3v2.4 MP3 GEOB write/read."""
+"""ID3v2.2, ID3v2.3, and ID3v2.4 MP3 GEOB/GEO write/read."""
 
 from __future__ import annotations
 
@@ -22,13 +22,17 @@ def _synchsafe(value: int) -> bytes:
 
 def _encode_frame_size(size: int, version: int) -> bytes:
     """Encode a frame size for the tag's ID3 version."""
+    if version == 2:
+        return size.to_bytes(3, "big")
     return _synchsafe(size) if version >= 4 else struct.pack(">I", size)
 
 
 def _geob_frame(description: str, payload: bytes, version: int) -> bytes:
-    """Build one raw GEOB frame for the given ID3 version."""
+    """Build one raw GEO (v2.2) or GEOB frame for the given ID3 version."""
     body = b"\x00" + _GEOB_MIME + b"\x00\x00" + description.encode("latin1") + b"\x00" + payload
-    return b"GEOB" + _encode_frame_size(len(body), version) + b"\x00\x00" + body
+    frame_id = b"GEO" if version == 2 else b"GEOB"
+    flags = b"" if version == 2 else b"\x00\x00"
+    return frame_id + _encode_frame_size(len(body), version) + flags + body
 
 
 def _mp3(version: int, frames: list[bytes], *, padding: int) -> bytes:
@@ -36,7 +40,7 @@ def _mp3(version: int, frames: list[bytes], *, padding: int) -> bytes:
     Build a minimal MP3 with an ID3 tag of ``version`` and dummy audio.
 
     Args:
-        version: ID3 major version (3 or 4).
+        version: ID3 major version (2, 3, or 4).
         frames: Raw frame bytes already sized for that version.
         padding: Trailing zero bytes inside the tag, so a write can grow frames
             without moving the audio.
@@ -73,6 +77,43 @@ def _audio_after_tag(data: bytes) -> bytes:
     """Return everything after the ID3 tag (the dummy MPEG frame)."""
     size = (data[6] << 21) | (data[7] << 14) | (data[8] << 7) | data[9]
     return data[10 + size :]
+
+
+def test_id3v22_mp3_round_trips_beatgrid_and_markers(tmp_path: Path) -> None:
+    """v2.2 6-byte GEO frames write and read back on an MP3."""
+    path = _write_mp3(tmp_path, 2)
+    before_audio = _audio_after_tag(path.read_bytes())
+
+    write_geob(path, {"Serato BeatGrid": _GRID, "Serato Markers2": _MARKERS})
+
+    frames = read_geob(path)
+    assert frames["Serato BeatGrid"] == _GRID
+    assert frames["Serato Markers2"] == _MARKERS
+    assert _audio_after_tag(path.read_bytes()) == before_audio
+    assert path.read_bytes()[:3] == b"ID3"
+    assert path.read_bytes()[3] == 2
+
+
+def test_id3v22_preserves_sibling_geo_and_text_frames(tmp_path: Path) -> None:
+    """Updating BeatGrid leaves other GEO descriptions and TT2 untouched."""
+    title = b"TT2" + (5).to_bytes(3, "big") + b"\x00Song"
+    frames = [
+        title,
+        _geob_frame("Serato Overview", b"\x01\x05", 2),
+        _geob_frame("Serato BeatGrid", b"\x01\x00\x00\x00\x00\x00\x00", 2),
+        _geob_frame("Serato Markers2", b"\x01\x01", 2),
+    ]
+    path = tmp_path / "v22-sib.mp3"
+    path.write_bytes(_mp3(2, frames, padding=256))
+
+    write_geob(path, {"Serato BeatGrid": _GRID})
+
+    after = read_geob(path)
+    assert after["Serato Overview"] == b"\x01\x05"
+    assert after["Serato BeatGrid"] == _GRID
+    assert after["Serato Markers2"] == b"\x01\x01"
+    assert b"TT2" in path.read_bytes()[:200]
+    assert b"Song" in path.read_bytes()[:200]
 
 
 def test_id3v24_mp3_round_trips_beatgrid_and_markers(tmp_path: Path) -> None:
@@ -119,3 +160,23 @@ def test_mp3_tag_grows_when_padding_cannot_hold_new_frames(tmp_path: Path) -> No
     assert frames["Serato Markers2"] == _MARKERS
     assert _audio_after_tag(path.read_bytes()) == before_audio
     assert path.stat().st_size > before_size
+
+
+def test_id3v22_tight_tag_grows_when_padding_cannot_hold_new_frames(
+    tmp_path: Path,
+) -> None:
+    """A tight v2.2 tag grows so BeatGrid and Markers2 can be added as GEO."""
+    path = tmp_path / "tight-v22.mp3"
+    title = b"TT2" + (5).to_bytes(3, "big") + b"\x00Song"
+    path.write_bytes(_mp3(2, [title], padding=0))
+    before_audio = _audio_after_tag(path.read_bytes())
+    before_size = path.stat().st_size
+
+    write_geob(path, {"Serato BeatGrid": _GRID, "Serato Markers2": _MARKERS})
+
+    frames = read_geob(path)
+    assert frames["Serato BeatGrid"] == _GRID
+    assert frames["Serato Markers2"] == _MARKERS
+    assert _audio_after_tag(path.read_bytes()) == before_audio
+    assert path.stat().st_size > before_size
+    assert path.read_bytes()[3] == 2

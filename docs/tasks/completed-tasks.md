@@ -858,6 +858,18 @@ A file in Untagged failed because new frames exceeded ID3 padding. Growing is al
 
 ---
 
+## TASK-272 — ID3v2.2 GEO read/write
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Read and write Serato frames on ID3v2.2 MP3s |
+| Verification | ruff ✓ ruff format ✓ pytest 309 passed / 4 skipped |
+
+WONSIN `error.log` (`20260829T075133Z`) refused Memories and Humble with `'Serato BeatGrid' did not read back as written`. Both files are ID3v2.2 (`GEO`, 6-byte headers). The writer only understood v2.3/v2.4 `GEOB`.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

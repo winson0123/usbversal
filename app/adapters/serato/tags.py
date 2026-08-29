@@ -47,13 +47,80 @@ def _unsynchsafe(raw: bytes) -> int:
 
 
 def _frame_size(raw: bytes, version: int) -> int:
-    """Decode a frame size, which is synchsafe only from ID3v2.4."""
+    """Decode a frame size for the tag's ID3 version."""
+    if version == 2:
+        return int.from_bytes(raw, "big")
     return _unsynchsafe(raw) if version >= 4 else struct.unpack(">I", raw)[0]
 
 
 def _encode_frame_size(size: int, version: int) -> bytes:
     """Encode a frame size for the tag's ID3 version."""
+    if version == 2:
+        if size > 0xFFFFFF:
+            raise TagFormatError("ID3v2.2 frame exceeds 3-byte size field")
+        return size.to_bytes(3, "big")
     return _synchsafe(size) if version >= 4 else struct.pack(">I", size)
+
+
+def _id3_frame_header_len(version: int) -> int:
+    """Return the frame header length: 6 bytes on v2.2, 10 on later versions."""
+    return 6 if version == 2 else 10
+
+
+def _geob_frame_id(version: int) -> bytes:
+    """Return the encapsulated-object frame id for this ID3 major version."""
+    return b"GEO" if version == 2 else b"GEOB"
+
+
+def _iter_id3_frames(tag: bytes, version: int, end: int) -> list[tuple[bytes, bytes, bytes]]:
+    """
+    Return each frame as ``(frame_id, header, body)``.
+
+    ID3v2.2 uses 3-byte ids and 3-byte sizes with no flags. Later versions
+    use 4-byte ids, 4-byte sizes, and a 2-byte flag field.
+
+    Args:
+        tag: Full ID3 tag bytes.
+        version: ID3 major version.
+        end: Exclusive offset of the last declared frame byte.
+
+    Returns:
+        Frames in file order, stopping at padding.
+    """
+    header_len = _id3_frame_header_len(version)
+    id_len = 3 if version == 2 else 4
+    size_len = 3 if version == 2 else 4
+    frames: list[tuple[bytes, bytes, bytes]] = []
+    offset = 10
+    while offset + header_len <= min(end, len(tag)):
+        frame_id = tag[offset : offset + id_len]
+        if frame_id == b"\x00" * id_len or not frame_id.isalnum():
+            break
+        frame_size = _frame_size(tag[offset + id_len : offset + id_len + size_len], version)
+        header = tag[offset : offset + header_len]
+        body = tag[offset + header_len : offset + header_len + frame_size]
+        frames.append((frame_id, header, body))
+        offset += header_len + frame_size
+    return frames
+
+
+def _replaced_frame_header(frame_id: bytes, body: bytes, version: int, original: bytes) -> bytes:
+    """
+    Rebuild a frame header after its body length changed.
+
+    Args:
+        frame_id: 3-byte (v2.2) or 4-byte frame id.
+        body: New frame body.
+        version: ID3 major version.
+        original: Header being replaced (flags are kept on v2.3+).
+
+    Returns:
+        A header whose size field matches ``body``.
+    """
+    encoded = _encode_frame_size(len(body), version)
+    if version == 2:
+        return frame_id + encoded
+    return frame_id + encoded + original[8:10]
 
 
 def _geob_description(body: bytes) -> tuple[str, int]:
@@ -478,18 +545,13 @@ def _read_geob_bytes(data: bytes) -> dict[str, bytes]:
 
     version = tag[3]
     end = 10 + _unsynchsafe(tag[6:10])
-    offset = 10
+    geob_id = _geob_frame_id(version)
     frames: dict[str, bytes] = {}
-    while offset + 10 <= min(end, len(tag)):
-        frame_id = tag[offset : offset + 4]
-        if frame_id == b"\x00\x00\x00\x00":
-            break
-        frame_size = _frame_size(tag[offset + 4 : offset + 8], version)
-        body = tag[offset + 10 : offset + 10 + frame_size]
-        offset += 10 + frame_size
-        if frame_id == b"GEOB":
-            description, cursor = _geob_description(body)
-            frames[description] = body[cursor:]
+    for frame_id, _header, body in _iter_id3_frames(tag, version, end):
+        if frame_id != geob_id:
+            continue
+        description, cursor = _geob_description(body)
+        frames[description] = body[cursor:]
     return frames
 
 
@@ -579,8 +641,8 @@ def _rewritten_frame(
     Return the header, body, and GEOB description to keep, or None to drop.
 
     Args:
-        frame_id: Four-byte ID3 frame id.
-        header: Original 10-byte frame header.
+        frame_id: 3-byte (v2.2) or 4-byte ID3 frame id.
+        header: Original frame header (6 or 10 bytes).
         body: Original frame body.
         version: ID3 major version (size encoding).
         updates: GEOB description to replacement payload.
@@ -589,14 +651,14 @@ def _rewritten_frame(
     """
     if frame_id in dropped_frames:
         return None
-    if frame_id != b"GEOB":
+    if frame_id != _geob_frame_id(version):
         return header, body, None
     description, cursor = _geob_description(body)
     if description in dropped_geob:
         return None
     if description in updates:
         body = body[:cursor] + updates[description]
-        header = frame_id + _encode_frame_size(len(body), version) + header[8:10]
+        header = _replaced_frame_header(frame_id, body, version, header)
     return header, body, description
 
 
@@ -624,15 +686,7 @@ def _copy_existing_frames(
     """
     rebuilt = bytearray()
     written: set[str] = set()
-    offset = 10
-    while offset + 10 <= min(end, len(tag)):
-        frame_id = tag[offset : offset + 4]
-        if frame_id == b"\x00\x00\x00\x00":
-            break
-        frame_size = _frame_size(tag[offset + 4 : offset + 8], version)
-        header = tag[offset : offset + 10]
-        body = tag[offset + 10 : offset + 10 + frame_size]
-        offset += 10 + frame_size
+    for frame_id, header, body in _iter_id3_frames(tag, version, end):
         next_frame = _rewritten_frame(
             frame_id, header, body, version, updates, dropped_geob, dropped_frames
         )
@@ -664,7 +718,8 @@ def _append_missing_geob(
         if description in written:
             continue
         body = b"\x00" + _GEOB_MIME + b"\x00\x00" + description.encode("latin1") + b"\x00" + payload
-        rebuilt += b"GEOB" + _encode_frame_size(len(body), version) + b"\x00\x00" + body
+        flags = b"" if version == 2 else b"\x00\x00"
+        rebuilt += _geob_frame_id(version) + _encode_frame_size(len(body), version) + flags + body
 
 
 def _padded_tag(tag: bytes, rebuilt: bytearray, declared: int, *, grow: bool) -> bytes:
@@ -735,7 +790,8 @@ def write_geob(
     Replace or remove frames in an audio file's ID3 tag, in place.
 
     Only the named frames are touched. Every other frame and all audio data are
-    preserved byte for byte. ID3 tags keep their original size when padding
+    preserved byte for byte. ID3v2.2 files use ``GEO`` frames; later versions
+    use ``GEOB``. ID3 tags keep their original size when padding
     allows; an MP3 tag with no ``Serato Offsets_`` may grow. FLAC Vorbis
     comments may grow, but STREAMINFO and the audio frames stay identical.
     Before anything reaches disk, the rebuilt file is verified against the
