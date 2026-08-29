@@ -91,9 +91,27 @@ def test_foreign_vendor_frames_survive_removal_of_our_own(mixed_vendor_mp3: Path
         assert after[name] == payload, name
 
 
-def test_a_write_that_would_evict_a_foreign_frame_is_refused(tmp_path: Path) -> None:
-    """No headroom to grow means the write is refused, not a foreign frame dropped."""
+def test_a_tight_tag_grows_instead_of_dropping_foreign_frames(tmp_path: Path) -> None:
+    """No padding: the tag grows. Foreign frames stay; the audio is unchanged."""
     frames = [_geob_frame(name, payload) for name, payload in _FOREIGN_FRAMES.items()]
+    frames.append(_geob_frame("Serato BeatGrid", b"\x01\x00\x00\x00\x00\x00\x00"))
+    target = tmp_path / "t.mp3"
+    original = _mp3(frames, padding=0)
+    target.write_bytes(original)
+    before = {name: read_geob(target)[name] for name in _FOREIGN_FRAMES}
+
+    write_geob(target, {"Serato BeatGrid": b"\x01\x00" + b"\x00" * 200})
+
+    after = read_geob(target)
+    for name, payload in before.items():
+        assert after[name] == payload, name
+    assert after["Serato BeatGrid"] == b"\x01\x00" + b"\x00" * 200
+    assert len(target.read_bytes()) > len(original)
+
+
+def test_offsets_block_growing_a_tight_tag(tmp_path: Path) -> None:
+    """Serato Offsets_ pins the audio; a tight tag must not move it."""
+    frames = [_geob_frame("Serato Offsets_", b"\x00" * 16)]
     frames.append(_geob_frame("Serato BeatGrid", b"\x01\x00\x00\x00\x00\x00\x00"))
     target = tmp_path / "t.mp3"
     target.write_bytes(_mp3(frames, padding=0))
@@ -103,4 +121,3 @@ def test_a_write_that_would_evict_a_foreign_frame_is_refused(tmp_path: Path) -> 
         write_geob(target, {"Serato BeatGrid": b"\x01\x00" + b"\x00" * 200})
 
     assert target.read_bytes() == before
-    assert set(read_geob(target)) >= set(_FOREIGN_FRAMES)

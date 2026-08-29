@@ -836,6 +836,18 @@ TASK-266 sized the ProgressBar widget. The painted strip is a child `Bar` with `
 
 ---
 
+## TASK-271 — Grow MP3 ID3 when Serato frames do not fit
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Tight Rekordbox tags grow so BeatGrid/Markers2 can be written |
+| Verification | ruff ✓ ruff format ✓ pytest 301 passed / 4 skipped |
+
+A file in Untagged failed because new frames exceeded ID3 padding. Growing is allowed on MP3s with no `Serato Offsets_`. WAV still must fit in place.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

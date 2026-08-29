@@ -28,6 +28,8 @@ _FLAC_DESCRIPTIONS = {field: description for description, field in _FLAC_FIELDS.
 _FLAC_STREAMINFO = 0
 _FLAC_VORBIS_COMMENT = 4
 _FLAC_B64_WRAP = 72
+_SERATO_OFFSETS = "Serato Offsets_"
+_GROW_PADDING = 1024
 
 
 class TagFormatError(ValueError):
@@ -517,12 +519,12 @@ def verify_geob_rewrite(
     """
     Confirm a rewritten file changed nothing but the requested GEOB frames.
 
-    Every hand-run analysis pass repeated these three checks before trusting a
-    write: the file's size, its audio stream, and the frames actually read
-    back. This is that check, made mandatory rather than remembered. It caught
-    two real defects during that work: a silent no-op when a frame did not
-    already exist, and a false positive from hashing a WAV file whole instead
-    of just its `data` chunk.
+    Every hand-run analysis pass repeated these checks before trusting a
+    write: the audio stream is unchanged, and the frames actually read back.
+    An MP3 tag may grow when it has no ``Serato Offsets_``. This check
+    caught two real defects during that work: a silent no-op when a frame
+    did not already exist, and a false positive from hashing a WAV file
+    whole instead of just its `data` chunk.
 
     Args:
         original: File contents before the rewrite.
@@ -531,25 +533,27 @@ def verify_geob_rewrite(
         remove_geob: GEOB descriptions that were supposed to be deleted.
 
     Raises:
-        TagFormatError: The file size changed (ID3 only), the audio payload
-            moved or its content changed, a written frame does not read back
-            as requested, or a frame meant for removal is still present.
+        TagFormatError: The audio payload moved or changed when that is not
+            allowed, a written frame does not read back as requested, or a
+            frame meant for removal is still present.
     """
     if original[:4] == b"fLaC":
         _verify_flac_rewrite(original, rebuilt, updates, remove_geob or set())
         return
     if len(rebuilt) != len(original):
-        raise TagFormatError(
-            f"Write would change the file size ({len(original)} -> {len(rebuilt)} bytes)"
-        )
-
-    original_span = _audio_span(original)
-    rebuilt_span = _audio_span(rebuilt)
-    if original_span != rebuilt_span:
-        raise TagFormatError("Write would move the audio stream")
-    start, size = original_span
-    original_hash = hashlib.sha256(original[start : start + size]).digest()
-    rebuilt_hash = hashlib.sha256(rebuilt[start : start + size]).digest()
+        if original[:3] != b"ID3" or _SERATO_OFFSETS in _read_geob_bytes(original):
+            raise TagFormatError(
+                f"Write would change the file size ({len(original)} -> {len(rebuilt)} bytes)"
+            )
+    else:
+        if _audio_span(original) != _audio_span(rebuilt):
+            raise TagFormatError("Write would move the audio stream")
+    original_start, original_size = _audio_span(original)
+    rebuilt_start, rebuilt_size = _audio_span(rebuilt)
+    original_hash = hashlib.sha256(
+        original[original_start : original_start + original_size]
+    ).digest()
+    rebuilt_hash = hashlib.sha256(rebuilt[rebuilt_start : rebuilt_start + rebuilt_size]).digest()
     if original_hash != rebuilt_hash:
         raise TagFormatError("Write would alter the audio stream")
 
@@ -663,28 +667,36 @@ def _append_missing_geob(
         rebuilt += b"GEOB" + _encode_frame_size(len(body), version) + b"\x00\x00" + body
 
 
-def _padded_tag(tag: bytes, rebuilt: bytearray, declared: int) -> bytes:
+def _padded_tag(tag: bytes, rebuilt: bytearray, declared: int, *, grow: bool) -> bytes:
     """
-    Keep the tag the same size by absorbing the edit into its padding.
+    Fit ``rebuilt`` into an ID3 tag, using padding or growing the tag.
+
+    Same-size edits absorb the change into existing padding. When the new
+    frames do not fit and ``grow`` is set, the tag is enlarged and
+    ``_GROW_PADDING`` extra zeros are left for the next write.
 
     Args:
         tag: Original ID3 tag.
         rebuilt: New frame bytes, without padding.
         declared: Original declared tag body size.
+        grow: When True, enlarge the tag instead of refusing.
 
     Returns:
-        A full ID3 tag of the original length.
+        A full ID3 tag, original length or larger.
 
     Raises:
-        TagFormatError: The new frames no longer fit.
+        TagFormatError: The new frames do not fit and growing is not allowed.
     """
     padding = declared - len(rebuilt)
-    if padding < 0:
+    if padding >= 0:
+        body_bytes = bytes(rebuilt) + b"\x00" * padding
+    elif grow:
+        body_bytes = bytes(rebuilt) + b"\x00" * _GROW_PADDING
+    else:
         raise TagFormatError(
             f"New frames exceed the tag's {declared} bytes by {-padding}; "
             "growing the tag would move the audio stream"
         )
-    body_bytes = bytes(rebuilt) + b"\x00" * padding
     return tag[:6] + _synchsafe(len(body_bytes)) + body_bytes
 
 
@@ -703,8 +715,7 @@ def _splice_tag(data: bytes, start: int, size: int, new_tag: bytes) -> bytearray
     """
     new_data = bytearray(data)
     if start == 0:
-        new_data[0:size] = new_tag
-        return new_data
+        return bytearray(new_tag + data[size:])
     pad = size & 1
     new_data[start - 8 : start + size + pad] = (
         b"id3 " + struct.pack("<I", len(new_tag)) + new_tag + b"\x00" * (len(new_tag) & 1)
@@ -724,7 +735,8 @@ def write_geob(
     Replace or remove frames in an audio file's ID3 tag, in place.
 
     Only the named frames are touched. Every other frame and all audio data are
-    preserved byte for byte. ID3 tags keep their original size; FLAC Vorbis
+    preserved byte for byte. ID3 tags keep their original size when padding
+    allows; an MP3 tag with no ``Serato Offsets_`` may grow. FLAC Vorbis
     comments may grow, but STREAMINFO and the audio frames stay identical.
     Before anything reaches disk, the rebuilt file is verified against the
     original. The original file is untouched if verification fails.
@@ -737,7 +749,7 @@ def write_geob(
 
     Raises:
         TagFormatError: The container or tag cannot be parsed, the new frames
-            no longer fit the original tag, or the rebuilt file fails
+            do not fit and the tag cannot grow, or the rebuilt file fails
             verification against the original.
     """
     dropped_geob = remove_geob or set()
@@ -761,10 +773,11 @@ def write_geob(
     )
     # A frame the file has never carried is appended rather than replaced.
     _append_missing_geob(rebuilt, updates, written, version)
-    # Keep the tag the same size by absorbing the change into its padding.
-    # Serato Offsets_ addresses the audio by byte position, so moving the
-    # stream invalidates it and the waveform preview renders wrong.
-    new_tag = _padded_tag(tag, rebuilt, declared)
+    # Prefer absorbing the edit into padding. An MP3 with no Offsets_ may
+    # grow: Offsets_ addresses audio by byte position, so moving that
+    # stream would invalidate the waveform.
+    can_grow = start == 0 and _SERATO_OFFSETS not in _read_geob_bytes(data)
+    new_tag = _padded_tag(tag, rebuilt, declared, grow=can_grow)
     new_data = _splice_tag(data, start, size, new_tag)
 
     verify_geob_rewrite(bytes(data), bytes(new_data), updates, remove_geob=dropped_geob)

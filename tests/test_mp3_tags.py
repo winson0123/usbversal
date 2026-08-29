@@ -102,3 +102,20 @@ def test_id3v23_mp3_round_trips_beatgrid_and_markers(tmp_path: Path) -> None:
     assert frames["Serato Markers2"] == _MARKERS
     assert _audio_after_tag(path.read_bytes()) == before_audio
     assert path.read_bytes()[3] == 3
+
+
+def test_mp3_tag_grows_when_padding_cannot_hold_new_frames(tmp_path: Path) -> None:
+    """A Rekordbox-style tight tag grows so BeatGrid and Markers2 can be added."""
+    path = tmp_path / "tight.mp3"
+    title = b"TIT2" + _synchsafe(5) + b"\x00\x00" + b"\x00Song"
+    path.write_bytes(_mp3(4, [title], padding=0))
+    before_audio = _audio_after_tag(path.read_bytes())
+    before_size = path.stat().st_size
+
+    write_geob(path, {"Serato BeatGrid": _GRID, "Serato Markers2": _MARKERS})
+
+    frames = read_geob(path)
+    assert frames["Serato BeatGrid"] == _GRID
+    assert frames["Serato Markers2"] == _MARKERS
+    assert _audio_after_tag(path.read_bytes()) == before_audio
+    assert path.stat().st_size > before_size

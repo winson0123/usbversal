@@ -10,8 +10,8 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-270` |
-| Objective | Shorter quit toast, wrap to the message |
+| Task ID | `TASK-271` |
+| Objective | Grow an MP3 ID3 tag when new Serato frames do not fit |
 | Completed | 2026-08-29 |
 
 ### Verification log
@@ -20,7 +20,7 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 299 passed, 4 skipped |
+| `.venv/bin/pytest` | 301 passed, 4 skipped |
 
 ## Next
 
