@@ -127,7 +127,8 @@
     "progress_bar_mid_screen": true,
     "progress_log_docked_bottom": true,
     "progress_bar_horizontally_centered": true,
-    "plain_q_shows_quit_hint": true
+    "plain_q_shows_quit_hint": true,
+    "progress_bar_strip_fills_width": true
   },
   "packaging": {
     "pyinstaller": true,

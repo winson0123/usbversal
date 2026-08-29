@@ -804,6 +804,18 @@ The bar's `Center` had been shrink-wrapping to the ProgressBar default, so a sho
 
 ---
 
+## TASK-268 — Stretch the visible progress strip to the bar width
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | The inner `Bar` fills the 60% ProgressBar, not Textual's 32-cell default |
+| Verification | ruff ✓ ruff format ✓ pytest 300 passed / 4 skipped |
+
+TASK-266 sized the ProgressBar widget. The painted strip is a child `Bar` with `width: 32`.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

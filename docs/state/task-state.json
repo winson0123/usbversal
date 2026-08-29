@@ -553,6 +553,11 @@
       "id": "TASK-267",
       "title": "Bare q shows a use-^Q-to-quit popup",
       "completed_at": "2026-08-29T00:00:00Z"
+    },
+    {
+      "id": "TASK-268",
+      "title": "Stretch the visible progress strip to the bar width",
+      "completed_at": "2026-08-29T00:00:00Z"
     }
   ],
   "history": [
@@ -1189,6 +1194,12 @@
     {
       "id": "TASK-267",
       "title": "Bare q shows a use-^Q-to-quit popup",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-268",
+      "title": "Stretch the visible progress strip to the bar width",
       "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }

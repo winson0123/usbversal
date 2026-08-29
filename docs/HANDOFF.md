@@ -31,10 +31,11 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 4 | ~~`TASK-264`~~ | Bar in the middle of the screen, not only at the top |
 | 5 | ~~`TASK-265`~~ | Bar stays mid-screen when the track log appears |
 | 6 | ~~`TASK-266`~~ | Bar is a wide strip, centered horizontally |
-| 7 | ~~`TASK-267`~~ | Bare `q` shows a use-`^Q`-to-quit popup |
-| 8 | `TASK-262` | Done screen: scrollable failures; host `error.log` (title, path, reason) |
-| 9 | `TASK-263` | `.aif` / `.aiff` tag read/write |
-| 10 | `TASK-252` | Library two-pane (original ask, last) |
+| 7 | ~~`TASK-268`~~ | Visible strip fills the bar (not Textual's 32-cell default) |
+| 8 | ~~`TASK-267`~~ | Bare `q` shows a use-`^Q`-to-quit popup |
+| 9 | `TASK-262` | Done screen: scrollable failures; host `error.log` (title, path, reason) |
+| 10 | `TASK-263` | `.aif` / `.aiff` tag read/write |
+| 11 | `TASK-252` | Library two-pane (original ask, last) |
 
 Progress screen target layout:
 

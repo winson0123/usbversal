@@ -189,6 +189,7 @@ and none of them exist yet.
 | ~~`TASK-264`~~ | ~~Progress bar sits in the middle of the screen~~ | Done — `CenterMiddle` + nested `Center`, like Home. Log hidden until the first track. |
 | ~~`TASK-265`~~ | ~~Keep the bar mid-screen when the log appears~~ | Done — log docks at the bottom so it does not pull the bar up. |
 | ~~`TASK-266`~~ | ~~Center the progress bar horizontally~~ | Done — bar row is full width so the 60% bar sits in the middle, not a short strip on the left. |
+| ~~`TASK-268`~~ | ~~Stretch the visible progress strip~~ | Done — inner `Bar` is `width: 1fr` so it fills the 60% ProgressBar instead of Textual's 32-cell default. |
 | `TASK-262` | Done screen lists failures + `error.log` | Scrollable per-track errors (title + path + reason). Write the same lines to a host `error.log` when anything failed. |
 | `TASK-263` | AIFF / AIF Serato tags | `write_geob` / `read_geob` for `.aif` / `.aiff` (ID3 GEOB, same family as WAV/MP3). Tests like TASK-241. MP4 still out of scope. |
 | `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |

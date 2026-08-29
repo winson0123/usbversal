@@ -10,8 +10,8 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-267` |
-| Objective | Pressing `q` shows a popup that quit is `^Q` |
+| Task ID | `TASK-268` |
+| Objective | Stretch the visible progress strip to the bar width |
 | Completed | 2026-08-29 |
 
 ### Verification log

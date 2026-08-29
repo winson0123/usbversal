@@ -52,7 +52,11 @@ class ProgressScreen(Screen):
     }
     ProgressScreen #sync-progress {
         width: 60%;
+        height: auto;
         margin: 1 0;
+    }
+    ProgressScreen #sync-progress Bar {
+        width: 1fr;
     }
     ProgressScreen #sync-log {
         dock: bottom;
