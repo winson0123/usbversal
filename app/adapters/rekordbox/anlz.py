@@ -13,9 +13,12 @@ logger = structlog.get_logger(__name__)
 _MAGIC = b"PMAI"
 _EXTENDED_CUES = "PCO2"
 _HOT_CUE_LIST = 1
-# Real Rekordbox .EXT PCP2 bodies are 72 bytes: RGB sits at 28, then a
-# comment. The last three bytes are padding, so they are usually 00 00 00.
-_CUE_RGB_OFFSET = 28
+# Real Rekordbox .EXT PCP2 bodies are 72 bytes: a 00 at offset 28, then
+# RGB at 29. TASK-253 used 28 and picked up that leading 00, so colours
+# shifted (WONSIN Young Wild and Free, 2026-08-30). Shorter test bodies
+# still keep RGB at 28.
+_CUE_RGB_OFFSET = 29
+_CUE_RGB_OFFSET_SHORT = 28
 
 
 class AnlzError(ValueError):
@@ -123,12 +126,17 @@ def _cue_rgb(body: bytes) -> tuple[int, int, int]:
         body: Bytes after the PCP2 header.
 
     Returns:
-        ``(red, green, blue)``. Offset 28 on a full Rekordbox entry; the
-        last three bytes when the body is shorter than that (older / test
-        layouts).
+        ``(red, green, blue)``. Offset 29 on a 72-byte Rekordbox entry;
+        offset 28 on shorter layouts; the last three bytes otherwise.
     """
     if len(body) >= _CUE_RGB_OFFSET + 3:
         return body[_CUE_RGB_OFFSET], body[_CUE_RGB_OFFSET + 1], body[_CUE_RGB_OFFSET + 2]
+    if len(body) >= _CUE_RGB_OFFSET_SHORT + 3:
+        return (
+            body[_CUE_RGB_OFFSET_SHORT],
+            body[_CUE_RGB_OFFSET_SHORT + 1],
+            body[_CUE_RGB_OFFSET_SHORT + 2],
+        )
     if len(body) >= 3:
         return body[-3], body[-2], body[-1]
     return 0, 0, 0

@@ -67,7 +67,7 @@ def _cue(number: int, time_ms: int, colour: tuple[int, int, int]) -> bytes:
     struct.pack_into(">I", body, 4, time_ms)
     body[8:12] = b"\xff\xff\xff\xff"
     body[12:16] = b"\x00\x01\x00\x00"
-    body[28:31] = bytes(colour)
+    body[29:32] = bytes(colour)
     header = struct.pack(">II", 16, 16 + len(body)) + struct.pack(">I", number)
     return b"PCP2" + header + bytes(body)
 

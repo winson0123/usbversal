@@ -452,9 +452,10 @@ FLAC comment blocks and MP4 `moov` may grow; STREAMINFO / `mdat` stay
 byte-identical. Growing `moov` rewrites `stco` / `co64` so samples still
 point at `mdat`.
 
-Serato only honours the first five M4A cues when a `markers` atom is also
-present. `write_geob` writes `markers` only when `Serato Markers_` is in
-the update map; sync currently sends Markers2 alone.
+Serato prefers `Serato Markers_` over Markers2 when both exist. `Markers_`
+only stores the first five cues. Sync writes both so leftover five-cue
+data cannot hide the Rekordbox pads. Cues 6-8 live in Markers2 only.
+On M4A the same payloads are `markers` / `markersv2`.
 
 ---
 

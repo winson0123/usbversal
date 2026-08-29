@@ -23,6 +23,7 @@ _GEOB_MIME = b"application/octet-stream"
 _FLAC_FIELDS = {
     "Serato BeatGrid": "SERATO_BEATGRID",
     "Serato Markers2": "SERATO_MARKERS_V2",
+    "Serato Markers_": "SERATO_MARKERS",
 }
 _FLAC_DESCRIPTIONS = {field: description for description, field in _FLAC_FIELDS.items()}
 _FLAC_STREAMINFO = 0

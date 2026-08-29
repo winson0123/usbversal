@@ -1,24 +1,24 @@
-# Hot cue colour — PCO2 offset 28 (TASK-253)
+# Hot cue colour and Markers_
 
-**Found:** 2026-08-29, WONSIN `ANLZ0000.EXT` (8 hot cues, 72-byte PCP2 bodies).
+## PCP2 RGB offset (TASK-253 / TASK-285)
 
-We read `body[-3:]` as RGB. Those three bytes are comment padding, always
-`00 00 00`. Every transferred cue was black in Serato.
+Real Rekordbox `.EXT` PCP2 bodies are 72 bytes. A `00` sits at offset 28;
+RGB is at **offset 29**:
 
-The RGB is at **offset 28**:
+    00 00 00 00 00 RR GG BB 00 00   (bytes 24-33)
 
-| Slot | Colour |
-|------|--------|
-| 0 | `#FF0017` |
-| 1 | `#00C4FF` |
-| 2 | `#33FF00` |
-| 3 | `#4D00FF` |
-| 4 | `#00FF30` |
-| 5 | `#FF5E00` |
-| 6 | `#0000FF` |
-| 7 | `#FFE800` |
+TASK-253 read offset 28, so every colour dropped its red and shifted
+(`#FF0017` became `#00FF00`; slot 6 `#0000FF` became black).
 
-Decision: read offset 28 on a body of 31 bytes or more. Fall back to the
-last three bytes only for shorter layouts (old tests / older ANLZ).
-Do not map onto a Serato palette until a re-sync shows Serato still
-drops these values.
+Confirmed 2026-08-30 on WONSIN `Young Wild and Free` (`ANLZ0000.EXT` under
+`P037/0002E377`). Shorter test bodies still use offset 28.
+
+## `Serato Markers_` (TASK-285)
+
+Serato prefers `Markers_` over Markers2 when both exist. `Markers_` only
+holds the first five cues. Leftover pads from an earlier Serato analyse
+hide the Markers2 times and colours on the deck (library list still shows
+all eight from Markers2).
+
+Sync now rewrites `Markers_` for slots 0-4 whenever it writes Markers2.
+Cues 6-8 stay Markers2-only.

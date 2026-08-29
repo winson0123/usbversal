@@ -1018,6 +1018,18 @@ A Serato rename on WONSIN wrote `Dance-pop ␛␛2f Dancehall` (U+241B twice + h
 
 ---
 
+## TASK-285 — Fix hot-cue colours and write Markers_
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Fix hot-cue colours (PCP2 RGB at offset 29) and write Markers_ so Serato pads are not leftover |
+| Verification | ruff ✓ ruff format ✓ pytest 295 passed / 4 skipped |
+
+72-byte PCP2 RGB is at offset 29. Sync rewrites `Markers_` for the first five pads because Serato prefers that tag over Markers2 when it is present.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

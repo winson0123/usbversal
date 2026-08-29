@@ -24,6 +24,7 @@ from app.adapters.rekordbox.anlz import (
 )
 from app.adapters.serato.beatgrid import encode_beatgrid
 from app.adapters.serato.library_db import TrackAnalysis
+from app.adapters.serato.markers import encode_markers_v1
 from app.adapters.serato.markers2 import Cue, decode_markers, encode_markers, replace_cues
 from app.adapters.serato.tags import TagFormatError, read_geob, write_geob
 from app.services.sync_progress import SyncProgressCallback, emit_progress
@@ -101,7 +102,8 @@ def write_track_tags(audio_path: Path, beats: list[Beat], cues: list[HotCue]) ->
     Args:
         audio_path: Path to the audio file.
         beats: Beats to encode as a Serato BeatGrid, empty to leave it alone.
-        cues: Hot cues to encode as Serato Markers2, empty to leave them alone.
+        cues: Hot cues to encode as Serato Markers2 and Markers_, empty
+            to leave them alone.
 
     Returns:
         True when tags were rewritten, False when they already matched.
@@ -113,13 +115,14 @@ def write_track_tags(audio_path: Path, beats: list[Beat], cues: list[HotCue]) ->
             updates["Serato BeatGrid"] = grid
     if cues:
         existing = read_geob(audio_path).get("Serato Markers2")
-        markers = replace_cues(
-            decode_markers(existing) if existing else [],
-            [Cue(slot=cue.slot, position_ms=cue.position_ms, colour=cue.colour) for cue in cues],
-        )
+        cue_rows = [
+            Cue(slot=cue.slot, position_ms=cue.position_ms, colour=cue.colour) for cue in cues
+        ]
+        markers = replace_cues(decode_markers(existing) if existing else [], cue_rows)
         updates["Serato Markers2"] = encode_markers(
             markers, payload_size=len(existing) if existing else None
         )
+        updates["Serato Markers_"] = encode_markers_v1(cue_rows)
     if not updates:
         return False
     return write_geob(audio_path, updates)
