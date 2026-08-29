@@ -33,6 +33,7 @@ def test_write_crate_creates_file(tmp_path: Path) -> None:
         track_paths=["Contents/a.mp3", "Contents/b.mp3"],
     )
     assert crate_path.is_file()
+    assert crate_path.stat().st_size > 0
     assert crate_path.name == "Pocket.crate"
 
 

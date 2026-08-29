@@ -42,10 +42,11 @@ def resolve_serato_library(mount_path: Path) -> tuple[Path, Path] | None:
 
     Returns:
         Tuple of (serato_root, database_v2_path), or None if not found.
+        A zero-byte ``database V2`` is treated as missing.
     """
     serato_root = serato_root_for(mount_path)
     database = database_v2_path(serato_root)
-    if serato_root.is_dir() and database.is_file():
+    if serato_root.is_dir() and database.is_file() and database.stat().st_size > 0:
         return serato_root, database
     return None
 

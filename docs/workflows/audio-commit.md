@@ -21,3 +21,18 @@ TASK-286:
 Recovery of a wiped song is still restoring the Rekordbox USB (or another
 copy). This path only keeps a failed swap from destroying the file that
 was just read.
+
+## Crate, database V2, neworder (TASK-287)
+
+The same swap without fsync left every `_Serato_` file at 0 bytes after a
+fresh export was synced and the stick disconnected at 03:35 (`lost async
+page write`; remount: `Volume was not properly unmounted`). Windows then
+offered scan-and-fix. Contents was intact.
+
+`write_crate` also unlinked the live `.crate` before `Crate.save`. A
+zero-byte `database V2` still counted as a present library, so bootstrap
+would not recreate the header.
+
+Crate, database V2, and `neworder.pref` now go through `replace_flushed`.
+A zero-byte `database V2` is treated as missing. Eject the stick from
+Linux before Windows/Serato; do not pull it mid-sync.

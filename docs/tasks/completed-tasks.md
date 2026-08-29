@@ -1042,6 +1042,18 @@ A Serato rename on WONSIN wrote `Dance-pop ␛␛2f Dancehall` (U+241B twice + h
 
 ---
 
+## TASK-287 — Fsync crate, database V2, and neworder writes
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Persist crate, database V2, and neworder with fsync; treat a 0-byte database as missing |
+| Verification | ruff ✓ ruff format ✓ pytest 305 passed / 4 skipped |
+
+`replace_flushed` is the commit path for crate, database V2, and `neworder.pref`. A zero-byte `database V2` is not a library, so bootstrap can recreate the header after a dirty unmount. See `docs/workflows/audio-commit.md`.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

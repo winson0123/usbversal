@@ -41,6 +41,7 @@ Vendor formats still change without notice; treat versions defensively.
 |------------|-------------|
 | Rekordbox files | Never write under `PIONEER/` |
 | Tag rewrite | Verify, fsync `.tmp`, restore original if replace leaves a short file |
+| Crate / database / neworder | `replace_flushed`; a zero-byte `database V2` is not a library |
 | Read-only if parse confidence low | Adapter returns error, does not guess |
 | No schema rebuild | Never regenerate entire database from scratch |
 

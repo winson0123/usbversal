@@ -6,6 +6,8 @@ from pathlib import Path
 
 import structlog
 
+from app.adapters.serato.atomic import replace_flushed
+
 logger = structlog.get_logger(__name__)
 
 FILENAME = "neworder.pref"
@@ -38,7 +40,7 @@ def read_crate_order(serato_root: Path) -> list[str]:
         Crate names in order, empty when the file is absent or unreadable.
     """
     path = neworder_path(serato_root)
-    if not path.is_file():
+    if not path.is_file() or path.stat().st_size == 0:
         return []
     try:
         text = path.read_bytes().decode("utf-16-be")
@@ -65,9 +67,7 @@ def write_crate_order(serato_root: Path, crate_names: list[str]) -> Path:
     payload = ("\n".join(lines) + "\n").encode("utf-16-be")
 
     path = neworder_path(serato_root)
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_bytes(payload)
-    temporary.replace(path)
+    replace_flushed(path, payload)
     logger.info("neworder_written", path=str(path), crates=len(crate_names))
     return path
 

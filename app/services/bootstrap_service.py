@@ -75,7 +75,8 @@ def bootstrap_serato_library(mount: str | Path) -> BootstrapResult:
     ``neworder.pref``. Nothing under ``PIONEER/`` or ``Contents/`` is ever
     touched. A mount that already has a Serato library is left completely
     alone and reported as not created -- this only fills a gap, it never
-    merges into or replaces something that exists.
+    merges into or replaces something that exists. A zero-byte
+    ``database V2`` is treated as missing.
 
     Args:
         mount: Mount path containing a Rekordbox export.

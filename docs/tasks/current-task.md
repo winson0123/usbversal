@@ -8,4 +8,4 @@
 
 No active task. Next: `TASK-252` — Library two-pane window.
 
-Last done: `TASK-286` — Do not leave a 0-byte song after a failed replace.
+Last done: `TASK-287` — Fsync crate, database V2, and neworder writes.

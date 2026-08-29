@@ -54,6 +54,21 @@ def test_pioneer_files_are_byte_identical_after_bootstrap(tmp_path: Path) -> Non
     assert _hash(db_path) == before
 
 
+def test_a_zero_byte_database_is_bootstrapped(tmp_path: Path) -> None:
+    """A dirty-unmount 0-byte database V2 is replaced with a valid empty index."""
+    mount = _rekordbox_only_stick(tmp_path)
+    serato = mount / "_Serato_"
+    serato.mkdir()
+    (serato / "database V2").write_bytes(b"")
+
+    result = bootstrap_serato_library(mount)
+
+    assert result.created is True
+    resolved = resolve_serato_library(mount)
+    assert resolved is not None
+    assert read_database_track_paths(resolved[1]) == []
+
+
 def test_an_existing_serato_library_is_left_alone(tmp_path: Path) -> None:
     """A stick that already has _Serato_ is reported as not created, untouched."""
     mount = _rekordbox_only_stick(tmp_path)

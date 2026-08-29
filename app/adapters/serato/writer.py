@@ -9,6 +9,7 @@ import structlog
 from serato_tools.crate import Crate
 from serato_tools.database_v2 import DatabaseV2
 
+from app.adapters.serato.atomic import replace_flushed
 from app.adapters.serato.naming import crate_name_slash_aliases, sanitize_crate_name
 from app.adapters.serato.paths import subcrates_dir
 
@@ -39,9 +40,7 @@ def create_empty_database_v2(database_path: Path) -> None:
     """
     payload = b"vrsn" + len(_DATABASE_V2_VERSION).to_bytes(4, "big") + _DATABASE_V2_VERSION
     database_path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = database_path.with_suffix(database_path.suffix + ".tmp")
-    temporary.write_bytes(payload)
-    temporary.replace(database_path)
+    replace_flushed(database_path, payload)
     logger.info("serato_database_v2_created", path=str(database_path))
 
 
@@ -55,11 +54,16 @@ def write_crate(
     """
     Write a new or replacement Serato crate file under Subcrates/.
 
+    The crate is built on a sibling staging file, then committed with
+    ``replace_flushed`` so the live path is not truncated before the
+    bytes are on disk.
+
     Args:
         serato_root: Path to _Serato_ directory.
         crate_name: Crate filename stem (sanitized playlist name).
         track_paths: Serato-relative paths to add in order.
-        overwrite: Replace an existing .crate file when True.
+        overwrite: Replace an existing non-empty .crate file when True.
+            A zero-byte leftover is overwritten even when this is False.
 
     Returns:
         Absolute path to the written .crate file.
@@ -71,24 +75,29 @@ def write_crate(
     subcrates.mkdir(parents=True, exist_ok=True)
     stem = sanitize_crate_name(crate_name)
     crate_path = (subcrates / f"{stem}.crate").resolve()
-    if crate_path.is_file() and not overwrite:
+    if crate_path.is_file() and crate_path.stat().st_size > 0 and not overwrite:
         raise CrateExistsError(f"Crate already exists: {crate_path} (use --overwrite)")
-    if crate_path.is_file():
-        crate_path.unlink()
-        logger.info("serato_crate_removed_for_overwrite", path=str(crate_path))
     for alias in crate_name_slash_aliases(stem)[1:]:
         leftover = (subcrates / f"{alias}.crate").resolve()
         if leftover.is_file() and leftover != crate_path:
             leftover.unlink()
             logger.info("serato_legacy_slash_crate_removed", path=str(leftover))
-    crate = Crate(str(crate_path))
+    staging = crate_path.with_name(f".{crate_path.stem}.tmp.crate")
+    if staging.is_file():
+        staging.unlink()
+    crate = Crate(str(staging))
     # Crate.DEFAULT_ENTRIES is class-level and add_track mutates it, so a new
     # crate inherits tracks added to any earlier one. Start from a private copy
     # holding only the header fields.
     crate.entries = [copy.deepcopy(entry) for entry in crate.entries if str(entry[0]) != "otrk"]
     for path in track_paths:
         crate.add_track(path)
-    crate.save(str(crate_path))
+    try:
+        crate.save(str(staging))
+        replace_flushed(crate_path, staging.read_bytes())
+    finally:
+        if staging.is_file():
+            staging.unlink()
     logger.info(
         "serato_crate_written",
         path=str(crate_path),
@@ -145,7 +154,7 @@ def append_database_tracks(
 
     temporary = database_path.with_suffix(database_path.suffix + ".tmp")
     database.save(str(temporary))
-    temporary.replace(database_path)
+    replace_flushed(database_path, temporary.read_bytes())
     logger.info(
         "serato_database_tracks_appended",
         path=str(database_path),
