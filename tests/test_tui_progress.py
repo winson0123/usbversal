@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import pytest
 from textual.app import App
+from textual.containers import Center
 from textual.screen import Screen
 from textual.widgets import ProgressBar, RichLog, Static
 
@@ -226,11 +227,48 @@ async def test_backup_samples_drive_the_bar_and_do_not_log_files() -> None:
                 assert bar.total == 100
                 assert bar.progress == 40
                 assert len(screen.query_one(RichLog).lines) == 0
+                assert str(screen.query_one("#sync-playlist", Static).render()) == ""
 
                 screen._update_progress(SyncProgress("analysis", 1, 3, "Contents/a.mp3"))
                 bar = screen.query_one(ProgressBar)
                 assert bar.total == 3
                 assert bar.progress == 1
+            finally:
+                hold.set()
+
+
+@pytest.mark.asyncio
+async def test_progress_shows_the_playlist_and_centers_the_bar() -> None:
+    """The bar sits in the middle; the current playlist shows its own x/x."""
+
+    hold = threading.Event()
+
+    def _held_sync(library, playlist_ids, *, dry_run=False, backup_root=None, on_progress=None):
+        hold.wait(timeout=5)
+        return _fake_report()
+
+    with patch("app.tui.screens.progress.sync_playlists", _held_sync):
+        app = _Harness(library=object(), playlist_ids=[1])
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            screen = app.screen
+            try:
+                assert isinstance(screen, ProgressScreen)
+                assert isinstance(screen.query_one("#sync-progress").parent, Center)
+                screen._update_progress(
+                    SyncProgress(
+                        "analysis",
+                        2,
+                        5,
+                        "Contents/x.mp3",
+                        playlist="House",
+                        playlist_done=2,
+                        playlist_total=10,
+                    )
+                )
+                label = str(screen.query_one("#sync-playlist", Static).render())
+                assert "House" in label
+                assert "2/10" in label
             finally:
                 hold.set()
 
@@ -262,7 +300,8 @@ async def test_progress_log_shows_a_green_line_per_successful_track() -> None:
 
             log = screen.query_one(RichLog)
             text, styles = _log_line_styles(log, 0)
-            assert "Contents/a.mp3" in text
+            assert "a.mp3" in text
+            assert "Contents/" not in text
             assert any(style is not None and style.color.name == "green" for style in styles)
 
 
@@ -287,7 +326,8 @@ async def test_progress_log_shows_a_red_line_for_a_failed_track() -> None:
 
             log = screen.query_one(RichLog)
             text, styles = _log_line_styles(log, 0)
-            assert "Contents/a.mp3" in text
+            assert "a.mp3" in text
+            assert "Contents/" not in text
             assert "bad beatgrid" in text
             assert any(style is not None and style.color.name == "red" for style in styles)
 
@@ -338,3 +378,11 @@ async def test_done_summary_is_red_on_a_hard_failure() -> None:
             assert any(span.style == "red" for span in content.spans)
 
             await app.workers.wait_for_complete()
+
+
+def test_display_title_is_the_filename() -> None:
+    """The log shows the file title, not the directory path."""
+    from app.services.sync_progress import display_title
+
+    assert display_title("/Contents/Artist/Song.mp3") == "Song.mp3"
+    assert display_title("") == ""

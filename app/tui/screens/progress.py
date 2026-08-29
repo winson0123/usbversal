@@ -13,13 +13,13 @@ from collections.abc import Sequence
 from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Container
+from textual.containers import Center, Vertical
 from textual.screen import Screen
 from textual.widgets import Footer, ProgressBar, RichLog, Static
 
 from app.jobs.progress_rate import ProgressRateTracker, format_duration
 from app.services.library import UsbLibrary
-from app.services.sync_progress import SyncProgress
+from app.services.sync_progress import SyncProgress, display_title
 from app.services.sync_service import SyncReport, sync_playlists
 
 _PHASE_STATUS = {
@@ -31,12 +31,32 @@ _PHASE_STATUS = {
 
 _STATUS_ID = "sync-status"
 _BAR_ID = "sync-progress"
+_PLAYLIST_ID = "sync-playlist"
 _LOG_ID = "sync-log"
 _SUMMARY_ID = "done-summary"
 
 
 class ProgressScreen(Screen):
     """Step 4: run the sync for the selected playlists and show progress."""
+
+    DEFAULT_CSS = """
+    ProgressScreen #sync-status, ProgressScreen #sync-playlist {
+        width: 100%;
+        text-align: center;
+    }
+    ProgressScreen #sync-bar-row {
+        width: 100%;
+        height: auto;
+        align: center middle;
+    }
+    ProgressScreen #sync-progress {
+        width: 60%;
+        margin: 1 0;
+    }
+    ProgressScreen #sync-log {
+        height: 1fr;
+    }
+    """
 
     def __init__(self, library: UsbLibrary, playlist_ids: Sequence[int]) -> None:
         """
@@ -51,9 +71,11 @@ class ProgressScreen(Screen):
         self._bar_run: str | None = None
 
     def compose(self) -> ComposeResult:
-        with Container():
+        with Vertical():
             yield Static("Taking backup…", id=_STATUS_ID)
-            yield ProgressBar(id=_BAR_ID, show_eta=False)
+            with Center(id="sync-bar-row"):
+                yield ProgressBar(id=_BAR_ID, show_eta=False)
+            yield Static("", id=_PLAYLIST_ID)
             yield RichLog(id=_LOG_ID, max_lines=500, auto_scroll=True, wrap=True)
         yield Footer()
 
@@ -107,10 +129,15 @@ class ProgressScreen(Screen):
             message += f" ({estimate.rate_per_second:.1f}/s)"
         self.query_one(f"#{_STATUS_ID}", Static).update(message)
 
+        playlist_line = ""
+        if sample.playlist and sample.playlist_total:
+            playlist_line = f"{sample.playlist}  {sample.playlist_done}/{sample.playlist_total}"
+        self.query_one(f"#{_PLAYLIST_ID}", Static).update(playlist_line)
+
         if sample.phase == "backup":
             return
         log = self.query_one(RichLog)
-        line = f"[{sample.done}/{sample.total}] {sample.item}"
+        line = f"[{sample.done}/{sample.total}] {display_title(sample.item)}"
         if sample.error is None:
             log.write(Text(line, style="green"))
         else:

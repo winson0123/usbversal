@@ -27,7 +27,7 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 |-------|----|------|
 | 1 | ~~`TASK-258`~~ | Quit is `Ctrl+Q` only |
 | 2 | ~~`TASK-259`~~ | Backup bar + ETA, then sync bar + ETA |
-| 3 | `TASK-261` | Center the bar; current playlist `x/x`; log titles, not paths |
+| 3 | ~~`TASK-261`~~ | Center the bar; playlist `x/x`; log titles |
 | 4 | `TASK-262` | Done screen: scrollable failures; host `error.log` (title, path, reason) |
 | 5 | `TASK-263` | `.aif` / `.aiff` tag read/write |
 | 6 | `TASK-252` | Library two-pane (original ask, last) |

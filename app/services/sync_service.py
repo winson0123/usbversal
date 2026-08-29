@@ -47,7 +47,13 @@ from app.core.track_paths import normalize_track_path
 from app.services.backup_service import backup_mount_for_migration
 from app.services.library import UsbLibrary
 from app.services.migration_service import PlaylistNotFoundError, SeratoLibraryRequiredError
-from app.services.sync_progress import SyncProgressCallback, emit_progress, rebase_progress
+from app.services.sync_progress import (
+    SyncProgressCallback,
+    attach_playlist,
+    emit_progress,
+    playlist_path_meta,
+    rebase_progress,
+)
 from app.services.track_records import (
     RekordboxLookups,
     build_track_record,
@@ -456,7 +462,7 @@ def _sync_analysis(
     mount: Path,
     index_path: Path | None,
     contents: dict[str, Any],
-    paths: set[str],
+    paths: Sequence[str],
     lookups: RekordboxLookups,
     write_context: WriteContext,
     on_progress: SyncProgressCallback | None = None,
@@ -486,7 +492,7 @@ def _sync_analysis(
     cues_written = 0
     errors: list[str] = []
     updates: dict[str, TrackAnalysis] = {}
-    ordered = sorted(paths)
+    ordered = list(paths)
 
     for done, raw in enumerate(ordered, start=1):
         track_error: str | None = None
@@ -744,7 +750,17 @@ def _write_playlist_crates(
                     error=error,
                 )
             )
-            emit_progress(on_progress, "crates", done, total, crate_name, error)
+            emit_progress(
+                on_progress,
+                "crates",
+                done,
+                total,
+                crate_name,
+                error,
+                playlist=playlist.name,
+                playlist_done=done,
+                playlist_total=total,
+            )
             continue
         results.append(
             PlaylistSyncResult(
@@ -754,7 +770,16 @@ def _write_playlist_crates(
                 tracks=len(paths),
             )
         )
-        emit_progress(on_progress, "crates", done, total, crate_name)
+        emit_progress(
+            on_progress,
+            "crates",
+            done,
+            total,
+            crate_name,
+            playlist=playlist.name,
+            playlist_done=done,
+            playlist_total=total,
+        )
     return results
 
 
@@ -813,23 +838,26 @@ def sync_playlists(
         ),
     )
     context = WriteContext(backup_path=backup.backup_dir)
+    groups = [(p.name, tracks_by_playlist[p.id]) for p in selected]
+    index_paths, index_meta = playlist_path_meta(groups, set(missing))
+    analysis_paths, analysis_meta = playlist_path_meta(groups, analysis_targets)
     sync_total = len(missing) + len(analysis_targets) + len(selected)
     records_added = _index_missing_tracks(
         database_path,
-        missing,
+        index_paths,
         by_path,
         lookups,
         context,
-        rebase_progress(on_progress, 0, sync_total),
+        attach_playlist(rebase_progress(on_progress, 0, sync_total), index_meta),
     )
     analysis = _sync_analysis(
         library.mount,
         _existing_index_path(serato_root),
         by_path,
-        analysis_targets,
+        analysis_paths,
         lookups,
         context,
-        rebase_progress(on_progress, len(missing), sync_total),
+        attach_playlist(rebase_progress(on_progress, len(missing), sync_total), analysis_meta),
     )
     results = _write_playlist_crates(
         serato_root,

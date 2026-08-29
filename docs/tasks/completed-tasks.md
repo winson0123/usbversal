@@ -748,6 +748,16 @@ Backup reports bytes so the bar can estimate time. Sync does not reset between i
 
 ---
 
+## TASK-261 — Progress screen: playlist + titles
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Center the bar, show the current playlist `x/x`, log song titles |
+| Verification | ruff ✓ ruff format ✓ pytest 299 passed / 4 skipped |
+
+---
+
 ## Template (for future entries)
 
 ```markdown

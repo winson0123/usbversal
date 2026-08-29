@@ -184,7 +184,7 @@ and none of them exist yet.
 | ~~`TASK-258`~~ | ~~Quit is Ctrl+Q only~~ | Done — app binding is `ctrl+q` with footer `^Q`. Bare `q` does nothing. |
 | ~~`TASK-259`~~ | ~~Backup bar, then sync bar~~ | Done — backup bar is bytes + ETA. Sync bar is index+analysis+crates as one total. Not one bar across both. |
 | ~~`TASK-260`~~ | ~~One run-wide bar and ETA~~ | Folded into TASK-259. |
-| `TASK-261` | Progress screen: playlist + titles | Center the bar. Show playlist currently writing (`Name  x/x`). Log song titles, not full paths. Keep a line per track. |
+| ~~`TASK-261`~~ | ~~Progress screen: playlist + titles~~ | Done — bar centered, playlist `Name  x/x`, log is the filename. |
 | `TASK-262` | Done screen lists failures + `error.log` | Scrollable per-track errors (title + path + reason). Write the same lines to a host `error.log` when anything failed. |
 | `TASK-263` | AIFF / AIF Serato tags | `write_geob` / `read_geob` for `.aif` / `.aiff` (ID3 GEOB, same family as WAV/MP3). Tests like TASK-241. MP4 still out of scope. |
 | `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |

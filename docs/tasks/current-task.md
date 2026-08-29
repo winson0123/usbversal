@@ -10,8 +10,8 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-259` |
-| Objective | Backup bar + ETA, then sync bar + ETA |
+| Task ID | `TASK-261` |
+| Objective | Center the bar, show playlist `x/x`, log titles |
 | Completed | 2026-08-29 |
 
 ### Verification log
@@ -20,8 +20,8 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 297 passed, 4 skipped |
+| `.venv/bin/pytest` | 299 passed, 4 skipped |
 
 ## Next
 
-`TASK-261` — Center the bar; current playlist `x/x`; log titles.
+`TASK-262` — Done screen lists failures + host `error.log`.

@@ -520,10 +520,36 @@ def test_on_progress_reports_each_analysis_track(tmp_path: Path) -> None:
     assert backup[0].done == 0
     assert backup[-1].done == backup[-1].total
     assert analysis == [
-        SyncProgress("analysis", 1, 3, "/Contents/a.wav"),
-        SyncProgress("analysis", 2, 3, "/Contents/b.wav"),
+        SyncProgress(
+            "analysis",
+            1,
+            3,
+            "/Contents/a.wav",
+            playlist="test",
+            playlist_done=1,
+            playlist_total=2,
+        ),
+        SyncProgress(
+            "analysis",
+            2,
+            3,
+            "/Contents/b.wav",
+            playlist="test",
+            playlist_done=2,
+            playlist_total=2,
+        ),
     ]
-    assert crates == [SyncProgress("crates", 3, 3, f"{volume_label_for(mount)}%%test")]
+    assert crates == [
+        SyncProgress(
+            "crates",
+            3,
+            3,
+            f"{volume_label_for(mount)}%%test",
+            playlist="test",
+            playlist_done=1,
+            playlist_total=1,
+        )
+    ]
 
 
 def test_on_progress_reports_the_failing_track_and_its_error(tmp_path: Path) -> None:
@@ -560,4 +586,12 @@ def test_on_progress_skips_analysis_when_nothing_has_analysis_data(tmp_path: Pat
 
     sync_calls = [sample for sample in calls if sample.phase != "backup"]
     assert [sample.phase for sample in sync_calls] == ["crates"]
-    assert sync_calls[0] == SyncProgress("crates", 1, 1, f"{volume_label_for(mount)}%%test")
+    assert sync_calls[0] == SyncProgress(
+        "crates",
+        1,
+        1,
+        f"{volume_label_for(mount)}%%test",
+        playlist="test",
+        playlist_done=1,
+        playlist_total=1,
+    )
