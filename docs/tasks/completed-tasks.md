@@ -782,6 +782,18 @@ TASK-264 put the log inside `CenterMiddle`, so the growing track list pulled the
 
 ---
 
+## TASK-266 — Center the progress bar horizontally
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Full-width bar row so the 60% bar is actually centered |
+| Verification | ruff ✓ ruff format ✓ pytest 299 passed / 4 skipped |
+
+The bar's `Center` had been shrink-wrapping to the ProgressBar default, so a short bar sat on the left of the status text.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

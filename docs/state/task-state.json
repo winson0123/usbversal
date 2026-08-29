@@ -543,6 +543,11 @@
       "id": "TASK-265",
       "title": "Keep the progress bar mid-screen when the log appears",
       "completed_at": "2026-08-29T00:00:00Z"
+    },
+    {
+      "id": "TASK-266",
+      "title": "Center the progress bar horizontally",
+      "completed_at": "2026-08-29T00:00:00Z"
     }
   ],
   "history": [
@@ -1167,6 +1172,12 @@
     {
       "id": "TASK-265",
       "title": "Keep the progress bar mid-screen when the log appears",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-266",
+      "title": "Center the progress bar horizontally",
       "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }

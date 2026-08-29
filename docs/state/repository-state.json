@@ -125,7 +125,8 @@
     "backup_then_sync_progress_bars": true,
     "progress_shows_playlist_and_titles": true,
     "progress_bar_mid_screen": true,
-    "progress_log_docked_bottom": true
+    "progress_log_docked_bottom": true,
+    "progress_bar_horizontally_centered": true
   },
   "packaging": {
     "pyinstaller": true,

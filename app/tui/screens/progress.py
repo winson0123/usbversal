@@ -40,9 +40,15 @@ class ProgressScreen(Screen):
     """Step 4: run the sync for the selected playlists and show progress."""
 
     DEFAULT_CSS = """
+    ProgressScreen CenterMiddle {
+        width: 100%;
+    }
     ProgressScreen #sync-status, ProgressScreen #sync-playlist {
         width: auto;
         text-align: center;
+    }
+    ProgressScreen #sync-bar-row {
+        width: 100%;
     }
     ProgressScreen #sync-progress {
         width: 60%;
@@ -76,7 +82,7 @@ class ProgressScreen(Screen):
         with CenterMiddle():
             with Center():
                 yield Static("Taking backup…", id=_STATUS_ID)
-            with Center():
+            with Center(id="sync-bar-row"):
                 yield ProgressBar(id=_BAR_ID, show_eta=False, show_percentage=False)
             with Center():
                 yield Static("", id=_PLAYLIST_ID, classes="empty")

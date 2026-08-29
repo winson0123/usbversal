@@ -241,7 +241,7 @@ async def test_backup_samples_drive_the_bar_and_do_not_log_files() -> None:
 
 @pytest.mark.asyncio
 async def test_progress_shows_the_playlist_and_centers_the_bar() -> None:
-    """The bar sits in the middle; the current playlist shows its own x/x."""
+    """The bar is a wide centered strip; the current playlist shows its own x/x."""
 
     hold = threading.Event()
 
@@ -257,8 +257,13 @@ async def test_progress_shows_the_playlist_and_centers_the_bar() -> None:
             try:
                 assert isinstance(screen, ProgressScreen)
                 bar = screen.query_one("#sync-progress")
+                row = screen.query_one("#sync-bar-row")
                 assert isinstance(bar.parent, Center)
                 assert isinstance(bar.parent.parent, CenterMiddle)
+                assert row.size.width == screen.size.width
+                bar_mid = bar.region.x + bar.region.width // 2
+                assert abs(bar_mid - screen.size.width // 2) <= 1
+                assert bar.region.width >= screen.size.width * 50 // 100
                 log = screen.query_one(RichLog)
                 assert "empty" in log.classes
                 assert not isinstance(log.parent, CenterMiddle)
