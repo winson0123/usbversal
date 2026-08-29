@@ -664,6 +664,18 @@ stick. See `docs/tasks/current-task.md` and `docs/HANDOFF.md`.
 
 ---
 
+## TASK-254 — Keep `/` in crate names
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Rekordbox playlist names with `/` must not show as `_` in Serato |
+| Verification | ruff ✓ ruff format ✓ pytest 287 passed / 4 skipped |
+
+**Decision:** [crate-slash.md](../workflows/crate-slash.md) — fullwidth solidus, not `%%`.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

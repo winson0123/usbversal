@@ -486,6 +486,11 @@
       "id": "TASK-253",
       "title": "Read PCO2 cue colour from offset 28",
       "completed_at": "2026-08-29T00:00:00Z"
+    },
+    {
+      "id": "TASK-254",
+      "title": "Keep slash in crate names as fullwidth solidus",
+      "completed_at": "2026-08-29T00:00:00Z"
     }
   ],
   "history": [
@@ -1050,6 +1055,12 @@
     {
       "id": "TASK-253",
       "title": "Read PCO2 cue colour from offset 28",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-254",
+      "title": "Keep slash in crate names as fullwidth solidus",
       "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }

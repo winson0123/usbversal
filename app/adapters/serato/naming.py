@@ -6,12 +6,20 @@ import re
 
 from app.core.domain import Playlist
 
-_INVALID_CRATE_CHARS = re.compile(r'[<>:"/\\|?*]')
+# Windows forbids these in a filename. "/" is special-cased: a real slash
+# cannot live in the .crate name, but "_" was losing the character the user
+# typed. Fullwidth solidus is legal on exFAT and still reads as a slash.
+_INVALID_CRATE_CHARS = re.compile(r'[<>:"\\|?*]')
+_SLASH = "/"
+_SLASH_STAND_IN = "\uff0f"
 
 
 def sanitize_crate_name(name: str) -> str:
     """
     Convert a playlist name into a safe Serato crate filename stem.
+
+    A ``/`` in the Rekordbox name becomes a fullwidth solidus so the crate
+    still reads as a slash. Other characters Windows rejects become ``_``.
 
     Args:
         name: Rekordbox playlist display name.
@@ -19,7 +27,8 @@ def sanitize_crate_name(name: str) -> str:
     Returns:
         Sanitized name without the .crate extension.
     """
-    cleaned = _INVALID_CRATE_CHARS.sub("_", name.strip())
+    cleaned = name.strip().replace(_SLASH, _SLASH_STAND_IN)
+    cleaned = _INVALID_CRATE_CHARS.sub("_", cleaned)
     cleaned = cleaned.strip(" .")
     return cleaned or "Untitled"
 

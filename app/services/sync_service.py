@@ -291,8 +291,9 @@ def find_crate_name_collisions(playlists: tuple[Playlist, ...]) -> dict[str, lis
     ``crate_name_for`` encodes each ancestor folder into the filename, so two
     playlists sharing a name in different folders no longer collide. What
     still can: two playlists in the *same* folder, or two whose names differ
-    only in characters ``sanitize_crate_name`` strips (``"Trance/2024"`` and
-    ``"Trance:2024"`` both become ``"Trance_2024"``).
+    only in characters ``sanitize_crate_name`` turns into ``_``
+    (``"Trance:2024"`` and ``"Trance?2024"`` both become ``"Trance_2024"``).
+    A ``/`` is kept as a fullwidth solidus and does not collide with those.
 
     Args:
         playlists: Playlist nodes to check.

@@ -150,8 +150,8 @@ def test_path_matching_ignores_leading_slash_and_case(tmp_path: Path) -> None:
 def test_collision_detection_flags_shared_crate_names() -> None:
     """Two playlists mapping to one crate filename are reported."""
     playlists = (
-        Playlist(id=1, name="Techno/Trance", parent_id=None, is_folder=False),
-        Playlist(id=2, name="Techno:Trance", parent_id=None, is_folder=False),
+        Playlist(id=1, name="Techno:Trance", parent_id=None, is_folder=False),
+        Playlist(id=2, name="Techno?Trance", parent_id=None, is_folder=False),
         Playlist(id=3, name="Unique", parent_id=None, is_folder=False),
     )
 

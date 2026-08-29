@@ -20,6 +20,7 @@ from tests.conftest import make_library
 def test_sanitize_crate_name() -> None:
     """sanitize_crate_name removes invalid filename characters."""
     assert sanitize_crate_name("My: Playlist?") == "My_ Playlist_"
+    assert sanitize_crate_name("Afro / Afro House") == "Afro \uff0f Afro House"
     assert sanitize_crate_name("   ") == "Untitled"
 
 

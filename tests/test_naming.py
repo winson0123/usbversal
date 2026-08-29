@@ -49,7 +49,14 @@ def test_each_ancestor_name_is_sanitized_independently() -> None:
     playlist = Playlist(id=1, name="2024?", parent_id=9, is_folder=False)
     by_id = {9: folder, 1: playlist}
 
-    assert crate_name_for(playlist, by_id) == "Techno_House%%2024_"
+    assert crate_name_for(playlist, by_id) == "Techno\uff0fHouse%%2024_"
+
+
+def test_a_slash_in_the_name_stays_a_slash() -> None:
+    """Rekordbox 'Afro / Afro House' must not become 'Afro _ Afro House'."""
+    from app.adapters.serato.naming import sanitize_crate_name
+
+    assert sanitize_crate_name("Afro / Afro House") == "Afro \uff0f Afro House"
 
 
 def test_a_dangling_parent_reference_stops_rather_than_raising() -> None:
