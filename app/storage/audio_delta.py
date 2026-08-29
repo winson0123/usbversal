@@ -1,9 +1,9 @@
 """Compact backup of an audio file's tag region, not a second copy of the song.
 
-Usbversal only rewrites ID3 / RIFF id3 / FLAC metadata. The audio payload is
-verified unchanged. A backup therefore stores the bytes around that payload
-(the head and optional tail) plus hashes, so rollback can splice the original
-tag back onto the current audio.
+Usbversal only rewrites ID3 / RIFF id3 / AIFF ID3 / FLAC / MP4 metadata. The
+audio payload is verified unchanged. A backup therefore stores the bytes
+around that payload (the head and optional tail) plus hashes, so rollback
+can splice the original tag back onto the current audio.
 
 A destroyed or rewritten audio stream cannot be reconstructed from this
 delta -- that is the size trade-off against copying a 200 GB library twice.
@@ -17,9 +17,11 @@ import struct
 from pathlib import Path
 
 _MAGIC = b"UVSD1\n"
-_AUDIO_SUFFIXES = frozenset({".mp3", ".wav", ".flac", ".aiff", ".aif", ".m4a"})
+_AUDIO_SUFFIXES = frozenset({".mp3", ".wav", ".flac", ".aiff", ".aif", ".m4a", ".mp4"})
 _STRATEGY_SUFFIX = "suffix"
 _STRATEGY_RIFF = "riff"
+_STRATEGY_IFF = "iff"
+_STRATEGY_MP4 = "mp4"
 
 
 class AudioDeltaError(ValueError):
@@ -50,8 +52,8 @@ def encode_audio_delta(data: bytes) -> bytes:
         Delta payload to store in the backup directory.
 
     Raises:
-        AudioDeltaError: The container is not MP3, WAV, or FLAC, or has no
-            isolatable audio payload.
+        AudioDeltaError: The container is not a recognised audio type, or has
+            no isolatable audio payload.
     """
     start, size, strategy = _audio_span(data)
     audio = data[start : start + size]
@@ -131,6 +133,12 @@ def _audio_span(data: bytes) -> tuple[int, int, str]:
                 return offset + 8, size, _STRATEGY_RIFF
             offset += 8 + size + (size & 1)
         raise AudioDeltaError("No data chunk in WAV")
+    if len(data) >= 12 and data[:4] == b"FORM" and data[8:12] in (b"AIFF", b"AIFC"):
+        start, size = _ssnd_span(data)
+        return start, size, _STRATEGY_IFF
+    if len(data) >= 8 and data[4:8] == b"ftyp":
+        start, size = _mdat_span(data)
+        return start, size, _STRATEGY_MP4
     raise AudioDeltaError("Unrecognised audio container")
 
 
@@ -154,7 +162,7 @@ def _extract_audio(current: bytes, header: dict[str, object]) -> bytes:
         if len(current) < audio_size:
             raise AudioDeltaError("Current file is shorter than the backed-up audio")
         return current[-audio_size:]
-    if strategy == _STRATEGY_RIFF:
+    if strategy in {_STRATEGY_RIFF, _STRATEGY_IFF, _STRATEGY_MP4}:
         start, size, _ = _audio_span(current)
         return current[start : start + size]
     raise AudioDeltaError(f"Unknown delta strategy {strategy!r}")
@@ -195,6 +203,62 @@ def _parse_delta(delta: bytes) -> tuple[dict[str, object], bytes, bytes]:
     if len(tail) != tail_len:
         raise AudioDeltaError("Audio delta tail is truncated")
     return header, head, tail
+
+
+def _ssnd_span(data: bytes) -> tuple[int, int]:
+    """
+    Return the (start, size) of AIFF ``SSND`` sound data, after its header.
+
+    Args:
+        data: Whole FORM AIFF / AIFC file.
+
+    Returns:
+        Offset and length of the sample bytes.
+
+    Raises:
+        AudioDeltaError: No usable ``SSND`` chunk is present.
+    """
+    offset = 12
+    while offset + 8 <= len(data):
+        chunk = data[offset : offset + 4]
+        size = int.from_bytes(data[offset + 4 : offset + 8], "big")
+        if chunk == b"SSND" and size >= 8:
+            return offset + 16, size - 8
+        offset += 8 + size + (size & 1)
+    raise AudioDeltaError("No SSND chunk in AIFF")
+
+
+def _mdat_span(data: bytes) -> tuple[int, int]:
+    """
+    Return the (start, size) of the first MP4 ``mdat`` payload.
+
+    Args:
+        data: Whole MP4 / M4A file.
+
+    Returns:
+        Offset and length of the audio bitstream.
+
+    Raises:
+        AudioDeltaError: No ``mdat`` box is present, or a size field is invalid.
+    """
+    offset = 0
+    while offset + 8 <= len(data):
+        size = int.from_bytes(data[offset : offset + 4], "big")
+        kind = data[offset + 4 : offset + 8]
+        header = 8
+        if size == 1:
+            if offset + 16 > len(data):
+                raise AudioDeltaError("Truncated MP4 largesize box")
+            size = int.from_bytes(data[offset + 8 : offset + 16], "big")
+            header = 16
+        elif size == 0:
+            size = len(data) - offset
+        if size < header:
+            raise AudioDeltaError(f"Invalid MP4 box {kind!r}")
+        if kind == b"mdat":
+            return offset + header, size - header
+        offset += size
+    raise AudioDeltaError("No mdat box in MP4")
 
 
 def _unsynchsafe(raw: bytes) -> int:

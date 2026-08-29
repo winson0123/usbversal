@@ -10,8 +10,8 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-276` |
-| Objective | Stop the progress ETA climbing as slower work starts |
+| Task ID | `TASK-263` |
+| Objective | `read_geob` / `write_geob` for AIFF / AIF and M4A / MP4 |
 | Completed | 2026-08-29 |
 
 ### Verification log
@@ -20,8 +20,8 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 317 passed, 4 skipped |
+| `.venv/bin/pytest` | 331 passed, 4 skipped |
 
 ## Next
 
-`TASK-263` — AIFF / AIF Serato tags.
+`TASK-277` — skip `write_geob` when the intended BeatGrid/Markers2 bytes are already on the file. Same track in two playlists in one run is already unique; this is the re-sync waste. Then `TASK-252` (library two-pane, last).

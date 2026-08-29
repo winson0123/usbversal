@@ -135,11 +135,85 @@ def _geob_description(body: bytes) -> tuple[str, int]:
     return description, cursor
 
 
+def _is_aiff(data: bytes) -> bool:
+    """
+    Return whether ``data`` is an AIFF or AIFC file.
+
+    Args:
+        data: Whole file contents.
+
+    Returns:
+        True when the file is a ``FORM`` of type ``AIFF`` or ``AIFC``.
+    """
+    return len(data) >= 12 and data[:4] == b"FORM" and data[8:12] in (b"AIFF", b"AIFC")
+
+
+def _is_mp4(data: bytes) -> bool:
+    """
+    Return whether ``data`` starts with an MP4 ``ftyp`` box.
+
+    Args:
+        data: Whole file contents.
+
+    Returns:
+        True for M4A / MP4 / other ISO-BMFF files.
+    """
+    return len(data) >= 8 and data[4:8] == b"ftyp"
+
+
+def _iter_iff_chunks(data: bytes) -> list[tuple[bytes, int, int]]:
+    """
+    Return each IFF chunk as ``(id, payload_offset, payload_size)``.
+
+    Args:
+        data: Whole ``FORM`` file (AIFF / AIFC). Chunk sizes are big-endian.
+
+    Returns:
+        Chunks in file order.
+    """
+    chunks: list[tuple[bytes, int, int]] = []
+    offset = 12
+    while offset + 8 <= len(data):
+        chunk = data[offset : offset + 4]
+        size = int.from_bytes(data[offset + 4 : offset + 8], "big")
+        chunks.append((chunk, offset + 8, size))
+        offset += 8 + size + (size & 1)
+    return chunks
+
+
+def _iff_chunk(data: bytes, name: bytes) -> tuple[int, int] | None:
+    """
+    Return the payload span of the named IFF chunk, if present.
+
+    Args:
+        data: Whole ``FORM`` file.
+        name: Four-byte chunk id (``ID3 ``, ``SSND``).
+
+    Returns:
+        ``(start, size)`` of the payload, or None.
+    """
+    for chunk, start, size in _iter_iff_chunks(data):
+        if chunk == name:
+            return start, size
+    return None
+
+
+def _empty_id3_tag() -> bytes:
+    """
+    Return a header-only ID3v2.4 tag with no frames.
+
+    Returns:
+        Ten-byte tag whose declared body size is zero.
+    """
+    return b"ID3" + bytes([4, 0, 0]) + _synchsafe(0)
+
+
 def _tag_span(data: bytes) -> tuple[int, int]:
     """
     Return the (start, size) of the ID3 tag inside an audio file.
 
-    MP3 carries the tag at the head; WAV wraps it in a RIFF `id3 ` chunk.
+    MP3 carries the tag at the head. WAV wraps it in a RIFF `id3 ` chunk.
+    AIFF / AIFC wrap it in a big-endian `ID3 ` chunk.
 
     Args:
         data: Whole file contents.
@@ -163,6 +237,12 @@ def _tag_span(data: bytes) -> tuple[int, int]:
             offset += 8 + size + (size & 1)
         raise TagFormatError("No id3 chunk in WAV")
 
+    if _is_aiff(data):
+        found = _iff_chunk(data, b"ID3 ")
+        if found is not None:
+            return found
+        raise TagFormatError("No ID3 chunk in AIFF")
+
     raise TagFormatError("Unrecognised audio container")
 
 
@@ -173,7 +253,8 @@ def _audio_span(data: bytes) -> tuple[int, int]:
     MP3 carries audio as everything after the ID3 tag. WAV interleaves
     chunks, so the audio lives in its own `data` chunk rather than simply
     after the tag -- hashing "everything but the tag" for a WAV would count
-    other metadata chunks as audio and mask a real corruption.
+    other metadata chunks as audio and mask a real corruption. AIFF / AIFC
+    store samples in ``SSND`` after an 8-byte offset/blockSize header.
 
     Args:
         data: Whole file contents.
@@ -182,8 +263,8 @@ def _audio_span(data: bytes) -> tuple[int, int]:
         Offset and length of the audio payload.
 
     Raises:
-        TagFormatError: The container is not recognised, or a WAV carries no
-            `data` chunk.
+        TagFormatError: The container is not recognised, a WAV carries no
+            `data` chunk, or an AIFF carries no ``SSND`` chunk.
     """
     if data[:3] == b"ID3":
         start, size = _tag_span(data)
@@ -198,6 +279,13 @@ def _audio_span(data: bytes) -> tuple[int, int]:
                 return offset + 8, size
             offset += 8 + size + (size & 1)
         raise TagFormatError("No data chunk in WAV")
+
+    if _is_aiff(data):
+        found = _iff_chunk(data, b"SSND")
+        if found is None or found[1] < 8:
+            raise TagFormatError("No SSND chunk in AIFF")
+        start, size = found
+        return start + 8, size - 8
 
     raise TagFormatError("Unrecognised audio container")
 
@@ -538,6 +626,10 @@ def _read_geob_bytes(data: bytes) -> dict[str, bytes]:
     """Parse GEOB payloads out of whole file contents already in memory."""
     if data[:4] == b"fLaC":
         return _read_flac_geob(data)
+    if _is_mp4(data):
+        from app.adapters.serato.mp4_tags import read_mp4_geob
+
+        return read_mp4_geob(data)
     start, size = _tag_span(data)
     tag = data[start : start + size]
     if tag[:3] != b"ID3":
@@ -560,7 +652,7 @@ def read_geob(path: str | Path) -> dict[str, bytes]:
     Read Serato GEOB payloads from an audio file.
 
     Args:
-        path: Path to an .mp3, .wav, or .flac file.
+        path: Path to an .mp3, .wav, .flac, .aif, .aiff, .m4a, or .mp4 file.
 
     Returns:
         Mapping of GEOB description to payload bytes.
@@ -583,10 +675,11 @@ def verify_geob_rewrite(
 
     Every hand-run analysis pass repeated these checks before trusting a
     write: the audio stream is unchanged, and the frames actually read back.
-    An MP3 tag may grow when it has no ``Serato Offsets_``. This check
-    caught two real defects during that work: a silent no-op when a frame
-    did not already exist, and a false positive from hashing a WAV file
-    whole instead of just its `data` chunk.
+    An MP3 tag may grow when it has no ``Serato Offsets_``. An AIFF ``ID3 ``
+    chunk may grow or be inserted. MP4 ``moov`` may grow; ``mdat`` must not
+    change. This check caught two real defects during that work: a silent
+    no-op when a frame did not already exist, and a false positive from
+    hashing a WAV file whole instead of just its `data` chunk.
 
     Args:
         original: File contents before the rewrite.
@@ -602,8 +695,13 @@ def verify_geob_rewrite(
     if original[:4] == b"fLaC":
         _verify_flac_rewrite(original, rebuilt, updates, remove_geob or set())
         return
+    if _is_mp4(original):
+        from app.adapters.serato.mp4_tags import verify_mp4_rewrite
+
+        verify_mp4_rewrite(original, rebuilt, updates, remove_geob or set())
+        return
     if len(rebuilt) != len(original):
-        if original[:3] != b"ID3" or _SERATO_OFFSETS in _read_geob_bytes(original):
+        if not _size_change_allowed(original):
             raise TagFormatError(
                 f"Write would change the file size ({len(original)} -> {len(rebuilt)} bytes)"
             )
@@ -626,6 +724,21 @@ def verify_geob_rewrite(
     for description in remove_geob or set():
         if description in frames:
             raise TagFormatError(f"{description!r} was supposed to be removed")
+
+
+def _size_change_allowed(original: bytes) -> bool:
+    """
+    Return whether a rewrite may change the file length.
+
+    Args:
+        original: File contents before the rewrite.
+
+    Returns:
+        True for AIFF / AIFC, and for an MP3 with no ``Serato Offsets_``.
+    """
+    if _is_aiff(original):
+        return True
+    return original[:3] == b"ID3" and _SERATO_OFFSETS not in _read_geob_bytes(original)
 
 
 def _rewritten_frame(
@@ -779,6 +892,44 @@ def _splice_tag(data: bytes, start: int, size: int, new_tag: bytes) -> bytearray
     return new_data
 
 
+def _iff_chunk_bytes(name: bytes, body: bytes) -> bytes:
+    """
+    Build one IFF chunk with a big-endian size and even padding.
+
+    Args:
+        name: Four-byte chunk id.
+        body: Chunk payload (the ID3 tag for ``ID3 ``).
+
+    Returns:
+        Header, payload, and a pad byte when the payload length is odd.
+    """
+    pad = b"\x00" if len(body) & 1 else b""
+    return name + struct.pack(">I", len(body)) + body + pad
+
+
+def _splice_aiff_id3(data: bytes, new_tag: bytes) -> bytearray:
+    """
+    Replace or append the ``ID3 `` chunk and fix the FORM size.
+
+    Args:
+        data: Original AIFF / AIFC file.
+        new_tag: Full ID3 tag to store as the chunk payload.
+
+    Returns:
+        The file with the new chunk and an updated FORM size field.
+    """
+    chunk = _iff_chunk_bytes(b"ID3 ", new_tag)
+    found = _iff_chunk(data, b"ID3 ")
+    if found is None:
+        rebuilt = bytearray(data + chunk)
+    else:
+        start, size = found
+        old_end = start + size + (size & 1)
+        rebuilt = bytearray(data[: start - 8] + chunk + data[old_end:])
+    rebuilt[4:8] = struct.pack(">I", len(rebuilt) - 8)
+    return rebuilt
+
+
 def write_geob(
     path: str | Path,
     updates: dict[str, bytes],
@@ -787,18 +938,19 @@ def write_geob(
     remove_frames: set[bytes] | None = None,
 ) -> None:
     """
-    Replace or remove frames in an audio file's ID3 tag, in place.
+    Replace or remove Serato frames in an audio file, in place.
 
     Only the named frames are touched. Every other frame and all audio data are
     preserved byte for byte. ID3v2.2 files use ``GEO`` frames; later versions
     use ``GEOB``. ID3 tags keep their original size when padding
-    allows; an MP3 tag with no ``Serato Offsets_`` may grow. FLAC Vorbis
-    comments may grow, but STREAMINFO and the audio frames stay identical.
-    Before anything reaches disk, the rebuilt file is verified against the
-    original. The original file is untouched if verification fails.
+    allows; an MP3 tag with no ``Serato Offsets_`` may grow. An AIFF ``ID3 ``
+    chunk may grow or be created. FLAC Vorbis comments and MP4 ``moov`` may
+    grow; STREAMINFO / ``mdat`` stay identical. Before anything reaches disk,
+    the rebuilt file is verified against the original. The original file is
+    untouched if verification fails.
 
     Args:
-        path: Path to an .mp3, .wav, or .flac file.
+        path: Path to an .mp3, .wav, .flac, .aif, .aiff, .m4a, or .mp4 file.
         updates: GEOB description to new payload.
         remove_geob: GEOB descriptions to delete entirely.
         remove_frames: Frame ids to delete entirely, such as ``b"TKEY"``.
@@ -820,8 +972,23 @@ def write_geob(
         temporary.replace(target)
         logger.info("audio_tags_written", path=str(target), frames=sorted(updates))
         return
-    start, size = _tag_span(data)
-    tag = data[start : start + size]
+    if _is_mp4(data):
+        from app.adapters.serato.mp4_tags import write_mp4_bytes
+
+        new_data = write_mp4_bytes(data, updates, dropped_geob)
+        verify_geob_rewrite(data, new_data, updates, remove_geob=dropped_geob)
+        temporary = target.with_suffix(target.suffix + ".tmp")
+        temporary.write_bytes(new_data)
+        temporary.replace(target)
+        logger.info("audio_tags_written", path=str(target), frames=sorted(updates))
+        return
+    if _is_aiff(data):
+        found = _iff_chunk(data, b"ID3 ")
+        tag = data[found[0] : found[0] + found[1]] if found else _empty_id3_tag()
+        start = found[0] if found else -1
+    else:
+        start, size = _tag_span(data)
+        tag = data[start : start + size]
     version = tag[3]
     declared = _unsynchsafe(tag[6:10])
     rebuilt, written = _copy_existing_frames(
@@ -831,10 +998,13 @@ def write_geob(
     _append_missing_geob(rebuilt, updates, written, version)
     # Prefer absorbing the edit into padding. An MP3 with no Offsets_ may
     # grow: Offsets_ addresses audio by byte position, so moving that
-    # stream would invalidate the waveform.
-    can_grow = start == 0 and _SERATO_OFFSETS not in _read_geob_bytes(data)
+    # stream would invalidate the waveform. AIFF may grow or gain an ID3 chunk.
+    can_grow = _is_aiff(data) or (start == 0 and _SERATO_OFFSETS not in _read_geob_bytes(data))
     new_tag = _padded_tag(tag, rebuilt, declared, grow=can_grow)
-    new_data = _splice_tag(data, start, size, new_tag)
+    if _is_aiff(data):
+        new_data = _splice_aiff_id3(data, new_tag)
+    else:
+        new_data = _splice_tag(data, start, size, new_tag)
 
     verify_geob_rewrite(bytes(data), bytes(new_data), updates, remove_geob=dropped_geob)
 

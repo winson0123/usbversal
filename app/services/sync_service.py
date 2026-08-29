@@ -436,7 +436,7 @@ def _write_track_tags(audio_path: Path, beats: list[Beat], cues: list[HotCue]) -
     Write a track's beatgrid and hot cues into its audio tags.
 
     Args:
-        audio_path: Path to the .mp3 or .wav file.
+        audio_path: Path to the audio file (.mp3, .wav, .flac, .aif, .aiff, .m4a).
         beats: Beats to encode as a Serato BeatGrid, empty to leave it alone.
         cues: Hot cues to encode as Serato Markers2, empty to leave them alone.
     """

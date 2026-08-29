@@ -49,7 +49,7 @@ and roll back; new writes use `objects/`.
 | File | Stored as |
 |------|-----------|
 | `exportLibrary.db`, `export.pdb`, crates, `database V2`, `location.sqlite`, `neworder.pref` | Full object (`objects/<sha256>`) |
-| `.mp3` / `.wav` / `.flac` that we are about to tag | `UVSD1` delta object: original tag head/tail + audio hashes |
+| `.mp3` / `.wav` / `.flac` / `.aif` / `.aiff` / `.m4a` / `.mp4` that we are about to tag | `UVSD1` delta object: original tag head/tail + audio hashes |
 
 A destroyed audio stream cannot be rebuilt from a tag delta. That is the
 size trade-off: a 200 GB stick does not need a 200 GB backup.

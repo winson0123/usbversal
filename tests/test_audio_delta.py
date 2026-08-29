@@ -29,6 +29,56 @@ def _wav(audio: bytes) -> bytes:
     return b"RIFF" + struct.pack("<I", riff_size) + b"WAVE" + fmt + data
 
 
+def _iff_chunk(name: bytes, body: bytes) -> bytes:
+    """Build one big-endian IFF chunk."""
+    pad = b"\x00" if len(body) & 1 else b""
+    return name + struct.pack(">I", len(body)) + body + pad
+
+
+def _aiff(*, sound: bytes, id3: bytes) -> bytes:
+    """Build a minimal AIFF with COMM, SSND, and an ID3 chunk."""
+    comm = struct.pack(">hIh", 1, len(sound) // 2, 16) + bytes(10)
+    ssnd = struct.pack(">II", 0, 0) + sound
+    chunks = _iff_chunk(b"COMM", comm) + _iff_chunk(b"SSND", ssnd) + _iff_chunk(b"ID3 ", id3)
+    body = b"AIFF" + chunks
+    return b"FORM" + struct.pack(">I", len(body)) + body
+
+
+def _box(kind: bytes, payload: bytes) -> bytes:
+    """Build one 32-bit-size MP4 box."""
+    return struct.pack(">I", 8 + len(payload)) + kind + payload
+
+
+def _m4a(*, audio: bytes, ilst: bytes) -> bytes:
+    """Build a minimal M4A whose stco points at mdat."""
+    ftyp = _box(b"ftyp", b"M4A " + struct.pack(">I", 0) + b"isom")
+    hdlr = _box(b"hdlr", bytes(4) + b"mdir" + bytes(13))
+    udta = _box(b"udta", _box(b"meta", bytes(4) + hdlr + _box(b"ilst", ilst)))
+
+    def assemble(chunk_offset: int) -> bytes:
+        """Return ftyp+moov+mdat for a guessed sample offset."""
+        trak = _box(
+            b"trak",
+            _box(
+                b"mdia",
+                _box(
+                    b"minf",
+                    _box(b"stbl", _box(b"stco", bytes(4) + struct.pack(">II", 1, chunk_offset))),
+                ),
+            ),
+        )
+        return ftyp + _box(b"moov", trak + udta) + _box(b"mdat", audio)
+
+    data = assemble(len(ftyp) + 8)
+    offset = 0
+    while offset + 8 <= len(data):
+        size = int.from_bytes(data[offset : offset + 4], "big")
+        if data[offset + 4 : offset + 8] == b"mdat":
+            return assemble(offset + 8)
+        offset += size
+    raise AssertionError("no mdat")
+
+
 def test_mp3_delta_is_much_smaller_than_the_song() -> None:
     """The stored artifact is the tag, not a second copy of the audio."""
     audio = b"\xff\xfb" + b"\x00" * 200_000
@@ -53,6 +103,22 @@ def test_wav_delta_keeps_the_data_chunk() -> None:
     original = _wav(audio)
     # Pretend a tag write grew a chunk before data by rebuilding with same audio.
     rewritten = _wav(audio)
+    assert apply_audio_delta(rewritten, encode_audio_delta(original)) == original
+
+
+def test_aiff_delta_restores_the_id3_chunk() -> None:
+    """Rollback splices the old ID3 chunk onto the same SSND samples."""
+    sound = b"\x00\x01" * 64
+    original = _aiff(sound=sound, id3=b"ID3" + bytes([4, 0, 0]) + b"\x00" * 14 + b"OLD")
+    rewritten = _aiff(sound=sound, id3=b"ID3" + bytes([4, 0, 0]) + b"\x00" * 20 + b"NEW-GROWN")
+    assert apply_audio_delta(rewritten, encode_audio_delta(original)) == original
+
+
+def test_m4a_delta_restores_the_moov_tags() -> None:
+    """Rollback splices the old moov onto the same mdat payload."""
+    audio = b"\x22" * 128
+    original = _m4a(audio=audio, ilst=b"OLD")
+    rewritten = _m4a(audio=audio, ilst=b"NEW-TAGS-GROWN")
     assert apply_audio_delta(rewritten, encode_audio_delta(original)) == original
 
 

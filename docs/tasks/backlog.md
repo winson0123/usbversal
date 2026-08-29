@@ -94,7 +94,7 @@ plus per-file backup required.** Sequenced strictly after M8.
 | ~~`TASK-081`~~ | ~~Rekordbox → Serato cue colour table~~ | Dropped — Rekordbox stores RGB in the ANLZ entry, so no table is needed |
 | ~~`TASK-082`~~ | ~~`Serato Markers2` GEOB writer (hot cues)~~ | Done — TASK-115, byte-exact against the fixture pair |
 | ~~`TASK-083`~~ | ~~`Serato BeatGrid` + `Autotags` GEOB writer~~ | Done — TASK-117/119; `Autotags` deliberately not written |
-| ~~`TASK-084`~~ | ~~Container tag I/O — MP3 / WAV / FLAC~~ | Done — WAV fixtures, ID3v2.3/v2.4 MP3 unit tests (TASK-241), FLAC Vorbis comments (TASK-242). MP4 out of scope. Live Serato confirmation still outstanding. |
+| ~~`TASK-084`~~ | ~~Container tag I/O — MP3 / WAV / FLAC~~ | Done — WAV fixtures, ID3v2.3/v2.4 MP3 unit tests (TASK-241), FLAC (TASK-242), AIFF + M4A (TASK-263). Live Serato confirmation still outstanding. |
 | ~~`TASK-085`~~ | ~~`sync-analysis` CLI (re-introduce)~~ | Dropped — CLI removed in TASK-240. Analysis already runs from the TUI. |
 | ~~`TASK-249`~~ | ~~Do not abort sync on leftover Markers2 base64~~ | Done — drop one `4n+1` character; remaining decode errors skip the track. Findings in ADR 0010. |
 
@@ -199,7 +199,8 @@ and none of them exist yet.
 | ~~`TASK-274`~~ | ~~Reuse unchanged backup~~ | Done — latest timestamped backup is reused when every requested file still matches size + original hash. |
 | ~~`TASK-275`~~ | ~~Content-addressed incremental backups~~ | Done — artifacts live in `objects/<sha256>`; a new snapshot only stores what changed. `latest` names the current id. |
 | ~~`TASK-276`~~ | ~~ETA from recent rate, reset on phase~~ | Done — window of 8 samples; tracker resets at backup/index/analysis/crates so cheap early work does not inflate remaining time. |
-| `TASK-263` | AIFF / AIF Serato tags | `write_geob` / `read_geob` for `.aif` / `.aiff` (ID3 GEOB, same family as WAV/MP3). Tests like TASK-241. MP4 still out of scope. |
+| ~~`TASK-263`~~ | ~~AIFF / AIF / M4A Serato tags~~ | Done — AIFF/AIFC `ID3 ` GEOB; M4A/MP4 `----:com.serato.dj` atoms. SSND / `mdat` hashed. MP4 `markers` (Markers_) only written when asked; Serato still wants it for the first five cues. |
+| `TASK-277` | Skip GEOB rewrite when payload already matches | Same file in a later sync (or a second playlist on a later run) still calls `write_geob`. Compare intended BeatGrid/Markers2 bytes to `read_geob`; if every update is already on disk, do not rewrite, do not bump write counts. Progress still ticks the track. Implement in `write_geob` so every caller gets it. Do not skip backup in this task. |
 | `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |
 
 ---

@@ -910,6 +910,18 @@ WONSIN `error.log` (`20260829T075133Z`) refused Memories and Humble with `'Serat
 
 ---
 
+## TASK-263 — AIFF / AIF / M4A Serato tags
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | `read_geob` / `write_geob` for `.aif` / `.aiff` and `.m4a` / `.mp4` |
+| Verification | ruff ✓ ruff format ✓ pytest 331 passed / 4 skipped |
+
+AIFF/AIFC store ID3 GEOB in a big-endian `ID3 ` chunk; audio is `SSND` after its 8-byte header. A file with no tag gets a chunk. M4A/MP4 use `----:com.serato.dj` atoms (`beatgrid`, `markersv2`, `markers`); `mdat` stays identical and `stco`/`co64` move when `moov` grows. Serato still wants a `markers` atom for the first five cues; sync writes Markers2 only.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

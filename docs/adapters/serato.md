@@ -23,7 +23,9 @@ fixtures in [`tests/fixtures/serato/`](../../tests/fixtures/serato/).
 | `Serato BeatGrid` / `Autotags` layout | verified format; no reference writer |
 | Path convention (drive-relative, no leading slash) | verified |
 | `%%` nested-crate naming | confirmed in Serato (`Gigs%%Played%%safety day`, 2026-08-27) |
-| MP3 ID3 container path | **untested** — fixtures are WAV |
+| MP3 ID3 container path | unit-tested (v2.2 / v2.3 / v2.4); not yet confirmed live in Serato |
+| AIFF / AIFC `ID3 ` chunk | unit-tested (TASK-263); not yet confirmed live in Serato |
+| M4A / MP4 `----:com.serato.dj` | unit-tested (TASK-263); first five cues also need a `markers` atom |
 
 Vendor formats still change without notice; treat versions defensively.
 
