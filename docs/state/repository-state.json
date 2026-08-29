@@ -124,7 +124,8 @@
     "quit_is_ctrl_q": true,
     "backup_then_sync_progress_bars": true,
     "progress_shows_playlist_and_titles": true,
-    "progress_bar_mid_screen": true
+    "progress_bar_mid_screen": true,
+    "progress_log_docked_bottom": true
   },
   "packaging": {
     "pyinstaller": true,

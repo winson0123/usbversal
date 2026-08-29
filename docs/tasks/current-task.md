@@ -10,8 +10,8 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-264` |
-| Objective | Sit the progress bar in the middle of the screen |
+| Task ID | `TASK-265` |
+| Objective | Keep the progress bar mid-screen when the log appears |
 | Completed | 2026-08-29 |
 
 ### Verification log

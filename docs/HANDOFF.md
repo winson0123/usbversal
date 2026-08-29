@@ -29,9 +29,10 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 2 | ~~`TASK-259`~~ | Backup bar + ETA, then sync bar + ETA |
 | 3 | ~~`TASK-261`~~ | Center the bar; playlist `x/x`; log titles |
 | 4 | ~~`TASK-264`~~ | Bar in the middle of the screen, not only at the top |
-| 5 | `TASK-262` | Done screen: scrollable failures; host `error.log` (title, path, reason) |
-| 6 | `TASK-263` | `.aif` / `.aiff` tag read/write |
-| 7 | `TASK-252` | Library two-pane (original ask, last) |
+| 5 | ~~`TASK-265`~~ | Bar stays mid-screen when the track log appears |
+| 6 | `TASK-262` | Done screen: scrollable failures; host `error.log` (title, path, reason) |
+| 7 | `TASK-263` | `.aif` / `.aiff` tag read/write |
+| 8 | `TASK-252` | Library two-pane (original ask, last) |
 
 Progress screen target layout:
 

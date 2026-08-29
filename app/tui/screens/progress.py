@@ -49,9 +49,10 @@ class ProgressScreen(Screen):
         margin: 1 0;
     }
     ProgressScreen #sync-log {
-        width: 80%;
+        dock: bottom;
+        width: 100%;
         height: 12;
-        margin-top: 1;
+        margin: 0 2 1 2;
     }
     ProgressScreen #sync-log.empty, ProgressScreen #sync-playlist.empty {
         display: none;
@@ -71,7 +72,7 @@ class ProgressScreen(Screen):
         self._bar_run: str | None = None
 
     def compose(self) -> ComposeResult:
-        """Center status, bar, playlist, and log as one mid-screen cluster."""
+        """Keep status, bar, and playlist mid-screen; dock the log below."""
         with CenterMiddle():
             with Center():
                 yield Static("Taking backup…", id=_STATUS_ID)
@@ -79,10 +80,7 @@ class ProgressScreen(Screen):
                 yield ProgressBar(id=_BAR_ID, show_eta=False, show_percentage=False)
             with Center():
                 yield Static("", id=_PLAYLIST_ID, classes="empty")
-            with Center():
-                yield RichLog(
-                    id=_LOG_ID, max_lines=500, auto_scroll=True, wrap=True, classes="empty"
-                )
+        yield RichLog(id=_LOG_ID, max_lines=500, auto_scroll=True, wrap=True, classes="empty")
         yield Footer()
 
     def on_mount(self) -> None:

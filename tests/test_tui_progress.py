@@ -259,7 +259,9 @@ async def test_progress_shows_the_playlist_and_centers_the_bar() -> None:
                 bar = screen.query_one("#sync-progress")
                 assert isinstance(bar.parent, Center)
                 assert isinstance(bar.parent.parent, CenterMiddle)
-                assert "empty" in screen.query_one(RichLog).classes
+                log = screen.query_one(RichLog)
+                assert "empty" in log.classes
+                assert not isinstance(log.parent, CenterMiddle)
                 screen._update_progress(
                     SyncProgress(
                         "analysis",
@@ -274,6 +276,8 @@ async def test_progress_shows_the_playlist_and_centers_the_bar() -> None:
                 label = str(screen.query_one("#sync-playlist", Static).render())
                 assert "House" in label
                 assert "2/10" in label
+                assert isinstance(screen.query_one("#sync-progress").parent.parent, CenterMiddle)
+                assert not isinstance(screen.query_one(RichLog).parent, CenterMiddle)
             finally:
                 hold.set()
 

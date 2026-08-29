@@ -770,6 +770,18 @@ Same `CenterMiddle` + nested `Center` pattern as Home. The log stays hidden unti
 
 ---
 
+## TASK-265 — Keep the progress bar mid-screen when the log appears
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-29 |
+| Objective | Status + bar + playlist stay mid-screen; log docks at the bottom |
+| Verification | ruff ✓ ruff format ✓ pytest 299 passed / 4 skipped |
+
+TASK-264 put the log inside `CenterMiddle`, so the growing track list pulled the bar to the top during sync.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

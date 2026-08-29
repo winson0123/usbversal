@@ -538,6 +538,11 @@
       "id": "TASK-264",
       "title": "Progress bar sits in the middle of the screen",
       "completed_at": "2026-08-29T00:00:00Z"
+    },
+    {
+      "id": "TASK-265",
+      "title": "Keep the progress bar mid-screen when the log appears",
+      "completed_at": "2026-08-29T00:00:00Z"
     }
   ],
   "history": [
@@ -1156,6 +1161,12 @@
     {
       "id": "TASK-264",
       "title": "Progress bar sits in the middle of the screen",
+      "completed_at": "2026-08-29T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-265",
+      "title": "Keep the progress bar mid-screen when the log appears",
       "completed_at": "2026-08-29T00:00:00Z",
       "status": "completed"
     }
