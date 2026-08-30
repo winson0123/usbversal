@@ -43,6 +43,35 @@ def _cue(number: int, time_ms: int, colour: tuple[int, int, int]) -> bytes:
     return b"PCP2" + header + bytes(body)
 
 
+def _cue_with_comment(
+    number: int, time_ms: int, colour: tuple[int, int, int], comment: str
+) -> bytes:
+    """
+    Build one PCP2 entry whose RGB sits after a UTF-16 comment.
+
+    Args:
+        number: Rekordbox hot-cue number (1-based).
+        time_ms: Cue position in milliseconds.
+        colour: ``(red, green, blue)`` stored after the comment.
+        comment: Cue name, such as ``1.1Bars``.
+
+    Returns:
+        One PCP2 entry matching WONSIN 88-byte named cues.
+    """
+    comment_bytes = comment.encode("utf-16-be") + b"\x00\x00"
+    body = bytearray(72 + len(comment_bytes))
+    body[0:4] = b"\x01\x00\x03\xe8"
+    struct.pack_into(">I", body, 4, time_ms)
+    body[8:12] = b"\xff\xff\xff\xff"
+    body[12:16] = b"\x00\x01\x00\x00"
+    struct.pack_into(">I", body, 24, len(comment_bytes))
+    body[28 : 28 + len(comment_bytes)] = comment_bytes
+    rgb_at = 29 + len(comment_bytes)
+    body[rgb_at : rgb_at + 3] = bytes(colour)
+    header = struct.pack(">II", 16, 16 + len(body)) + struct.pack(">I", number)
+    return b"PCP2" + header + bytes(body)
+
+
 def _pco2(kind: int, cues: list[bytes]) -> bytes:
     """Build a PCO2 cue-list section; kind 1 is hot cues."""
     extra = struct.pack(">IHH", kind, len(cues), 0)
@@ -103,6 +132,16 @@ def test_cue_colour_is_not_the_trailing_padding(tmp_path: Path) -> None:
     f.write_bytes(_anlz(_pco2(1, [_cue(1, 15532, (0xFF, 0x00, 0x17))])))
 
     assert read_hot_cues(f)[0].colour == "#FF0017"
+
+
+def test_cue_colour_skips_a_utf16_comment(tmp_path: Path) -> None:
+    """A named cue stores RGB after the comment, not inside ``1.``."""
+    f = tmp_path / "a.EXT"
+    f.write_bytes(_anlz(_pco2(1, [_cue_with_comment(1, 70, (0xFF, 0x00, 0x17), "1.1Bars")])))
+
+    cue = read_hot_cues(f)[0]
+    assert cue.colour == "#FF0017"
+    assert cue.colour != "#31002E"
 
 
 def test_memory_cues_are_ignored(tmp_path: Path) -> None:

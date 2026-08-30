@@ -224,6 +224,7 @@ and none of them exist yet.
 | ~~`TASK-298`~~ | ~~Overlap crate writes with the analysis pool~~ | Done — crates and `neworder.pref` run while tags write; `location.sqlite` waits. |
 | ~~`TASK-299`~~ | ~~Fix M4A hotcue / track colour~~ | Done — MP4 `markers` footer is unset track colour (`00 FF FF FF`); Markers2 `COLOR` is forced white. Cue RGB mapping superseded by TASK-300. |
 | ~~`TASK-300`~~ | ~~Write Rekordbox cue RGB on M4A~~ | Done — M4A pads use ANLZ RGB as-is, same as MP3. Track colour footer stays unset. |
+| ~~`TASK-301`~~ | ~~Read PCP2 cue RGB after the UTF-16 comment~~ | Done — named cues (`1.1Bars`) were read as `#31002E`; RGB is after the comment. |
 | `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |
 
 ---

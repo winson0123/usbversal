@@ -705,6 +705,11 @@
       "id": "TASK-300",
       "title": "Write Rekordbox cue RGB on M4A; keep the track uncoloured",
       "completed_at": "2026-08-30T00:00:00Z"
+    },
+    {
+      "id": "TASK-301",
+      "title": "Read PCP2 cue RGB after the UTF-16 comment",
+      "completed_at": "2026-08-30T00:00:00Z"
     }
   ],
   "history": [
@@ -1551,6 +1556,12 @@
     {
       "id": "TASK-300",
       "title": "Write Rekordbox cue RGB on M4A; keep the track uncoloured",
+      "completed_at": "2026-08-30T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-301",
+      "title": "Read PCP2 cue RGB after the UTF-16 comment",
       "completed_at": "2026-08-30T00:00:00Z",
       "status": "completed"
     }

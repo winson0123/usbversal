@@ -1210,6 +1210,18 @@ M4A pads use ANLZ RGB as-is (ADR 0008), not Lexicon's Serato palette. The MP4 `m
 
 ---
 
+## TASK-301 — Read PCP2 cue RGB after the UTF-16 comment
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Read PCP2 cue RGB after the UTF-16 comment, not from inside it |
+| Verification | ruff ✓ ruff format ✓ pytest 347 passed / 4 skipped |
+
+Named cues store a length-prefixed UTF-16 comment at offset 24. RGB is at 29 plus that length. `1.1Bars` was read as `#31002E`; the real colour is `#FF0017`. See `docs/workflows/cue-colour-offset.md`.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

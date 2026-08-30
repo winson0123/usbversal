@@ -13,6 +13,12 @@ TASK-253 read offset 28, so every colour dropped its red and shifted
 Confirmed 2026-08-30 on WONSIN `Young Wild and Free` (`ANLZ0000.EXT` under
 `P037/0002E377`). Shorter test bodies still use offset 28.
 
+Offset 24 is a big-endian UTF-16BE comment length in bytes. RGB stays at
+29 only when that length is 0. A named cue (`1.1Bars` on Rock That Body
+and back to friends pad 1) is 16 extra bytes; reading 29 then treats
+`1.` as `#31002E`. The real colour is `#FF0017` after the comment
+(TASK-301).
+
 ## `Serato Markers_` (TASK-285)
 
 Serato prefers `Markers_` over Markers2 when both exist. `Markers_` only

@@ -13,12 +13,15 @@ logger = structlog.get_logger(__name__)
 _MAGIC = b"PMAI"
 _EXTENDED_CUES = "PCO2"
 _HOT_CUE_LIST = 1
-# Real Rekordbox .EXT PCP2 bodies are 72 bytes: a 00 at offset 28, then
-# RGB at 29. TASK-253 used 28 and picked up that leading 00, so colours
-# shifted (WONSIN Young Wild and Free, 2026-08-30). Shorter test bodies
-# still keep RGB at 28.
+# Real Rekordbox .EXT PCP2 bodies are 72 bytes when the cue comment is
+# empty: a 00 at offset 28, then RGB at 29. TASK-253 used 28 and picked
+# up that leading 00, so colours shifted (WONSIN Young Wild and Free,
+# 2026-08-30). An 88-byte entry stores a length-prefixed UTF-16 comment
+# at offset 24; RGB moves with it. Shorter test bodies still keep RGB
+# at 28 when the comment length is missing.
 _CUE_RGB_OFFSET = 29
 _CUE_RGB_OFFSET_SHORT = 28
+_COMMENT_LEN_OFFSET = 24
 
 
 class AnlzError(ValueError):
@@ -122,15 +125,24 @@ def _cue_rgb(body: bytes) -> tuple[int, int, int]:
     """
     Return the RGB triple from one PCP2 cue body.
 
+    Offset 24 is a big-endian byte length for a UTF-16BE comment.
+    RGB is at offset 29 plus that length (29 when the comment is empty).
+    A named cue such as ``1.1Bars`` is 16 comment bytes; reading offset
+    29 then treats ``1.`` as ``#31002E``.
+
     Args:
         body: Bytes after the PCP2 header.
 
     Returns:
-        ``(red, green, blue)``. Offset 29 on a 72-byte Rekordbox entry;
-        offset 28 on shorter layouts; the last three bytes otherwise.
+        ``(red, green, blue)``. Offset 29 on an empty-comment Rekordbox
+        entry; after the comment when one is present; offset 28 on
+        shorter layouts; the last three bytes otherwise.
     """
-    if len(body) >= _CUE_RGB_OFFSET + 3:
-        return body[_CUE_RGB_OFFSET], body[_CUE_RGB_OFFSET + 1], body[_CUE_RGB_OFFSET + 2]
+    if len(body) >= _COMMENT_LEN_OFFSET + 4:
+        comment_len = struct.unpack(">I", body[_COMMENT_LEN_OFFSET : _COMMENT_LEN_OFFSET + 4])[0]
+        rgb_at = _CUE_RGB_OFFSET + comment_len
+        if comment_len % 2 == 0 and rgb_at + 3 <= len(body):
+            return body[rgb_at], body[rgb_at + 1], body[rgb_at + 2]
     if len(body) >= _CUE_RGB_OFFSET_SHORT + 3:
         return (
             body[_CUE_RGB_OFFSET_SHORT],
