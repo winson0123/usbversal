@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-30T05:59:00Z",
+  "updated_at": "2026-08-30T06:05:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -754,6 +754,11 @@
     {
       "id": "TASK-310",
       "title": "Tree flush to legend; visible parent guides",
+      "completed_at": "2026-08-30T00:00:00Z"
+    },
+    {
+      "id": "TASK-311",
+      "title": "Light path to a crate and children of a folder",
       "completed_at": "2026-08-30T00:00:00Z"
     }
   ],
@@ -1661,6 +1666,12 @@
     {
       "id": "TASK-310",
       "title": "Tree flush to legend; visible parent guides",
+      "completed_at": "2026-08-30T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-311",
+      "title": "Light path to a crate and children of a folder",
       "completed_at": "2026-08-30T00:00:00Z",
       "status": "completed"
     }

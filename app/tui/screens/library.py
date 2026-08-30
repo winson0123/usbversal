@@ -11,14 +11,19 @@ than showing whatever was true when the screen first loaded.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import cast
 
 from rich.cells import cell_len
+from rich.style import Style
 from rich.text import Text
+from textual._segment_tools import line_pad
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
+from textual.strip import Strip
 from textual.widgets import DataTable, Footer, Static, Tree
 from textual.widgets.tree import TreeNode
 
@@ -70,6 +75,152 @@ class _Row:
     total: int
     ids: tuple[int, ...]
     is_folder: bool
+
+
+class PlaylistTree(Tree[_Row]):
+    """
+    Playlist tree whose guide lines follow the cursor.
+
+    Textual only lights guides under a selected folder. A crate under the
+    cursor also lights the path back to the root. A selected folder still
+    lights every child.
+    """
+
+    def watch_cursor_line(self, previous_line: int, line: int) -> None:
+        """Repaint every visible row so path guides stay in sync with the cursor."""
+        super().watch_cursor_line(previous_line, line)
+        self.refresh()
+
+    def watch_hover_line(self, previous_hover_line: int, hover_line: int) -> None:
+        """Repaint every visible row so path guides stay in sync with the pointer."""
+        super().watch_hover_line(previous_hover_line, hover_line)
+        self.refresh()
+
+    def _lit_path(self) -> set[TreeNode[_Row]]:
+        """
+        Nodes from the root down to the cursor, and to the hovered node.
+
+        Returns:
+            The union of those two ancestor chains.
+        """
+        nodes: set[TreeNode[_Row]] = set()
+        hover = self._get_node(self.hover_line) if self.hover_line >= 0 else None
+        for start in (self.cursor_node, hover):
+            node = start
+            while node is not None:
+                nodes.add(node)
+                node = node.parent
+        return nodes
+
+    def _guide_glyphs(self, style: Style, hidden: bool) -> tuple[str, str, str, str]:
+        """
+        Space, vertical, terminator, and cross glyphs for one indent step.
+
+        Args:
+            style: Guide style; bold or underline2 pick a heavier line set.
+            hidden: True to emit blank guides.
+
+        Returns:
+            Four guide strings sized to ``guide_depth``.
+        """
+        lines: tuple[Iterable[str], Iterable[str], Iterable[str], Iterable[str]]
+        if self.show_guides and not hidden:
+            lines = self.LINES["default"]
+            if style.bold:
+                lines = self.LINES["bold"]
+            elif style.underline2:
+                lines = self.LINES["double"]
+        else:
+            lines = ("  ", "  ", "  ", "  ")
+        extra = max(0, self.guide_depth - 2)
+        return cast(
+            "tuple[str, str, str, str]",
+            tuple(f"{chars[0]}{chars[1] * extra} " for chars in lines),
+        )
+
+    def _render_line(self, y: int, x1: int, x2: int, base_style: Style) -> Strip:
+        """
+        Render one tree row, lighting guides on the cursor path and under a folder.
+
+        Args:
+            y: Absolute tree line, including scroll.
+            x1: Left crop cell.
+            x2: Right crop cell.
+            base_style: Widget style behind the row.
+
+        Returns:
+            The cropped strip for this row.
+        """
+        tree_lines = self._tree_lines
+        width = self.size.width
+        if y >= len(tree_lines):
+            return Strip.blank(width, base_style)
+
+        line = tree_lines[y]
+        is_hover = self.hover_line >= 0 and any(node._hover for node in line.path)
+        lit_path = self._lit_path()
+        cache_key = (
+            y,
+            is_hover,
+            width,
+            self._updates,
+            self._pseudo_class_state,
+            id(self.cursor_node),
+            self.hover_line,
+            tuple(node._updates for node in line.path),
+        )
+        if cache_key in self._line_cache:
+            strip = self._line_cache[cache_key]
+        else:
+            base_hidden = self.get_component_styles("tree--guides").color.a == 0
+            hover_hidden = self.get_component_styles("tree--guides-hover").color.a == 0
+            selected_hidden = self.get_component_styles("tree--guides-selected").color.a == 0
+            base_guide_style = self.get_component_rich_style("tree--guides", partial=True)
+            guide_hover_style = base_guide_style + self.get_component_rich_style(
+                "tree--guides-hover", partial=True
+            )
+            guide_selected_style = base_guide_style + self.get_component_rich_style(
+                "tree--guides-selected", partial=True
+            )
+            hover = line.path[0]._hover
+            selected = line.path[0]._selected and self.has_focus
+            line_style = (
+                self.get_component_rich_style("tree--highlight-line") if is_hover else base_style
+            )
+            line_style += Style(meta={"line": y})
+            guides = Text(style=line_style)
+            guide_style = base_guide_style
+            hidden = True
+            for node in line.path[1:]:
+                guide_style = base_guide_style
+                hidden = base_hidden
+                if hover:
+                    guide_style = guide_hover_style
+                    hidden = hover_hidden
+                if (selected or node in lit_path) and self.has_focus:
+                    guide_style = guide_selected_style
+                    hidden = selected_hidden
+                space, vertical, _, _ = self._guide_glyphs(guide_style, hidden)
+                if node != line.path[-1]:
+                    guides.append(space if node.is_last else vertical, style=guide_style)
+                hover = hover or node._hover
+                selected = (selected or node._selected) and self.has_focus
+            if len(line.path) > 1:
+                _, _, terminator, cross = self._guide_glyphs(guide_style, hidden)
+                guides.append(terminator if line.last else cross, style=guide_style)
+            label_style = self.get_component_rich_style("tree--label", partial=True)
+            if self.hover_line == y:
+                label_style += self.get_component_rich_style("tree--highlight", partial=True)
+            if self.cursor_line == y:
+                label_style += self.get_component_rich_style("tree--cursor", partial=False)
+            label = self.render_label(line.path[-1], line_style, label_style).copy()
+            label.stylize(Style(meta={"node": line.node._id}))
+            guides.append(label)
+            segments = list(guides.render(self.app.console))
+            pad_width = max(self.virtual_size.width, width)
+            segments = line_pad(segments, 0, pad_width - guides.cell_len, line_style)
+            strip = self._line_cache[cache_key] = Strip(segments)
+        return strip.crop(x1, x2)
 
 
 class LibraryScreen(Screen):
@@ -178,7 +329,7 @@ class LibraryScreen(Screen):
             playlist_pane = Vertical(id="playlist-pane")
             playlist_pane.border_title = "Playlists"
             with playlist_pane:
-                tree: Tree[_Row] = Tree("Playlists", id="playlist-tree")
+                tree: PlaylistTree = PlaylistTree("Playlists", id="playlist-tree")
                 tree.show_root = False
                 yield tree
                 yield Static(_legend_text(), id=_LEGEND_ID)

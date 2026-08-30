@@ -1,13 +1,13 @@
 # Current Task
 
 **Status:** `completed`
-**Task ID:** `TASK-310`
+**Task ID:** `TASK-311`
 **Last updated:** 2026-08-30
 
 ## Objective
 
-Give the playlist tree the row above the legend, and keep parent
-guide lines visible on the cursor row.
+Light the parent path when the cursor is on a crate, and still light
+every child guide when the cursor is on a folder.
 
 ## Files touched
 
@@ -31,4 +31,4 @@ guide lines visible on the cursor row.
 
 - ruff ✓
 - ruff format ✓
-- pytest 356 passed / 4 skipped
+- pytest 358 passed / 4 skipped

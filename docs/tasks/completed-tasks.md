@@ -1342,6 +1342,20 @@ crate. Guides now stay `ansi_default` on the cursor.
 
 ---
 
+## TASK-311 — Light path to a crate and children of a folder
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Cursor on a crate lights the parent path; a folder still lights every child |
+| Verification | ruff ✓ ruff format ✓ pytest 358 passed / 4 skipped |
+
+Textual only lit guides under a selected folder. `PlaylistTree` also
+lights the ancestor chain when the cursor is on a crate, and still
+lights every child when the cursor is on a folder.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

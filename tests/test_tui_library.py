@@ -82,6 +82,57 @@ def _playlist_nodes(tree: Tree):
     return tree.root.children
 
 
+def _guide_styles(tree: Tree, y: int):
+    """
+    Rich styles on the guide segments of one tree row.
+
+    Args:
+        tree: Playlist tree after layout.
+        y: Line index to inspect.
+
+    Returns:
+        Styles attached to │ / └ / ├ cells on that row.
+    """
+    return [
+        segment.style
+        for segment in tree.render_line(y)
+        if any(mark in segment.text for mark in ("│", "└", "├"))
+    ]
+
+
+def _row_has_lit_guide(tree: Tree, y: int) -> bool:
+    """
+    True when a guide on row ``y`` uses the selected-guide colour.
+
+    Args:
+        tree: Playlist tree after layout.
+        y: Line index to inspect.
+
+    Returns:
+        Whether any guide cell matches ``tree--guides-selected``.
+    """
+    lit = tree.get_component_rich_style("tree--guides-selected", partial=True)
+    return any(style.color == lit.color for style in _guide_styles(tree, y) if style.color)
+
+
+def _row_named(tree: Tree, name: str) -> int:
+    """
+    Line index whose rendered text contains ``name``.
+
+    Args:
+        tree: Playlist tree after layout.
+        name: Playlist or folder name to find.
+
+    Returns:
+        The first matching line index.
+    """
+    for y in range(tree.virtual_size.height):
+        text = "".join(segment.text for segment in tree.render_line(y))
+        if name in text:
+            return y
+    raise AssertionError(f"{name!r} not in the tree")
+
+
 class _Harness(RekordboxThreadMixin, App):
     """Minimal app that pushes a Library screen for one library.
 
@@ -335,10 +386,61 @@ async def test_parent_guide_stays_visible_on_a_selected_leaf(tmp_path: Path) -> 
         assert tree.cursor_node.data.name == "Techno"
         line = "".join(segment.text for segment in tree.render_line(tree.cursor_line))
         assert any(guide in line for guide in ("│", "└", "├"))
+        assert _row_has_lit_guide(tree, tree.cursor_line)
         selected = tree.get_component_styles("tree--guides-selected")
         cursor = tree.get_component_styles("tree--cursor")
         assert selected.color.a > 0
         assert selected.color != cursor.background
+
+
+@pytest.mark.asyncio
+async def test_cursor_on_a_folder_lights_every_child_guide(tmp_path: Path) -> None:
+    """A selected parent still lights the guides on all of its children."""
+    mount = _stick(tmp_path, crates={}, indexed=[])
+    playlists = [
+        Playlist(id=8, name="Music", parent_id=None, is_folder=True),
+        Playlist(id=9, name="Genres", parent_id=8, is_folder=True),
+        Playlist(id=1, name="Techno", parent_id=9, is_folder=False),
+        Playlist(id=2, name="Trance", parent_id=9, is_folder=False),
+    ]
+    library = make_library(mount, _adapter(playlists, {1: [], 2: []}))
+    app = _Harness(library)
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        await pilot.press("down")
+        await pilot.pause()
+
+        tree = app.screen.query_one(Tree)
+        assert tree.cursor_node is not None
+        assert tree.cursor_node.data.name == "Genres"
+        assert _row_has_lit_guide(tree, _row_named(tree, "Techno"))
+        assert _row_has_lit_guide(tree, _row_named(tree, "Trance"))
+
+
+@pytest.mark.asyncio
+async def test_cursor_on_a_crate_lights_the_parent_path(tmp_path: Path) -> None:
+    """The path back to the root stays lit on sibling rows, not only the crate."""
+    mount = _stick(tmp_path, crates={}, indexed=[])
+    playlists = [
+        Playlist(id=1, name="Genres", parent_id=None, is_folder=True),
+        Playlist(id=2, name="House", parent_id=1, is_folder=True),
+        Playlist(id=3, name="Techno", parent_id=2, is_folder=False),
+        Playlist(id=4, name="Trance", parent_id=2, is_folder=False),
+        Playlist(id=5, name="Afro", parent_id=1, is_folder=False),
+    ]
+    library = make_library(mount, _adapter(playlists, {3: [], 4: [], 5: []}))
+    app = _Harness(library)
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        await pilot.press("down")
+        await pilot.press("down")
+        await pilot.pause()
+
+        tree = app.screen.query_one(Tree)
+        assert tree.cursor_node is not None
+        assert tree.cursor_node.data.name == "Techno"
+        assert _row_has_lit_guide(tree, _row_named(tree, "House"))
+        assert _row_has_lit_guide(tree, _row_named(tree, "Trance"))
 
 
 @pytest.mark.asyncio
