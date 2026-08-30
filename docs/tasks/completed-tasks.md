@@ -1497,6 +1497,19 @@ bar; the caption steps SEARCHING, then OPENING, then CHECKING.
 
 ---
 
+## TASK-321 — Show the Home scan bar in the Library Tracks pane while loading
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Same sweeping scan bar on the right while the track list is loading |
+| Verification | ruff ✓ ruff format ✓ pytest 377 passed / 4 skipped |
+
+`ScanBar` is shared with Home. The Tracks pane centers it until
+preview rows are ready, then shows the table.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

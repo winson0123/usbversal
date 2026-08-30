@@ -28,6 +28,7 @@ from app.services.library import (
 from app.services.sync_service import playlist_tree_sync_states
 from app.tui.screens.library import LibraryScreen
 from app.tui.widgets.path_input import PathInput
+from app.tui.widgets.scan_bar import ScanBar
 
 _NONE_FOUND = "Did not detect a valid DJ USB."
 _RETRY_HINT = "Press 'Enter' to retry auto-scan…"
@@ -38,48 +39,12 @@ _BANNER_ID = "banner"
 _SPINNER_ID = "spinner"
 _STATUS_ID = "status"
 _INPUT_ID = "path-input"
-_SPINNER_INTERVAL_S = 0.1
-# A bright point sweeping left to right over a dotted bar, one step of
-# fade-out trailing behind it -- e.g. "[·•●·]" -- rather than a single
-# pulsing glyph, reads more like an active scan in progress. The resting
-# fill is the same smallest dot the trail fades into, not blank space, so
-# the bar never looks like it has empty gaps in it.
-_BAR_WIDTH = 4
-_SPINNER_FRAME_COUNT = _BAR_WIDTH + 2
-
-
-def _scan_bar_frame(head: int) -> str:
-    """One frame of the sweeping scan bar, with the bright point at `head`."""
-    cells = []
-    for i in range(_BAR_WIDTH):
-        dist = head - i
-        if dist == 0:
-            cells.append("●")
-        elif dist == 1:
-            cells.append("•")
-        else:
-            cells.append("·")
-    return "[" + "".join(cells) + "]"
 
 
 _BANNER = """\
 ░█░█░█▀▀░█▀▄░█░█░█▀▀░█▀▄░█▀▀░█▀█░█░░
 ░█░█░▀▀█░█▀▄░▀▄▀░█▀▀░█▀▄░▀▀█░█▀█░█░░
 ░▀▀▀░▀▀▀░▀▀░░░▀░░▀▀▀░▀░▀░▀▀▀░▀░▀░▀▀▀"""
-
-
-class _Spinner(Static):
-    """A sweeping scan bar. No colour of its own -- whatever the terminal's
-    default foreground is, is what this renders in."""
-
-    def on_mount(self) -> None:
-        self._frame = 0
-        self.update(_scan_bar_frame(self._frame))
-        self.set_interval(_SPINNER_INTERVAL_S, self._tick)
-
-    def _tick(self) -> None:
-        self._frame = (self._frame + 1) % _SPINNER_FRAME_COUNT
-        self.update(_scan_bar_frame(self._frame))
 
 
 class HomePhase(StrEnum):
@@ -162,7 +127,7 @@ class HomeScreen(Screen):
             with Center():
                 yield Static(_BANNER, id=_BANNER_ID)
             with Center():
-                yield _Spinner(id=_SPINNER_ID)
+                yield ScanBar(id=_SPINNER_ID)
             with Center():
                 yield Static("", id=_STATUS_ID)
             with Center():
@@ -252,7 +217,7 @@ class HomeScreen(Screen):
 
     def _show_phase(self) -> None:
         """Apply spinner, status, and path-input widgets from ``self._phase``."""
-        spinner = self.query_one(f"#{_SPINNER_ID}", _Spinner)
+        spinner = self.query_one(f"#{_SPINNER_ID}", ScanBar)
         status = self.query_one(f"#{_STATUS_ID}", Static)
         path_input = self.query_one(PathInput)
 

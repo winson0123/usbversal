@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-30T09:20:00Z",
+  "updated_at": "2026-08-30T09:25:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -805,6 +805,11 @@
       "id": "TASK-320",
       "title": "Checking analysis is a single Home phase caption",
       "completed_at": "2026-08-30T09:20:00Z"
+    },
+    {
+      "id": "TASK-321",
+      "title": "Show the Home scan bar in the Library Tracks pane while loading",
+      "completed_at": "2026-08-30T09:25:00Z"
     }
   ],
   "history": [
@@ -1778,6 +1783,12 @@
       "id": "TASK-320",
       "title": "Checking analysis is a single Home phase caption",
       "completed_at": "2026-08-30T09:20:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-321",
+      "title": "Show the Home scan bar in the Library Tracks pane while loading",
+      "completed_at": "2026-08-30T09:25:00Z",
       "status": "completed"
     }
   ]

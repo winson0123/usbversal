@@ -21,7 +21,7 @@ from rich.text import Text
 from textual._segment_tools import line_pad
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
+from textual.containers import CenterMiddle, Horizontal, Vertical
 from textual.screen import Screen
 from textual.strip import Strip
 from textual.widgets import DataTable, Footer, Static, Tree
@@ -36,6 +36,7 @@ from app.services.sync_service import (
 from app.services.track_preview import TrackPreview, preview_playlist_tracks
 from app.tui.palette import ACCENT
 from app.tui.screens.progress import ProgressScreen
+from app.tui.widgets.scan_bar import ScanBar
 
 _COUNT_COLOUR = {
     SyncState.SYNCED: "green",
@@ -52,6 +53,8 @@ _STATUS_ID = "selection-status"
 _MOUNT_ID = "mount-info"
 _HEADER_ID = "header"
 _LEGEND_ID = "sync-legend"
+_TRACK_SCAN_WRAP_ID = "track-scan-wrap"
+_TRACK_SCAN_ID = "track-scan"
 _COLUMNS = ("Title", "Genre", "Key", "BPM")
 
 # Fixed-width columns so the count sits in the same place on every row.
@@ -289,6 +292,14 @@ class LibraryScreen(Screen):
     LibraryScreen #playlist-tree:focus > .tree--guides-selected {{
         color: ansi_default;
     }}
+    LibraryScreen #track-scan-wrap {{
+        width: 100%;
+        height: 1fr;
+    }}
+    LibraryScreen #track-scan {{
+        width: auto;
+        text-align: center;
+    }}
     LibraryScreen #track-table {{
         height: 1fr;
         overflow-x: hidden;
@@ -347,10 +358,13 @@ class LibraryScreen(Screen):
             track_pane = Vertical(id="track-pane")
             track_pane.border_title = "Tracks"
             with track_pane:
+                with CenterMiddle(id=_TRACK_SCAN_WRAP_ID):
+                    yield ScanBar(id=_TRACK_SCAN_ID)
                 table: DataTable[str] = DataTable(id="track-table")
                 table.cursor_type = "row"
                 table.zebra_stripes = False
                 table.show_horizontal_scrollbar = False
+                table.display = False
                 yield table
         yield Footer()
 
@@ -439,6 +453,7 @@ class LibraryScreen(Screen):
             tree.cursor_line = cursor
             tree.focus()
         self._refresh_labels(tree.root, depth=0)
+        self._set_tracks_loading(True)
         self._clear_table()
         self._apply_column_widths()
         if busy is not None:
@@ -598,8 +613,10 @@ class LibraryScreen(Screen):
         """Fill the track table from the highlighted playlist."""
         row = event.node.data
         if row is None or row.is_folder or len(row.ids) != 1:
+            self._set_tracks_loading(False)
             self._clear_table()
             return
+        self._set_tracks_loading(True)
         self.run_worker(self._show_tracks(row.ids[0]), exclusive=True, group="track-preview")
 
     async def _show_tracks(self, playlist_id: int) -> None:
@@ -609,8 +626,23 @@ class LibraryScreen(Screen):
         Args:
             playlist_id: Highlighted leaf playlist id.
         """
-        tracks = await self.app.run_rekordbox(preview_playlist_tracks, self.library, playlist_id)
-        self._fill_table(tracks)
+        try:
+            tracks = await self.app.run_rekordbox(
+                preview_playlist_tracks, self.library, playlist_id
+            )
+            self._fill_table(tracks)
+        finally:
+            self._set_tracks_loading(False)
+
+    def _set_tracks_loading(self, loading: bool) -> None:
+        """
+        Show the Home scan bar in the Tracks pane, or the table.
+
+        Args:
+            loading: True while preview rows are not ready yet.
+        """
+        self.query_one(f"#{_TRACK_SCAN_WRAP_ID}").display = loading
+        self.query_one("#track-table", DataTable).display = not loading
 
     def _clear_table(self) -> None:
         """Empty the preview table and restore the default columns."""

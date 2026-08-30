@@ -10,14 +10,14 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-320` |
-| Objective | Checking analysis is a single Home phase caption |
+| Task ID | `TASK-321` |
+| Objective | Show the Home scan bar in the Library Tracks pane while loading |
 | Completed | 2026-08-30 |
 
 ### Scope
 
-- Home status is one line per phase: detecting, opening, then
-  Checking analysis.
+- `ScanBar` widget shared by Home and Library.
+- Tracks pane shows the bar until preview rows are ready.
 
 ### Verification log
 
@@ -25,7 +25,7 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 376 passed, 4 skipped |
+| `.venv/bin/pytest` | 377 passed, 4 skipped |
 
 ## Next
 

@@ -612,8 +612,38 @@ async def test_highlighting_a_playlist_fills_the_track_table(tmp_path: Path) -> 
         await _wait_library(app, pilot)
 
         table = app.screen.query_one("#track-table", DataTable)
+        assert table.display is True
         assert table.row_count == 1
         assert table.get_row_at(0)[0].plain == "Alpha"
+
+
+@pytest.mark.asyncio
+async def test_tracks_pane_shows_scan_bar_while_loading(tmp_path: Path) -> None:
+    """The right pane uses the same Home scan bar until rows are ready."""
+    library = _library_with_two_playlists(tmp_path)
+    gate = threading.Event()
+
+    def blocked(*_args, **_kwargs):
+        gate.wait(timeout=5)
+        return []
+
+    with patch("app.tui.screens.library.preview_playlist_tracks", blocked):
+        app = _Harness(library)
+        async with app.run_test() as pilot:
+            await _wait_library(app, pilot)
+            wrap = app.screen.query_one("#track-scan-wrap")
+            table = app.screen.query_one("#track-table", DataTable)
+            assert wrap.display is True
+            assert table.display is False
+            bar = str(app.screen.query_one("#track-scan").render())
+            assert bar.startswith("[") and bar.endswith("]")
+            gate.set()
+            for _ in range(20):
+                await pilot.pause()
+                if table.display:
+                    break
+            assert table.display is True
+            assert wrap.display is False
 
 
 def test_footer_keys_use_caret_lowercase() -> None:

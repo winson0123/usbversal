@@ -245,6 +245,7 @@ and none of them exist yet.
 | ~~`TASK-318`~~ | ~~Checking analysis stays on Home with a moving scan bar~~ | Done — Home caption is Checking analysis; Library is pushed with the tree already computed. |
 | ~~`TASK-319`~~ | ~~Show Checking analysis on the Home detecting screen~~ | Done — then TASK-320 made it a single phase-3 caption, not a second line. |
 | ~~`TASK-320`~~ | ~~Checking analysis is a single Home phase caption~~ | Done — SEARCHING, OPENING, CHECKING each replace the one status line. |
+| ~~`TASK-321`~~ | ~~Show the Home scan bar in the Library Tracks pane while loading~~ | Done — shared `ScanBar`; table hidden until preview rows are ready. |
 
 ---
 
