@@ -7,6 +7,7 @@ from pathlib import Path
 from app.services.sync_analysis import (
     AnalysisJob,
     analysis_worker_count,
+    begin_analysis_jobs,
     process_analysis_track,
     run_analysis_jobs,
 )
@@ -51,6 +52,35 @@ def test_run_analysis_jobs_uses_more_than_one_thread(monkeypatch) -> None:
     results = run_analysis_jobs(jobs)
     assert len(results) == 4
     assert len(seen) > 1
+
+
+def test_analysis_session_lets_crates_run_during_jobs(monkeypatch) -> None:
+    """Crate work on this thread can run while tag jobs are in flight."""
+    monkeypatch.setenv("USBVERSAL_SYNC_WORKERS", "2")
+    started = threading.Event()
+    release = threading.Event()
+    original = process_analysis_track
+
+    def _block(job: AnalysisJob):
+        """Hold the worker until the caller has done other work."""
+        started.set()
+        assert release.wait(1)
+        return original(job)
+
+    monkeypatch.setattr("app.services.sync_analysis.process_analysis_track", _block)
+    jobs = [
+        AnalysisJob(raw="t", audio_path=Path("/missing"), dat_path=None, key=None),
+    ]
+    session = begin_analysis_jobs(jobs)
+    try:
+        assert started.wait(1)
+        overlapped = True
+        release.set()
+        results = session.wait()
+    finally:
+        session.close()
+    assert overlapped
+    assert len(results) == 1
 
 
 def test_run_analysis_jobs_emits_progress_for_each_completion(monkeypatch) -> None:

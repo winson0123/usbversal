@@ -690,6 +690,11 @@
       "id": "TASK-297",
       "title": "Read only the tag when deciding a GEOB write is already on disk",
       "completed_at": "2026-08-30T00:00:00Z"
+    },
+    {
+      "id": "TASK-298",
+      "title": "Overlap crate writes with the analysis worker pool",
+      "completed_at": "2026-08-30T00:00:00Z"
     }
   ],
   "history": [
@@ -1518,6 +1523,12 @@
     {
       "id": "TASK-297",
       "title": "Read only the tag when deciding a GEOB write is already on disk",
+      "completed_at": "2026-08-30T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-298",
+      "title": "Overlap crate writes with the analysis worker pool",
       "completed_at": "2026-08-30T00:00:00Z",
       "status": "completed"
     }

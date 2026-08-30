@@ -1174,6 +1174,18 @@ A WAVE with no `id3 ` chunk patches the RIFF size and appends the chunk. The `da
 
 ---
 
+## TASK-298 — Overlap crate writes with the analysis pool
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Overlap crate writes with the analysis worker pool |
+| Verification | ruff ✓ ruff format ✓ pytest 341 passed / 4 skipped |
+
+The analysis pool starts first. Crates and `neworder.pref` write on the Rekordbox thread while tags run. `location.sqlite` waits for the tag results.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

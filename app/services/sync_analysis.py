@@ -10,7 +10,7 @@ from __future__ import annotations
 import binascii
 import os
 from collections.abc import Sequence
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -199,6 +199,100 @@ def process_analysis_track(job: AnalysisJob) -> AnalysisTrackResult:
     return AnalysisTrackResult(job.raw, None, analysis, bool(wrote and cues))
 
 
+class AnalysisSession:
+    """
+    A running analysis pool that the caller can work beside.
+
+    Submit with ``start``, do crate writes on this thread, then ``wait``.
+    ``location.sqlite`` still needs the collected results.
+    """
+
+    def __init__(
+        self,
+        jobs: Sequence[AnalysisJob],
+        on_progress: SyncProgressCallback | None = None,
+    ) -> None:
+        """
+        Store jobs; ``start`` submits them.
+
+        Args:
+            jobs: Tracks to process, in playlist order.
+            on_progress: Optional callback after each track finishes.
+        """
+        self._jobs = list(jobs)
+        self._on_progress = on_progress
+        self._pool: ThreadPoolExecutor | None = None
+        self._futures: dict[Future[AnalysisTrackResult], str] = {}
+        self._results: list[AnalysisTrackResult] | None = None
+
+    def start(self) -> None:
+        """Submit every job onto the worker pool."""
+        if self._results is not None or self._pool is not None:
+            return
+        if not self._jobs:
+            self._results = []
+            return
+        workers = analysis_worker_count(len(self._jobs))
+        self._pool = ThreadPoolExecutor(max_workers=workers)
+        self._futures = {
+            self._pool.submit(process_analysis_track, job): job.raw for job in self._jobs
+        }
+
+    def wait(self) -> list[AnalysisTrackResult]:
+        """
+        Collect results and emit progress on this thread.
+
+        Returns:
+            One result per job, in completion order.
+        """
+        if self._results is not None:
+            return self._results
+        results: list[AnalysisTrackResult] = []
+        done = 0
+        for future in as_completed(self._futures):
+            result = future.result()
+            results.append(result)
+            done += 1
+            emit_progress(
+                self._on_progress,
+                "analysis",
+                done,
+                len(self._jobs),
+                result.raw,
+                result.error,
+            )
+        self._results = results
+        return results
+
+    def close(self) -> None:
+        """Shut down the worker pool."""
+        if self._pool is None:
+            return
+        self._pool.shutdown(wait=True)
+        self._pool = None
+
+
+def begin_analysis_jobs(
+    jobs: Sequence[AnalysisJob],
+    on_progress: SyncProgressCallback | None = None,
+) -> AnalysisSession:
+    """
+    Start the analysis pool and return a session the caller can wait on.
+
+    Crate writes can run on this thread between ``start`` and ``wait``.
+
+    Args:
+        jobs: Tracks to process, in playlist order.
+        on_progress: Optional callback after each track finishes.
+
+    Returns:
+        A started session. Call ``wait`` then ``close``.
+    """
+    session = AnalysisSession(jobs, on_progress)
+    session.start()
+    return session
+
+
 def run_analysis_jobs(
     jobs: Sequence[AnalysisJob],
     on_progress: SyncProgressCallback | None = None,
@@ -217,23 +311,8 @@ def run_analysis_jobs(
     Returns:
         One result per job, in completion order.
     """
-    if not jobs:
-        return []
-    workers = analysis_worker_count(len(jobs))
-    results: list[AnalysisTrackResult] = []
-    if workers == 1:
-        ordered = [process_analysis_track(job) for job in jobs]
-        for done, result in enumerate(ordered, start=1):
-            results.append(result)
-            emit_progress(on_progress, "analysis", done, len(jobs), result.raw, result.error)
-        return results
-
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(process_analysis_track, job): job.raw for job in jobs}
-        done = 0
-        for future in as_completed(futures):
-            result = future.result()
-            results.append(result)
-            done += 1
-            emit_progress(on_progress, "analysis", done, len(jobs), result.raw, result.error)
-    return results
+    session = begin_analysis_jobs(jobs, on_progress)
+    try:
+        return session.wait()
+    finally:
+        session.close()

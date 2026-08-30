@@ -205,7 +205,7 @@ and none of them exist yet.
 | ~~`TASK-278`~~ | ~~Skip backup hash when size and mtime match~~ | Done — `original_mtime_ns` on each manifest row; size + mtime match skips SHA-256. Old rows are hashed once, then stamped. |
 | ~~`TASK-279`~~ | ~~Remove backup and rollback~~ | Done — writes go immediately; `error.log` stays on the host. Recovery is restoring the Rekordbox USB. |
 | ~~`TASK-280`~~ | ~~Stable phase-average ETA~~ | Done — remaining time is units left over the average rate since this phase started, not the last 8 items. |
-| ~~`TASK-281`~~ | ~~Parallel analysis tag writes~~ | Done — 4 workers write ANLZ/tags; Rekordbox, index, and crates stay sequential. `USBVERSAL_SYNC_WORKERS` overrides. |
+| ~~`TASK-281`~~ | ~~Parallel analysis tag writes~~ | Done — 4 workers write ANLZ/tags; Rekordbox and index stay sequential. Crates overlap the pool (TASK-298). `USBVERSAL_SYNC_WORKERS` overrides. |
 | ~~`TASK-282`~~ | ~~Write the volume parent crate file~~ | Done — empty `{volume}.crate` plus `{volume}%%…` children; parent first in `neworder.pref`. |
 | ~~`TASK-283`~~ | ~~Normal-width slash in crate names~~ | Superseded by TASK-284 — U+2215 still rendered wrong; Serato's own rename is `␛␛2f`. |
 | ~~`TASK-284`~~ | ~~Serato's slash escape in crate names~~ | Done — `/` becomes U+241B U+241B `2f`, matching a live Serato rename on WONSIN. Leftover `／` / `∕` files are removed on write. |
@@ -221,6 +221,7 @@ and none of them exist yet.
 | ~~`TASK-295`~~ | ~~In-place tag write when file size is unchanged~~ | Done — same-size GEOB writes patch the dirty span; no `.tmp` / `replace`. Size-changing writes keep the TASK-286 tmp path. |
 | ~~`TASK-296`~~ | ~~Append an id3 chunk on tagless WAV~~ | Done — RIFF size patch plus EOF append; `data` does not move. |
 | ~~`TASK-297`~~ | ~~Read only the tag to decide already on disk~~ | Done — skip and `read_geob` seek past audio; a rewrite still loads the file. |
+| ~~`TASK-298`~~ | ~~Overlap crate writes with the analysis pool~~ | Done — crates and `neworder.pref` run while tags write; `location.sqlite` waits. |
 | `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |
 
 ---

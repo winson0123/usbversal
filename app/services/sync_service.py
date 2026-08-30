@@ -41,7 +41,7 @@ from app.core.playlist_tree import PlaylistNode, build_playlist_tree
 from app.core.track_paths import normalize_track_path
 from app.services.library import UsbLibrary
 from app.services.migration_service import PlaylistNotFoundError, SeratoLibraryRequiredError
-from app.services.sync_analysis import AnalysisJob, run_analysis_jobs
+from app.services.sync_analysis import AnalysisJob, AnalysisTrackResult, begin_analysis_jobs
 from app.services.sync_progress import (
     SyncProgressCallback,
     attach_playlist,
@@ -460,35 +460,25 @@ def _analysis_jobs(
     return jobs
 
 
-def _sync_analysis(
-    mount: Path,
+def _analysis_from_results(
+    results: Sequence[AnalysisTrackResult],
     index_path: Path | None,
-    contents: dict[str, Any],
-    paths: Sequence[str],
-    lookups: RekordboxLookups,
-    on_progress: SyncProgressCallback | None = None,
 ) -> AnalysisSyncResult:
     """
-    Write beatgrids and hot cues from Rekordbox ANLZ data into Serato tags.
+    Update ``location.sqlite`` from finished analysis jobs.
 
-    Tag writes run on a worker pool. Only a track that gets a real beatgrid
-    updates the library index, so the list stays in step with what the deck
-    now reads from the file. A track this pass could not write is left
-    exactly as Serato had it, rather than guessed at from Rekordbox's own BPM.
+    Only a track that got a real beatgrid updates the library index, so
+    the list stays in step with what the deck now reads from the file. A
+    track this pass could not write is left exactly as Serato had it,
+    rather than guessed at from Rekordbox's own BPM.
 
     Args:
-        mount: Mount root.
+        results: Per-track outcomes from the analysis pool.
         index_path: Path to location.sqlite, or None when absent.
-        contents: Rekordbox path to content row, for every track in the library.
-        paths: Rekordbox track paths to process; each must resolve in ``contents``
-            and carry Rekordbox analysis data.
-        lookups: Id-to-name tables, for key lookups.
-        on_progress: Optional callback invoked after each track.
 
     Returns:
         Counts of what was written, and one message per track that failed.
     """
-    results = run_analysis_jobs(_analysis_jobs(mount, contents, paths, lookups), on_progress)
     cues_written = 0
     errors: list[str] = []
     updates: dict[str, TrackAnalysis] = {}
@@ -796,10 +786,10 @@ def sync_playlists(
     """
     Mirror the selected Rekordbox playlists into Serato crates.
 
-    Adds any track records Serato is missing in a single pass, writes one
-    crate per playlist and updates the crate order, then writes each track's
-    Rekordbox beatgrid and hot cues into its audio tags and refreshes
-    ``location.sqlite`` so the library list matches. A track's analysis is
+    Adds any track records Serato is missing in a single pass, starts
+    analysis tag writes, and while that pool runs writes one crate per
+    playlist and updates the crate order. ``location.sqlite`` waits for
+    the tag results so the library list matches. A track's analysis is
     skipped, not aborted, when its audio or ANLZ data cannot be read.
 
     Args:
@@ -839,24 +829,25 @@ def sync_playlists(
             lookups,
             attach_playlist(rebase_progress(on_progress, 0, sync_total), index_meta),
         )
-        analysis = _sync_analysis(
-            library.mount,
-            _existing_index_path(serato_root),
-            by_path,
-            analysis_paths,
-            lookups,
+        session = begin_analysis_jobs(
+            _analysis_jobs(library.mount, by_path, analysis_paths, lookups),
             attach_playlist(rebase_progress(on_progress, len(missing), sync_total), analysis_meta),
         )
-        volume = volume_label_for(library.mount)
-        results = _write_playlist_crates(
-            serato_root,
-            selected,
-            by_id,
-            tracks_by_playlist,
-            rebase_progress(on_progress, len(missing) + len(analysis_targets), sync_total),
-            volume=volume,
-        )
-        _publish_crate_order(serato_root, results, volume)
+        try:
+            volume = volume_label_for(library.mount)
+            results = _write_playlist_crates(
+                serato_root,
+                selected,
+                by_id,
+                tracks_by_playlist,
+                rebase_progress(on_progress, len(missing) + len(analysis_targets), sync_total),
+                volume=volume,
+            )
+            _publish_crate_order(serato_root, results, volume)
+            track_results = session.wait()
+        finally:
+            session.close()
+        analysis = _analysis_from_results(track_results, _existing_index_path(serato_root))
 
         logger.info(
             "sync_completed",
