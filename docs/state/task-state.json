@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-30T05:48:00Z",
+  "updated_at": "2026-08-30T05:55:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -744,6 +744,11 @@
     {
       "id": "TASK-308",
       "title": "Legend flush under the rule",
+      "completed_at": "2026-08-30T00:00:00Z"
+    },
+    {
+      "id": "TASK-309",
+      "title": "^a / ^q, hide tree scrollbar, native table",
       "completed_at": "2026-08-30T00:00:00Z"
     }
   ],
@@ -1639,6 +1644,12 @@
     {
       "id": "TASK-308",
       "title": "Legend flush under the rule",
+      "completed_at": "2026-08-30T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-309",
+      "title": "^a / ^q, hide tree scrollbar, native table",
       "completed_at": "2026-08-30T00:00:00Z",
       "status": "completed"
     }

@@ -156,7 +156,7 @@ class UsbversalApp(RekordboxThreadMixin, App):
 
     TITLE = "usbversal"
     BINDINGS = [
-        Binding("ctrl+q", "quit", "Quit", show=True, key_display="^Q"),
+        Binding("ctrl+q", "quit", "Quit", show=True, key_display="^q"),
         Binding("q", "quit_hint", "Quit", show=False),
     ]
 
@@ -174,6 +174,16 @@ class UsbversalApp(RekordboxThreadMixin, App):
     }
     Tree {
         background: transparent;
+    }
+    DataTable {
+        background: transparent;
+        color: ansi_default;
+    }
+    DataTable > .datatable--header,
+    DataTable:ansi > .datatable--header,
+    DataTable > .datatable--even-row {
+        background: transparent;
+        color: ansi_default;
     }
     RichLog {
         background: transparent;

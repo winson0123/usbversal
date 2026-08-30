@@ -11,7 +11,7 @@ from textual.widgets import DataTable, Static, Tree
 
 from app.adapters.serato.naming import volume_label_for
 from app.core.domain import Playlist
-from app.tui.app import RekordboxThreadMixin
+from app.tui.app import RekordboxThreadMixin, UsbversalApp
 from app.tui.screens.library import LibraryScreen, _clip, _legend_text
 from tests.conftest import EMPTY_DATABASE_V2, make_library
 
@@ -200,12 +200,12 @@ async def test_returning_to_the_screen_reflects_a_sync_that_just_happened(
 
 @pytest.mark.asyncio
 async def test_a_selects_every_playlist(tmp_path: Path) -> None:
-    """Select-all is a key, not a parent row that indents the tree."""
+    """Select-all is ^a, not a parent row that indents the tree."""
     library = _library_with_two_playlists(tmp_path)
     app = _Harness(library)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await pilot.press("a")
+        await pilot.press("ctrl+a")
         await pilot.pause()
 
         status = str(app.screen.query_one("#selection-status", Static).render())
@@ -214,13 +214,13 @@ async def test_a_selects_every_playlist(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_a_again_clears_the_selection(tmp_path: Path) -> None:
-    """Pressing a when everything is selected returns to nothing selected."""
+    """Pressing ^a when everything is selected returns to nothing selected."""
     library = _library_with_two_playlists(tmp_path)
     app = _Harness(library)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await pilot.press("a")
-        await pilot.press("a")
+        await pilot.press("ctrl+a")
+        await pilot.press("ctrl+a")
         await pilot.pause()
 
         status = str(app.screen.query_one("#selection-status", Static).render())
@@ -390,7 +390,11 @@ async def test_library_is_two_panes_with_a_legend(tmp_path: Path) -> None:
         assert app.screen.query_one("#sync-legend").styles.padding.top == 0
         header = app.screen.query_one("#header")
         assert [child.id for child in header.children] == ["mount-info", "selection-status"]
+        tree = app.screen.query_one("#playlist-tree", Tree)
+        assert tree.styles.scrollbar_visibility == "hidden"
+        assert tree.styles.scrollbar_size_vertical == 0
         table = app.screen.query_one("#track-table", DataTable)
+        assert table.zebra_stripes is False
         assert [str(col.label) for col in table.columns.values()] == [
             "Title",
             "Genre",
@@ -422,6 +426,16 @@ async def test_highlighting_a_playlist_fills_the_track_table(tmp_path: Path) -> 
         table = app.screen.query_one("#track-table", DataTable)
         assert table.row_count == 1
         assert table.get_row_at(0)[0].plain == "Alpha"
+
+
+def test_footer_keys_use_caret_lowercase() -> None:
+    """The footer shows ^a Select All and ^q Quit, not a / ^Q."""
+    select_all = next(b for b in LibraryScreen.BINDINGS if b.action == "select_all")
+    assert select_all.key == "ctrl+a"
+    assert select_all.key_display == "^a"
+    quit_binding = next(b for b in UsbversalApp.BINDINGS if b.action == "quit")
+    assert quit_binding.key == "ctrl+q"
+    assert quit_binding.key_display == "^q"
 
 
 def test_legend_words_use_the_same_colour_as_the_dot() -> None:

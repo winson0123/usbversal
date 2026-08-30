@@ -1,7 +1,7 @@
 """Library screen: playlist tree on the left, track preview on the right.
 
 Arrow keys move, space toggles selection (a folder toggles every descendant
-playlist at once), "a" selects or clears the whole library, "e" expands or
+playlist at once), "^a" selects or clears the whole library, "e" expands or
 collapses the highlighted folder, enter confirms and, with at least one
 playlist selected, starts the sync (step 4, the Progress screen).
 Highlighting a playlist fills the right pane. Coming back here after a
@@ -85,7 +85,7 @@ class LibraryScreen(Screen):
 
     BINDINGS = [
         Binding("space", "toggle_selection", "Select", show=True, priority=True),
-        Binding("a", "select_all", "All", show=True),
+        Binding("ctrl+a", "select_all", "Select All", show=True, key_display="^a"),
         Binding("e", "toggle_expand", "Expand/collapse", show=True),
     ]
 
@@ -120,12 +120,26 @@ class LibraryScreen(Screen):
         border: round;
         padding: 0 1;
     }
-    LibraryScreen #playlist-tree,
-    LibraryScreen #track-table {
+    LibraryScreen #playlist-tree {
         height: 1fr;
+        overflow-x: hidden;
+        scrollbar-visibility: hidden;
+        scrollbar-size-vertical: 0;
+        scrollbar-size-horizontal: 0;
     }
     LibraryScreen #track-table {
+        height: 1fr;
         overflow-x: hidden;
+        background: transparent;
+        color: ansi_default;
+    }
+    LibraryScreen #track-table > .datatable--header,
+    LibraryScreen #track-table:ansi > .datatable--header {
+        background: transparent;
+        color: ansi_default;
+    }
+    LibraryScreen #track-table > .datatable--even-row {
+        background: transparent;
     }
     LibraryScreen #sync-legend {
         dock: bottom;
@@ -165,7 +179,7 @@ class LibraryScreen(Screen):
             with track_pane:
                 table: DataTable[str] = DataTable(id="track-table")
                 table.cursor_type = "row"
-                table.zebra_stripes = True
+                table.zebra_stripes = False
                 table.show_horizontal_scrollbar = False
                 yield table
         yield Footer()

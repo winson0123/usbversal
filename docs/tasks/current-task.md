@@ -1,17 +1,20 @@
 # Current Task
 
 **Status:** `completed`
-**Task ID:** `TASK-308`
+**Task ID:** `TASK-309`
 **Last updated:** 2026-08-30
 
 ## Objective
 
-Remove the blank row between the legend rule and the coloured labels.
+Select-all is `^a`, quit shows `^q`, hide the playlist scrollbar, and
+match the track table to the native TUI colours.
 
 ## Files touched
 
 - `app/tui/screens/library.py`
+- `app/tui/app.py`
 - `tests/test_tui_library.py`
+- `docs/planning/interactive-tui.md`
 - `docs/tasks/backlog.md`
 - `docs/tasks/completed-tasks.md`
 - `docs/HANDOFF.md`
@@ -30,4 +33,4 @@ Remove the blank row between the legend rule and the coloured labels.
 
 - ruff ✓
 - ruff format ✓
-- pytest 354 passed / 4 skipped
+- pytest 355 passed / 4 skipped

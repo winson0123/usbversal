@@ -1314,6 +1314,20 @@ the rule is 0 so synced / partial / not synced start on the next row.
 
 ---
 
+## TASK-309 — ^a / ^q, hide tree scrollbar, native table
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | `^a` Select All, `^q` Quit, no playlist scrollbar, native track table |
+| Verification | ruff ✓ ruff format ✓ pytest 355 passed / 4 skipped |
+
+The tree scrollbar covered `x/y`. It is hidden; arrows still move. The
+track table drops zebra stripes and the themed header so it matches the
+tree's terminal colours. Row text is still traffic-light by crate state.
+
+---
+
 ## Template (for future entries)
 
 ```markdown
