@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from textual.app import App
 from textual.binding import Binding
+from textual.color import Color
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Static, Tree
 from textual.widgets._footer import FooterKey
@@ -519,6 +520,9 @@ async def test_library_is_two_panes_with_a_legend(tmp_path: Path) -> None:
         legend = str(app.screen.query_one("#sync-legend", Static).render())
         assert "synced" in legend and "partial" in legend and "not synced" in legend
         assert app.screen.query_one("#playlist-pane").styles.border.top[0] == "round"
+        amber = Color.parse(ACCENT)
+        assert app.screen.query_one("#playlist-pane").styles.border.top[1] == amber
+        assert app.screen.query_one("#track-pane").styles.border.top[1] == amber
         assert app.screen.query_one("#sync-legend").styles.border.top[0] == "solid"
         assert app.screen.query_one("#sync-legend").styles.margin.top == 0
         assert app.screen.query_one("#sync-legend").styles.padding.top == 0
@@ -604,9 +608,9 @@ def test_legend_words_use_the_same_colour_as_the_dot() -> None:
             for span in legend.spans
             if colour in str(span.style)
         )
-        for colour in (ACCENT, "yellow", "red")
+        for colour in ("green", "yellow", "red")
     }
-    assert "synced" in coloured[ACCENT]
+    assert "synced" in coloured["green"]
     assert "partial" in coloured["yellow"]
     assert "not synced" in coloured["red"]
 

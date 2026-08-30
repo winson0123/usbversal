@@ -7,7 +7,7 @@ below — that's what a session picking this up should do next.
 | | |
 |---|---|
 | Tests | 363 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-313` — Posting amber instead of TUI green |
+| Last done | `TASK-314` — Amber on pane borders only |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -77,7 +77,8 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 50 | ~~`TASK-311`~~ | Path to a crate lights; folder still lights every child |
 | 51 | ~~`TASK-312`~~ | Grow a WAV `id3 ` that sits after `data` |
 | 52 | ~~`TASK-313`~~ | Posting amber instead of green; brighter yellow footer keys |
-| 53 | `TASK-303` | Analysis-aware track colour and honest `x/y` |
+| 53 | ~~`TASK-314`~~ | Amber on Playlists / Tracks boxes only; traffic lights stay green |
+| 54 | `TASK-303` | Analysis-aware track colour and honest `x/y` |
 
 Progress screen target layout:
 
@@ -330,9 +331,8 @@ TASK-305, legend rule and coloured words in TASK-306, flattened tree
 and header status in TASK-307, legend flush under the rule in
 TASK-308, `^a` / `^q` and native track table in TASK-309, tree flush
 and visible parent guides in TASK-310, path and child guide lighting
-in TASK-311. Tight WAV `id3 ` after `data` may grow (TASK-312). Synced
-and success paint Posting amber; footer keys are a brighter yellow
-(TASK-313). Next is
+in TASK-311. Tight WAV `id3 ` after `data` may grow (TASK-312). Footer keys are a brighter yellow (TASK-313). The Playlists and Tracks
+boxes use Posting amber; traffic-light green is back (TASK-314). Next is
 `TASK-303`: yellow when a track is in the crate but
 Rekordbox analysis is not on the file, and `x/y` counts green only.
 

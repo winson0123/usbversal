@@ -15,7 +15,6 @@ from app.services.sync_progress import SyncProgress
 from app.services.sync_service import SyncReport
 from app.storage.host import host_volume_dir
 from app.tui.app import RekordboxThreadMixin
-from app.tui.palette import ACCENT
 from app.tui.screens.progress import DoneScreen, ProgressScreen
 
 
@@ -290,8 +289,8 @@ def _log_line_styles(log: RichLog, index: int) -> tuple[str, list]:
 
 
 @pytest.mark.asyncio
-async def test_progress_log_shows_an_amber_line_per_successful_track() -> None:
-    """Each track that analyses cleanly gets its own amber log line -- the
+async def test_progress_log_shows_a_green_line_per_successful_track() -> None:
+    """Each track that analyses cleanly gets its own green log line -- the
     user asked to actually see what's happening, not just a bare counter."""
 
     def _slow_sync(library, playlist_ids, *, dry_run=False, on_progress=None):
@@ -310,12 +309,7 @@ async def test_progress_log_shows_an_amber_line_per_successful_track() -> None:
             text, styles = _log_line_styles(log, 0)
             assert "a.mp3" in text
             assert "Contents/" not in text
-            assert any(
-                style is not None
-                and style.color is not None
-                and style.color.name.lower() == ACCENT.lower()
-                for style in styles
-            )
+            assert any(style is not None and style.color.name == "green" for style in styles)
 
 
 @pytest.mark.asyncio
@@ -346,7 +340,7 @@ async def test_progress_log_shows_a_red_line_for_a_failed_track() -> None:
 
 
 @pytest.mark.asyncio
-async def test_done_summary_is_amber_on_a_clean_sync() -> None:
+async def test_done_summary_is_green_on_a_clean_sync() -> None:
     """A sync with no analysis errors reads as unambiguously good news."""
     with patch("app.tui.screens.progress.sync_playlists", _fake_sync(report=_fake_report())):
         app = _Harness(library=object(), playlist_ids=[1])
@@ -356,7 +350,7 @@ async def test_done_summary_is_amber_on_a_clean_sync() -> None:
             await pilot.pause()
 
             content = app.screen.query_one("#done-summary", Static).render()
-            assert any(span.style == ACCENT for span in content.spans)
+            assert any(span.style == "green" for span in content.spans)
 
 
 @pytest.mark.asyncio

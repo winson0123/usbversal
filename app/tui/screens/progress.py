@@ -26,7 +26,6 @@ from app.services.sync_errors import (
 )
 from app.services.sync_progress import SyncProgress, display_title
 from app.services.sync_service import SyncReport, sync_playlists
-from app.tui.palette import ACCENT
 
 _PHASE_STATUS = {
     "index": "Indexing tracks",
@@ -45,38 +44,34 @@ _ERRORS_ID = "done-errors"
 class ProgressScreen(Screen):
     """Step 4: run the sync for the selected playlists and show progress."""
 
-    DEFAULT_CSS = f"""
-    ProgressScreen CenterMiddle {{
+    DEFAULT_CSS = """
+    ProgressScreen CenterMiddle {
         width: 100%;
-    }}
-    ProgressScreen #sync-status, ProgressScreen #sync-playlist {{
+    }
+    ProgressScreen #sync-status, ProgressScreen #sync-playlist {
         width: auto;
         text-align: center;
-    }}
-    ProgressScreen #sync-bar-row {{
+    }
+    ProgressScreen #sync-bar-row {
         width: 100%;
-    }}
-    ProgressScreen #sync-progress {{
+    }
+    ProgressScreen #sync-progress {
         width: 60%;
         height: auto;
         margin: 1 0;
-    }}
-    ProgressScreen #sync-progress Bar {{
+    }
+    ProgressScreen #sync-progress Bar {
         width: 1fr;
-    }}
-    ProgressScreen #sync-progress Bar > .bar--bar,
-    ProgressScreen #sync-progress Bar > .bar--complete {{
-        color: {ACCENT};
-    }}
-    ProgressScreen #sync-log {{
+    }
+    ProgressScreen #sync-log {
         dock: bottom;
         width: 100%;
         height: 12;
         margin: 0 2 1 2;
-    }}
-    ProgressScreen #sync-log.empty, ProgressScreen #sync-playlist.empty {{
+    }
+    ProgressScreen #sync-log.empty, ProgressScreen #sync-playlist.empty {
         display: none;
-    }}
+    }
     """
 
     def __init__(self, library: UsbLibrary, playlist_ids: Sequence[int]) -> None:
@@ -162,7 +157,7 @@ class ProgressScreen(Screen):
         log.remove_class("empty")
         line = f"[{sample.done}/{sample.total}] {display_title(sample.item)}"
         if sample.error is None:
-            log.write(Text(line, style=ACCENT))
+            log.write(Text(line, style="green"))
         else:
             log.write(Text(f"{line}: {sample.error}", style="red"))
 
@@ -235,7 +230,7 @@ class DoneScreen(Screen):
             f"Grids: {report.grids_written}  Cues: {report.cues_written}  "
             f"Index rows: {report.index_rows_updated}",
         ]
-        style = ACCENT
+        style = "green"
         if report.analysis_errors:
             lines.append(f"{len(report.analysis_errors)} track(s) could not be analysed.")
             style = "red"

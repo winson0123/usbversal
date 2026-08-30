@@ -38,7 +38,7 @@ from app.tui.palette import ACCENT
 from app.tui.screens.progress import ProgressScreen
 
 _COUNT_COLOUR = {
-    SyncState.SYNCED: ACCENT,
+    SyncState.SYNCED: "green",
     SyncState.PARTIAL: "yellow",
     SyncState.NOT_SYNCED: "red",
 }
@@ -241,73 +241,75 @@ class LibraryScreen(Screen):
         Binding("e", "toggle_expand", "Expand/collapse", show=True),
     ]
 
-    DEFAULT_CSS = """
-    LibraryScreen #header {
+    DEFAULT_CSS = f"""
+    LibraryScreen #header {{
         height: auto;
         padding: 0 1;
-    }
-    LibraryScreen #mount-info {
+    }}
+    LibraryScreen #mount-info {{
         text-style: dim;
         width: 1fr;
         height: auto;
-    }
-    LibraryScreen #selection-status {
+    }}
+    LibraryScreen #selection-status {{
         width: auto;
         height: auto;
         text-align: right;
-    }
-    LibraryScreen #panes {
+    }}
+    LibraryScreen #panes {{
         height: 1fr;
-    }
-    LibraryScreen #playlist-pane {
+    }}
+    LibraryScreen #playlist-pane {{
         width: 2fr;
         min-width: 48;
         height: 1fr;
-        border: round;
+        border: round {ACCENT};
+        border-title-color: {ACCENT};
         padding: 0 1;
-    }
-    LibraryScreen #track-pane {
+    }}
+    LibraryScreen #track-pane {{
         width: 3fr;
         height: 1fr;
-        border: round;
+        border: round {ACCENT};
+        border-title-color: {ACCENT};
         padding: 0 1;
-    }
-    LibraryScreen #playlist-tree {
+    }}
+    LibraryScreen #playlist-tree {{
         height: 1fr;
         overflow-x: hidden;
         scrollbar-visibility: hidden;
         scrollbar-size-vertical: 0;
         scrollbar-size-horizontal: 0;
-    }
+    }}
     LibraryScreen #playlist-tree > .tree--guides,
-    LibraryScreen #playlist-tree > .tree--guides-hover {
+    LibraryScreen #playlist-tree > .tree--guides-hover {{
         color: ansi_bright_black;
-    }
+    }}
     LibraryScreen #playlist-tree > .tree--guides-selected,
-    LibraryScreen #playlist-tree:focus > .tree--guides-selected {
+    LibraryScreen #playlist-tree:focus > .tree--guides-selected {{
         color: ansi_default;
-    }
-    LibraryScreen #track-table {
+    }}
+    LibraryScreen #track-table {{
         height: 1fr;
         overflow-x: hidden;
         background: transparent;
         color: ansi_default;
-    }
+    }}
     LibraryScreen #track-table > .datatable--header,
-    LibraryScreen #track-table:ansi > .datatable--header {
+    LibraryScreen #track-table:ansi > .datatable--header {{
         background: transparent;
         color: ansi_default;
-    }
-    LibraryScreen #track-table > .datatable--even-row {
+    }}
+    LibraryScreen #track-table > .datatable--even-row {{
         background: transparent;
-    }
-    LibraryScreen #sync-legend {
+    }}
+    LibraryScreen #sync-legend {{
         dock: bottom;
         height: auto;
         border-top: solid;
         margin: 0;
         padding: 0;
-    }
+    }}
     """
 
     def __init__(self, library: UsbLibrary) -> None:
@@ -410,14 +412,14 @@ class LibraryScreen(Screen):
 
         Playlist names are arbitrary user data, so the count colour is a
         ``Text`` style, not a markup tag that a ``[`` in the name could break.
-        Only the numerator is amber when the row is fully synced.
+        Only the numerator is green when the row is fully synced.
 
         Args:
             row: Row data to render.
             depth: Nesting depth, used to pad the name around Tree guides.
 
         Returns:
-            Label text with the count styled red/yellow/amber.
+            Label text with the count styled red/yellow/green.
         """
         selected_count = sum(1 for i in row.ids if i in self._selected)
         if selected_count == 0:
@@ -628,7 +630,7 @@ def _legend_text() -> Text:
         Three lines: coloured dot and matching word for each sync state.
     """
     line = Text()
-    line.append("• synced\n", style=ACCENT)
+    line.append("• synced\n", style="green")
     line.append("• partial\n", style="yellow")
     line.append("• not synced", style="red")
     return line

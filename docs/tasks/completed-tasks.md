@@ -1385,6 +1385,20 @@ and error stay yellow and red.
 
 ---
 
+## TASK-314 — Amber on pane borders only
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Restore traffic-light green; amber only on the Library pane boxes |
+| Verification | ruff ✓ ruff format ✓ pytest 363 passed / 4 skipped |
+
+TASK-313 painted synced / progress / Done amber. Those go back to green.
+The Posting yellow is the round border (and title) on Playlists and
+Tracks. Footer keys stay `#ffd700`.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

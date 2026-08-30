@@ -1,17 +1,16 @@
 # Current Task
 
 **Status:** `complete`
-**Task ID:** `TASK-313`
+**Task ID:** `TASK-314`
 **Last updated:** 2026-08-30
 
 ## Objective
 
-Use Posting's amber in place of TUI green, and a brighter yellow on footer keys.
+Put traffic-light green back, and paint only the Library pane borders amber.
 
 ## Files touched
 
 - `app/tui/palette.py`
-- `app/tui/app.py`
 - `app/tui/screens/library.py`
 - `app/tui/screens/progress.py`
 - `tests/test_tui_library.py`
