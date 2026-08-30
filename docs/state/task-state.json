@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-30T00:00:00Z",
+  "updated_at": "2026-08-30T05:16:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -709,6 +709,11 @@
     {
       "id": "TASK-301",
       "title": "Read PCP2 cue RGB after the UTF-16 comment",
+      "completed_at": "2026-08-30T00:00:00Z"
+    },
+    {
+      "id": "TASK-302",
+      "title": "Do not create location.sqlite",
       "completed_at": "2026-08-30T00:00:00Z"
     }
   ],
@@ -1562,6 +1567,12 @@
     {
       "id": "TASK-301",
       "title": "Read PCP2 cue RGB after the UTF-16 comment",
+      "completed_at": "2026-08-30T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-302",
+      "title": "Do not create location.sqlite",
       "completed_at": "2026-08-30T00:00:00Z",
       "status": "completed"
     }

@@ -175,7 +175,7 @@ and none of them exist yet.
 | ~~`TASK-242`~~ | ~~FLAC Vorbis-comment Serato tags~~ | Done — `SERATO_BEATGRID` / `SERATO_MARKERS_V2` via base64-wrapped payloads. STREAMINFO and audio frames stay byte-identical. MP4 still out of scope. |
 | ~~`TASK-243`~~ | ~~Progress covers index and crate writes~~ | Done — `SyncProgress` with `index` / `analysis` / `crates`. Progress screen labels each phase; backup is the opening status line. |
 | ~~`TASK-250`~~ | ~~Run `correct_index_bpm` on a real stick~~ | Done — WONSIN 2026-08-28: 7 of 1286 rows written, backup `20260828T072224Z`. Still not in the TUI. Findings in `docs/workflows/index-bpm-wonsin.md`. |
-| ~~`TASK-251`~~ | ~~Confirm a variable-tempo grid in Serato~~ | Done — 2026-08-29 deck load: four-marker 149→140 grid follows. Last marker was 140.9, not 140 (TASK-257). |
+| ~~`TASK-251`~~ | ~~Confirm a variable-tempo grid in Serato~~ | Done — 2026-08-29 Apt X Blue follows. 2026-08-30: last marker is 140; six more encoder-matched tracks checked. Outliers are Rekordbox ANLZ (outro drift / meter), not the encoder. |
 | ~~`TASK-253`~~ | ~~Hot cue colours are black in Serato~~ | Done — RGB at PCP2 offset 28. Findings in `docs/workflows/cue-colour-offset.md`. |
 | ~~`TASK-254`~~ | ~~Keep `/` in crate names~~ | Done — `/` cannot live in a filename. TASK-283 uses U+2215 division slash. See `docs/workflows/crate-slash.md`. |
 | ~~`TASK-255`~~ | ~~Parent crate named after the volume~~ | Done — `crate_name_for(..., volume=)` prefixes the mount folder name. TASK-282 adds the empty parent `.crate`. See `docs/workflows/volume-crate.md`. |
@@ -225,6 +225,7 @@ and none of them exist yet.
 | ~~`TASK-299`~~ | ~~Fix M4A hotcue / track colour~~ | Done — MP4 `markers` footer is unset track colour (`00 FF FF FF`); Markers2 `COLOR` is forced white. Cue RGB mapping superseded by TASK-300. |
 | ~~`TASK-300`~~ | ~~Write Rekordbox cue RGB on M4A~~ | Done — M4A pads use ANLZ RGB as-is, same as MP3. Track colour footer stays unset. |
 | ~~`TASK-301`~~ | ~~Read PCP2 cue RGB after the UTF-16 comment~~ | Done — named cues (`1.1Bars`) were read as `#31002E`; RGB is after the comment. |
+| ~~`TASK-302`~~ | ~~Do not create `location.sqlite`~~ | Done — Serato authors the 16-table file. Insert is not needed (DBV2 import creates rows). We UPDATE existing rows only. |
 | `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |
 
 ---

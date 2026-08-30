@@ -7,7 +7,7 @@ below — that's what a session picking this up should do next.
 | | |
 |---|---|
 | Tests | 347 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-301` — Read PCP2 cue RGB after the UTF-16 comment |
+| Last done | `TASK-302` — Do not create `location.sqlite` |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -65,7 +65,8 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 38 | ~~`TASK-299`~~ | M4A track-colour footer unset; cue RGB stays in cue rows |
 | 39 | ~~`TASK-300`~~ | M4A cue RGB is Rekordbox's, same as MP3; jog stays uncoloured |
 | 40 | ~~`TASK-301`~~ | PCP2 RGB is after the UTF-16 comment, not inside ``1.`` |
-| 41 | `TASK-252` | Library two-pane (original ask, last) |
+| 41 | ~~`TASK-302`~~ | Do not create `location.sqlite`; UPDATE existing rows only |
+| 42 | `TASK-252` | Library two-pane (original ask, last) |
 
 Progress screen target layout:
 
@@ -268,8 +269,9 @@ a Mixed In Key or other foreign vendor frame. What none of this has done yet:
 
 - ~~**Reach the TUI.**~~ Done: `sync_playlists()` is reachable end to end
   from the Progress screen (TASK-208, verbose per-track output in TASK-219,
-  index/crate phases in TASK-243). `correct_index_bpm()` is still not wired
-  into the TUI.
+  index/crate phases in TASK-243). `correct_index_bpm()` is not in the TUI
+  and will not be; a playlist sync already writes first-beat BPM into
+  existing `location.sqlite` rows (TASK-302).
 - ~~**Run `correct_index_bpm` against the real stick.**~~ Done 2026-08-28
   on WONSIN (TASK-250). 1286 candidates, **7 rows written**, backup
   `20260828T072224Z` on the host. A second dry-run reported 0 remaining.
@@ -309,9 +311,10 @@ Backups on the stick, newest last:
 
 ### Progress wave, then Library two-pane
 
-`correct_index_bpm` has been run on WONSIN. Still not in the TUI. Apt X Blue's
-4-marker grid is confirmed; re-sync after TASK-257 so the last marker is 140.
-Next wave is TASK-258, 259, 261–263, then TASK-252. See the pending table above.
+Variable-tempo grids confirmed 2026-08-30
+([apt-x-blue-grid.md](workflows/apt-x-blue-grid.md)). `location.sqlite` is
+Serato-created; we UPDATE existing rows only (TASK-302). Next is `TASK-252`
+only. See the pending table above.
 
 ---
 

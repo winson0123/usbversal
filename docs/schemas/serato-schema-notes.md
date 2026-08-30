@@ -183,6 +183,37 @@ marked stale. Rows Serato does not know are skipped rather than inserted.
 The revision semantics are inferred from observing the schema, not documented.
 Back the file up before writing to it.
 
+### Do not create or insert (TASK-302)
+
+Serato authors this file on first open by importing `database V2` and reading
+tags. Bootstrap creates `_Serato_/`, `Subcrates/`, an empty `database V2`, and
+`neworder.pref`. It does not create `Library/`.
+
+WONSIN dump 2026-08-30 (360 KB, Serato-authored):
+
+| Piece | What it is |
+|-------|------------|
+| Tables | 16: `asset`, `asset_auxiliary`, `container`, `container_asset`, `container_asset_list_columns`, `dbv2_status`, `dj_asset_metadata`, `dj_container_metadata`, `last_seen_dbv2_library`, `master`, `migration_script`, `serato`, `smart_crate_rules`, `space`, `space_asset`, `sqlite_sequence` |
+| `asset` | 48 columns; one row per track |
+| `space_asset` | required join, one row per asset |
+| `container` / `container_asset` | crates |
+| `migration_script` | 51 Serato-owned schema migrations |
+| `master` / `serato` | UUID blob, sync secret, revision |
+| `last_seen_dbv2_library` | `database V2` filename, size, MD5 |
+| `dbv2_status` | import/export revisions and times |
+
+Creating the file would invent that schema, the migrations, and the import
+hashes. A wrong MD5 or `dbv2_status` can make Serato re-import and overwrite
+list BPM, or refuse the library.
+
+Insert is not needed after Serato creates the file. New tracks we sync already
+get an `otrk` in `database V2`. Serato stores that file's size and MD5 in
+`last_seen_dbv2_library` and creates `asset` / `space_asset` rows on import.
+We only UPDATE `bpm` and `key` on rows whose `portable_id` already exists,
+because size-preserving tag writes do not make Serato re-read the file. If
+the file is absent, skip it. First-open list BPM comes from `database V2`
+`tbpm` and the BeatGrid tag.
+
 ## `database V2` [verified]
 
 `_Serato_/database V2`:
@@ -417,8 +448,9 @@ Ground truth, both fixtures (15 bytes, identical before and after):
 were byte-identical before and after on all four experiment files. Only
 `Serato Markers2` changed, and only on the two tracks that had cues. There is no
 Lexicon behaviour to copy here; beatgrids must be authored from rekordbox ANLZ
-`PQTZ` data. Only **single-marker** grids were observed — the non-terminal
-marker path for variable-tempo tracks is untested.
+`PQTZ` data. Only **single-marker** grids were observed in that Lexicon
+pair. Multi-marker grids were confirmed in Serato 2026-08-30
+([apt-x-blue-grid.md](../workflows/apt-x-blue-grid.md)).
 
 See [ADR 0006](../decisions/0006-serato-analyzed-and-beatgrid-tags.md) for the
 earlier sparse-beatgrid failure and [ADR 0007](../decisions/0007-revive-analysis-sync-on-verified-formats.md)

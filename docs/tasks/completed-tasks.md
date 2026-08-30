@@ -708,7 +708,7 @@ Rekordbox recreates `CUE Analysis Playlist` (also seen as `Cue Analysis Playlist
 | Objective | Load Apt X Blue on a Serato deck and confirm the 4-marker ramp |
 | Verification | User: grid follows; last marker 140.9 not 140 |
 
-**Findings:** [apt-x-blue-grid.md](../workflows/apt-x-blue-grid.md)
+**Findings:** [apt-x-blue-grid.md](../workflows/apt-x-blue-grid.md). 2026-08-30 follow-up: six more encoder-matched tracks; outliers are Rekordbox.
 
 ---
 
@@ -1219,6 +1219,18 @@ M4A pads use ANLZ RGB as-is (ADR 0008), not Lexicon's Serato palette. The MP4 `m
 | Verification | ruff ✓ ruff format ✓ pytest 347 passed / 4 skipped |
 
 Named cues store a length-prefixed UTF-16 comment at offset 24. RGB is at 29 plus that length. `1.1Bars` was read as `#31002E`; the real colour is `#FF0017`. See `docs/workflows/cue-colour-offset.md`.
+
+---
+
+## TASK-302 — Do not create `location.sqlite`
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Record that Serato authors `location.sqlite`; we never create or insert |
+| Verification | Docs only |
+
+Serato creates the 16-table file on first open from `database V2`. Insert is not needed: new `otrk` rows are imported on the next open. We only UPDATE `bpm` / `key` on existing `asset` rows. See [serato-schema-notes.md](../schemas/serato-schema-notes.md).
 
 ---
 

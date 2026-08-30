@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-30T00:00:00Z",
+  "updated_at": "2026-08-30T05:16:00Z",
   "allowed_patterns": [
     "adapter_per_vendor",
     "tui_thin_presentation",
@@ -21,6 +21,7 @@
   "forbidden_patterns": [
     "tui_business_logic",
     "schema_rebuild_wholesale",
+    "author_serato_location_sqlite",
     "adapter_imports_tui",
     "core_imports_vendor_sql_directly",
     "parallel_agent_tasks",
