@@ -1138,6 +1138,18 @@ Serato ignores ID3-shaped Markers_ on M4A. Pads 1-5 need the 279-byte MP4 row la
 
 ---
 
+## TASK-295 — In-place tag write when file size is unchanged
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Patch only the changed bytes when a tag rewrite does not change file size |
+| Verification | ruff ✓ ruff format ✓ pytest 334 passed / 4 skipped |
+
+Same-size GEOB writes (padded MP3 / existing WAV `id3 `) seek, write the dirty span, and fsync. No sibling `.tmp`, no `replace`. A failed patch restores that span. Size-changing writes keep the TASK-286 tmp path. See `docs/workflows/audio-commit.md`.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

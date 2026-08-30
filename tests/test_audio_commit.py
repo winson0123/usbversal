@@ -1,5 +1,6 @@
 """Tests for the audio-file commit path that must not leave a 0-byte song."""
 
+import os
 from pathlib import Path
 
 import pytest
@@ -70,10 +71,87 @@ def test_commit_refuses_a_truncated_payload(tmp_path: Path) -> None:
     assert target.read_bytes() == original
 
 
+def test_commit_same_size_patches_without_replace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A same-size rewrite must not copy the song through a .tmp replace."""
+    replaced: list[Path] = []
+
+    original_replace = Path.replace
+
+    def track_replace(self: Path, dest: Path) -> Path:
+        """Record a replace so the test can forbid it."""
+        replaced.append(Path(dest))
+        return original_replace(self, dest)
+
+    monkeypatch.setattr(Path, "replace", track_replace)
+    target = tmp_path / "t.mp3"
+    original = b"x" * 100 + b"audio-payload"
+    new_data = b"y" * 100 + b"audio-payload"
+    target.write_bytes(original)
+
+    _commit_audio_bytes(target, new_data, original)
+
+    assert replaced == []
+    assert not (tmp_path / "t.mp3.tmp").exists()
+    assert target.read_bytes() == new_data
+
+
+def test_write_geob_same_size_patches_without_replace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A padded MP3 GEOB rewrite must patch in place, not replace the file."""
+    original_replace = Path.replace
+    replaced: list[Path] = []
+
+    def track_replace(self: Path, dest: Path) -> Path:
+        """Record a replace so the test can forbid it."""
+        replaced.append(Path(dest))
+        return original_replace(self, dest)
+
+    monkeypatch.setattr(Path, "replace", track_replace)
+    first = b"\x01\x01" + b"\x00" * 8
+    second = b"\x01\x02" + b"\x00" * 8
+    target = tmp_path / "t.mp3"
+    target.write_bytes(_mp3([_geob_frame("Serato Markers2", first)], padding=64))
+
+    assert write_geob(target, {"Serato Markers2": second}) is True
+
+    assert replaced == []
+    assert not (tmp_path / "t.mp3.tmp").exists()
+    assert read_geob(target)["Serato Markers2"] == second
+
+
+def test_commit_restores_the_span_when_in_place_write_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failed in-place write puts the original span back."""
+    target = tmp_path / "t.mp3"
+    original = b"x" * 100
+    target.write_bytes(original)
+
+    fsync_calls = {"n": 0}
+    real_fsync = os.fsync
+
+    def boom(fd: int) -> None:
+        """Fail the first fsync so restore can still flush."""
+        fsync_calls["n"] += 1
+        if fsync_calls["n"] == 1:
+            raise OSError("disk")
+        real_fsync(fd)
+
+    monkeypatch.setattr("app.adapters.serato.tags.os.fsync", boom)
+
+    with pytest.raises(TagFormatError, match="in-place"):
+        _commit_audio_bytes(target, b"y" * 100, original)
+
+    assert target.read_bytes() == original
+
+
 def test_commit_fsyncs_the_file_after_replace(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The live path and its directory must be fsynced after the swap."""
+    """The live path and its directory must be fsynced after a size-changing swap."""
     called: list[Path] = []
     monkeypatch.setattr(
         "app.adapters.serato.tags.fsync_replaced",
@@ -82,9 +160,9 @@ def test_commit_fsyncs_the_file_after_replace(
     target = tmp_path / "t.mp3"
     original = b"x" * 100
     target.write_bytes(original)
-    _commit_audio_bytes(target, b"y" * 100, original)
+    _commit_audio_bytes(target, b"y" * 120, original)
     assert called == [target]
-    assert target.read_bytes() == b"y" * 100
+    assert target.read_bytes() == b"y" * 120
 
 
 def test_commit_restores_original_when_replace_zeros_the_file(
@@ -93,7 +171,7 @@ def test_commit_restores_original_when_replace_zeros_the_file(
     """If replace leaves a 0-byte destination, the original bytes are written back."""
     target = tmp_path / "t.mp3"
     original = b"x" * 1000
-    new_data = b"y" * 1000
+    new_data = b"y" * 1200
     target.write_bytes(original)
 
     def zero_dest(self: Path, dest: Path) -> None:

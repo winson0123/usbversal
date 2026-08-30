@@ -675,6 +675,11 @@
       "id": "TASK-294",
       "title": "M4A markers layout and AAC encoder delay",
       "completed_at": "2026-08-30T00:00:00Z"
+    },
+    {
+      "id": "TASK-295",
+      "title": "In-place tag write when file size is unchanged",
+      "completed_at": "2026-08-30T00:00:00Z"
     }
   ],
   "history": [
@@ -1485,6 +1490,12 @@
     {
       "id": "TASK-294",
       "title": "M4A markers layout and AAC encoder delay",
+      "completed_at": "2026-08-30T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-295",
+      "title": "In-place tag write when file size is unchanged",
       "completed_at": "2026-08-30T00:00:00Z",
       "status": "completed"
     }

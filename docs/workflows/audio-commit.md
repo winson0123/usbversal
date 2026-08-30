@@ -1,8 +1,13 @@
 # Audio file commit
 
 `write_geob` rebuilds the file in memory and verifies the audio hash plus
-frame read-back before any byte is meant to reach the live path. The live
-swap still uses a sibling `.tmp` and `Path.replace`.
+frame read-back before any byte is meant to reach the live path.
+
+When the rebuilt file is the same length (padded MP3 / existing WAV
+`id3 `), only the changed span is written in place and fsynced. No
+sibling `.tmp`, no `replace`. A failed patch writes that span back from
+the in-memory original. Size-changing writes still use a sibling `.tmp`
+and `Path.replace` (TASK-286).
 
 A tagless MPEG MP3 (frame sync at byte 0, no ID3v2) gets an empty ID3v2.4
 tag prepended, then grown for the Serato frames. A WAVE with no `id3 `

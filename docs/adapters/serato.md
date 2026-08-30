@@ -40,7 +40,7 @@ Vendor formats still change without notice; treat versions defensively.
 | Constraint | Enforcement |
 |------------|-------------|
 | Rekordbox files | Never write under `PIONEER/` |
-| Tag rewrite | Verify, fsync `.tmp`, restore original if replace leaves a short file |
+| Tag rewrite | Verify; same-size patch in place; else fsync `.tmp` and restore if replace is short |
 | Crate / database / neworder | `replace_flushed`; a zero-byte `database V2` is not a library |
 | Read-only if parse confidence low | Adapter returns error, does not guess |
 | No schema rebuild | Never regenerate entire database from scratch |

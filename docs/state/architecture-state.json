@@ -15,6 +15,7 @@
     "vendor_imports_confined_to_adapters",
     "verify_rewrite_before_disk_commit",
     "restore_original_on_failed_audio_replace",
+    "in_place_same_size_audio_patch",
     "tui_is_the_product"
   ],
   "forbidden_patterns": [

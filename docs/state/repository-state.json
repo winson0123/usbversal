@@ -174,7 +174,7 @@
     "ruff_format": "pass",
     "pytest": "pass",
     "last_run": "2026-08-30T00:00:00Z",
-    "tests_passed": 331,
+    "tests_passed": 334,
     "tests_skipped": 4,
     "tests_failed": 0,
     "note": "run with no stick mounted and no dist/usbversal built; the 4 skips are 2 integration tests gated on USBVERSAL_TEST_MOUNT (no default path), the opt-in full PyInstaller build (USBVERSAL_PACKAGING_BUILD=1), and the binary-existence smoke test that needs a prior ./scripts/build-release.sh -- a real build was run and verified during TASK-206, then cleaned up"

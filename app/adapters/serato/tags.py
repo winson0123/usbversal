@@ -1197,14 +1197,106 @@ def _discard_or_keep_tmp(temporary: Path, target: Path, new_data: bytes, origina
         temporary.unlink()
 
 
+def _dirty_span(original: bytes, new_data: bytes) -> tuple[int, int] | None:
+    """
+    Return the half-open ``[start, end)`` of bytes that differ.
+
+    Args:
+        original: File contents before the rewrite.
+        new_data: Rebuilt file contents. Must be the same length.
+
+    Returns:
+        The smallest span that covers every changed byte, or None when
+        the buffers match or the lengths differ.
+    """
+    if len(original) != len(new_data) or original == new_data:
+        return None
+    length = len(original)
+    step = 65536
+    start = 0
+    while start < length and original[start : start + step] == new_data[start : start + step]:
+        start += step
+    while start < length and original[start] == new_data[start]:
+        start += 1
+    end = length
+    while end - step >= start and original[end - step : end] == new_data[end - step : end]:
+        end -= step
+    while end > start and original[end - 1] == new_data[end - 1]:
+        end -= 1
+    return start, end
+
+
+def _restore_span(target: Path, original: bytes, start: int, end: int) -> None:
+    """
+    Write ``original[start:end]`` back onto ``target`` at ``start``.
+
+    Args:
+        target: Live audio path.
+        original: File contents read at the start of this write.
+        start: Byte offset to restore.
+        end: End of the span (exclusive).
+    """
+    try:
+        with target.open("r+b") as handle:
+            handle.seek(start)
+            handle.write(original[start:end])
+            handle.flush()
+            os.fsync(handle.fileno())
+    except OSError:
+        _restore_audio_bytes(target, original)
+
+
+def _patch_audio_bytes(target: Path, new_data: bytes, original: bytes) -> None:
+    """
+    Overwrite only the changed span of ``target`` when the size is unchanged.
+
+    The live file is opened in place. A failed write puts ``original``'s
+    span back, or the whole file if that restore fails.
+
+    Args:
+        target: Live audio path.
+        new_data: Verified rebuilt file contents, same length as ``original``.
+        original: File contents read at the start of this write.
+
+    Raises:
+        TagFormatError: The live size changed under us, or the patch failed
+            after restore.
+    """
+    span = _dirty_span(original, new_data)
+    if span is None:
+        return
+    start, end = span
+    if target.stat().st_size != len(original):
+        _restore_audio_bytes(target, original)
+        raise TagFormatError("audio file size changed during write; original restored")
+    try:
+        with target.open("r+b") as handle:
+            handle.seek(start)
+            handle.write(new_data[start:end])
+            handle.flush()
+            os.fsync(handle.fileno())
+    except OSError as exc:
+        try:
+            _restore_span(target, original, start, end)
+        except OSError:
+            pass
+        raise TagFormatError(f"in-place audio write failed: {exc}") from exc
+    if target.stat().st_size != len(original):
+        _restore_audio_bytes(target, original)
+        raise TagFormatError("in-place write changed the file size; original restored")
+
+
 def _commit_audio_bytes(target: Path, new_data: bytes, original: bytes) -> None:
     """
-    Replace ``target`` with ``new_data`` after a flushed temporary write.
+    Commit ``new_data`` onto ``target``.
 
-    The rebuilt file is written to a sibling ``.tmp``, flushed to disk, and
-    size-checked. Only then is it swapped onto ``target``. The live file
-    and its parent directory are fsynced after the swap. If the destination
-    is missing or shorter than ``new_data`` after the swap, ``original`` is
+    When the rebuilt file is the same length as ``original``, only the
+    changed span is written in place and fsynced. That avoids a full-file
+    ``.tmp`` and ``replace`` on padded MP3 / WAV tags. When the length
+    changes, the rebuilt file is written to a sibling ``.tmp``, flushed,
+    size-checked, and swapped onto ``target``. The live file and its
+    parent directory are fsynced after a swap. If the destination is
+    missing or shorter than ``new_data`` after the swap, ``original`` is
     written back.
 
     Args:
@@ -1215,8 +1307,8 @@ def _commit_audio_bytes(target: Path, new_data: bytes, original: bytes) -> None:
     Raises:
         TagFormatError: The original file is empty, the rebuilt file is
             less than half the original size, the temporary write was
-            truncated, or the destination could not be restored after a
-            failed swap.
+            truncated, the in-place patch failed, or the destination
+            could not be restored after a failed swap.
     """
     if not original:
         raise TagFormatError("audio file is empty")
@@ -1225,6 +1317,10 @@ def _commit_audio_bytes(target: Path, new_data: bytes, original: bytes) -> None:
         raise TagFormatError(
             f"refusing to write a truncated file ({len(original)} -> {len(new_data)} bytes)"
         )
+    live_same_size = target.is_file() and target.stat().st_size == len(original)
+    if len(new_data) == len(original) and live_same_size:
+        _patch_audio_bytes(target, new_data, original)
+        return
     temporary = _audio_tmp_path(target)
     try:
         _write_flushed(temporary, new_data)
@@ -1261,10 +1357,12 @@ def write_geob(
     chunk may grow or be created. FLAC Vorbis comments and MP4 ``moov`` may
     grow; STREAMINFO / ``mdat`` stay identical. Before anything reaches disk,
     the rebuilt file is verified against the original. The original file is
-    untouched if verification fails. The swap onto the live path is fsynced
-    first; a short or missing destination is overwritten with the original
-    bytes. An empty file is refused. When every requested payload already
-    matches and nothing is being removed, the file is not rewritten.
+    untouched if verification fails. A same-size rewrite patches only the
+    changed bytes on the live path. A size-changing rewrite uses a sibling
+    ``.tmp`` and ``replace``, then fsyncs the live file and its directory.
+    A short or missing destination is overwritten with the original bytes.
+    An empty file is refused. When every requested payload already matches
+    and nothing is being removed, the file is not rewritten.
 
     Args:
         path: Path to an .mp3, .wav, .flac, .aif, .aiff, .m4a, or .mp4 file.
