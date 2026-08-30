@@ -10,8 +10,8 @@
   },
   "pending_tasks": [
     {
-      "id": "TASK-252",
-      "title": "Library two-pane window"
+      "id": "TASK-303",
+      "title": "Analysis-aware track colour and honest x/y"
     }
   ],
   "blocked_tasks": [],
@@ -714,6 +714,11 @@
     {
       "id": "TASK-302",
       "title": "Do not create location.sqlite",
+      "completed_at": "2026-08-30T00:00:00Z"
+    },
+    {
+      "id": "TASK-252",
+      "title": "Library two-pane window",
       "completed_at": "2026-08-30T00:00:00Z"
     }
   ],
@@ -1573,6 +1578,12 @@
     {
       "id": "TASK-302",
       "title": "Do not create location.sqlite",
+      "completed_at": "2026-08-30T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-252",
+      "title": "Library two-pane window",
       "completed_at": "2026-08-30T00:00:00Z",
       "status": "completed"
     }

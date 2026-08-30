@@ -1234,6 +1234,18 @@ Serato creates the 16-table file on first open from `database V2`. Insert is not
 
 ---
 
+## TASK-252 — Library two-pane window
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Playlists left with coloured `x/y` and no `-`; track preview right |
+| Verification | ruff ✓ ruff format ✓ pytest 351 passed / 4 skipped |
+
+Left pane is the playlist tree plus a traffic-light legend. Right pane is a sortable Title / Genre / Key / BPM table for the highlighted playlist. Unselected rows have a blank checkbox, not `-`. Track colour is crate membership (green / red). Analysis-aware yellow is TASK-303.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

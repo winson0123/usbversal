@@ -226,7 +226,8 @@ and none of them exist yet.
 | ~~`TASK-300`~~ | ~~Write Rekordbox cue RGB on M4A~~ | Done — M4A pads use ANLZ RGB as-is, same as MP3. Track colour footer stays unset. |
 | ~~`TASK-301`~~ | ~~Read PCP2 cue RGB after the UTF-16 comment~~ | Done — named cues (`1.1Bars`) were read as `#31002E`; RGB is after the comment. |
 | ~~`TASK-302`~~ | ~~Do not create `location.sqlite`~~ | Done — Serato authors the 16-table file. Insert is not needed (DBV2 import creates rows). We UPDATE existing rows only. |
-| `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |
+| ~~`TASK-252`~~ | ~~Library two-pane window~~ | Done — Playlists left (coloured `x/y`, no `-`), Tracks right (Title/Genre/Key/BPM). Crate membership is the track colour. Analysis-aware yellow is TASK-303. Settings columns later. |
+| `TASK-303` | Analysis-aware track colour and honest `x/y` | Yellow = in crate but Rekordbox analysis is not on the file. Numerator counts green only. |
 
 ---
 

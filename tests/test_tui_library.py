@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from textual.app import App
 from textual.screen import Screen
-from textual.widgets import Static, Tree
+from textual.widgets import DataTable, Static, Tree
 
 from app.adapters.serato.naming import volume_label_for
 from app.core.domain import Playlist
@@ -69,6 +69,11 @@ def _adapter(playlists: list[Playlist], tracks: dict[int, list[str]]) -> MagicMo
     adapter = MagicMock()
     adapter.list_playlists.return_value = playlists
     adapter.get_playlist_track_paths.side_effect = lambda pid: tracks[pid]
+    adapter.database.get_contents.return_value = []
+    adapter.database.get_artists.return_value = []
+    adapter.database.get_albums.return_value = []
+    adapter.database.get_genres.return_value = []
+    adapter.database.get_keys.return_value = []
     return adapter
 
 
@@ -120,10 +125,9 @@ async def test_tree_shows_every_playlist_with_its_state(tmp_path: Path) -> None:
         tree = app.screen.query_one(Tree)
         labels = [str(node.label) for node in _playlist_nodes(tree)]
 
-        assert any("Techno" in label and "synced" in label and "1/1" in label for label in labels)
-        assert any(
-            "Trance" in label and "not synced" in label and "0/1" in label for label in labels
-        )
+        assert any("Techno" in label and "1/1" in label for label in labels)
+        assert any("Trance" in label and "0/1" in label for label in labels)
+        assert all("not synced" not in label and "partial" not in label for label in labels)
 
 
 @pytest.mark.asyncio
@@ -145,7 +149,7 @@ async def test_all_playlists_row_contains_everything_and_aggregates_it(
         assert {child.data.name for child in all_node.children} == {"Techno", "Trance"}
         # Techno is 1/1 synced, Trance is 0/1 -- mixed, so partial; counts sum.
         assert "1/2" in str(all_node.label)
-        assert "partial" in str(all_node.label)
+        assert "partial" not in str(all_node.label)
 
 
 @pytest.mark.asyncio
@@ -216,8 +220,7 @@ async def test_returning_to_the_screen_reflects_a_sync_that_just_happened(
         tree = app.screen.query_one(Tree)
         after = {node.data.name: str(node.label) for node in _playlist_nodes(tree)}
         assert "1/1" in after["Trance"]
-        assert "synced" in after["Trance"]
-        assert "not" not in after["Trance"]
+        assert "not synced" not in after["Trance"]
 
 
 @pytest.mark.asyncio
@@ -352,3 +355,51 @@ async def test_enter_with_a_selection_starts_the_sync(tmp_path: Path) -> None:
             assert isinstance(app.screen, _DummyProgressScreen)
             assert app.screen.library is library
             assert app.screen.playlist_ids == [1]
+
+
+@pytest.mark.asyncio
+async def test_library_is_two_panes_with_a_legend(tmp_path: Path) -> None:
+    """Playlists sit on the left with a colour key; tracks sit on the right."""
+    library = _library_with_two_playlists(tmp_path)
+    app = _Harness(library)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        assert app.screen.query_one("#playlist-pane").border_title == "Playlists"
+        assert app.screen.query_one("#track-pane").border_title == "Tracks"
+        legend = str(app.screen.query_one("#sync-legend", Static).render())
+        assert "green" in legend and "yellow" in legend and "red" in legend
+        table = app.screen.query_one("#track-table", DataTable)
+        assert [str(col.label) for col in table.columns.values()] == [
+            "Title",
+            "Genre",
+            "Key",
+            "BPM",
+        ]
+
+
+@pytest.mark.asyncio
+async def test_highlighting_a_playlist_fills_the_track_table(tmp_path: Path) -> None:
+    """The right pane lists the highlighted playlist's tracks."""
+    library = _library_with_two_playlists(tmp_path)
+    content = type(
+        "Row",
+        (),
+        {
+            "path": "/Contents/a.mp3",
+            "title": "Alpha",
+            "genre_id": None,
+            "key_id": None,
+            "bpmx100": 12800,
+        },
+    )()
+    library.rekordbox.database.get_contents.return_value = [content]
+    app = _Harness(library)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("down")
+        await pilot.pause()
+
+        table = app.screen.query_one("#track-table", DataTable)
+        assert table.row_count == 1
+        assert table.get_row_at(0)[0].plain == "Alpha"

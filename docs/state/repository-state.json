@@ -96,6 +96,7 @@
     "tui_unified_library_attribute": true,
     "mount_child_directory_scanner": true,
     "tui_library_labels_use_rich_text": true,
+    "tui_library_two_pane": true,
     "tui_progress_verbose_per_track_log": true,
     "sync_progress_callback_reports_track_and_error": true,
     "tui_home_shows_scanning_caption": true,
@@ -234,7 +235,7 @@
     "description": "Byte-exact Lexicon before/after WAV pair for Serato Markers2 round-trip tests"
   },
   "known_gaps": [
-    "TUI covers all 5 target-flow screens and sync_playlists is reachable end to end from it; progress reports index, analysis, and crate writes (TASK-243). Library two-pane redesign is still pending.",
+    "TUI covers all 5 target-flow screens. Library is two-pane (TASK-252). Track preview colour is crate membership only; analysis-aware yellow and honest x/y are TASK-303.",
     "MP3 GEOB/GEO write/read is unit-tested for ID3v2.2, v2.3, and v2.4; still not confirmed live in Serato. 36/40 sampled USB MP3s are v2.3; WONSIN Memories and Humble are v2.2",
     "AIFF and M4A tag I/O is unit-tested. TASK-294 writes the MP4 `markers` layout and subtracts AAC priming. TASK-299 unsets the MP4 track-colour footer. TASK-300 writes Rekordbox cue RGB on M4A the same as MP3. TASK-301 reads PCP2 RGB after the UTF-16 comment. Live Serato confirmation of those three WONSIN M4As is still outstanding.",
     "variable-tempo beatgrids confirmed in Serato 2026-08-30 (Apt X Blue 149→140; outliers are Rekordbox ANLZ outro/meter, not the encoder)",

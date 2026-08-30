@@ -6,8 +6,8 @@ below — that's what a session picking this up should do next.
 
 | | |
 |---|---|
-| Tests | 347 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-302` — Do not create `location.sqlite` |
+| Tests | 351 passed, 4 skipped (`ruff` and `ruff format` clean) |
+| Last done | `TASK-252` — Library two-pane window |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -66,7 +66,8 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 39 | ~~`TASK-300`~~ | M4A cue RGB is Rekordbox's, same as MP3; jog stays uncoloured |
 | 40 | ~~`TASK-301`~~ | PCP2 RGB is after the UTF-16 comment, not inside ``1.`` |
 | 41 | ~~`TASK-302`~~ | Do not create `location.sqlite`; UPDATE existing rows only |
-| 42 | `TASK-252` | Library two-pane (original ask, last) |
+| 42 | ~~`TASK-252`~~ | Library two-pane: Playlists left, Tracks right |
+| 43 | `TASK-303` | Analysis-aware track colour and honest `x/y` |
 
 Progress screen target layout:
 
@@ -82,7 +83,7 @@ Progress screen target layout:
 
 ---
 
-## Library screen redesign (TASK-252, last)
+## Library screen redesign (TASK-252 done; TASK-303 next)
 
 The user asked for this in one message, verbatim:
 
@@ -313,8 +314,9 @@ Backups on the stick, newest last:
 
 Variable-tempo grids confirmed 2026-08-30
 ([apt-x-blue-grid.md](workflows/apt-x-blue-grid.md)). `location.sqlite` is
-Serato-created; we UPDATE existing rows only (TASK-302). Next is `TASK-252`
-only. See the pending table above.
+Serato-created; we UPDATE existing rows only (TASK-302). Library two-pane
+shipped (TASK-252). Next is `TASK-303`: yellow when a track is in the crate
+but Rekordbox analysis is not on the file, and `x/y` counts green only.
 
 ---
 

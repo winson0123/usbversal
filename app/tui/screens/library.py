@@ -1,15 +1,14 @@
-"""Library screen: step 3 of the target flow -- the playlist tree.
+"""Library screen: playlist tree on the left, track preview on the right.
 
 Arrow keys move, space toggles selection (a folder toggles every descendant
 playlist at once, and the "All playlists" row at the very top -- a real,
 collapsible container for everything else, not just a sibling summary --
 toggles the whole library), "e" expands or collapses the highlighted folder,
 enter confirms and, with at least one playlist selected, starts the sync
-(step 4, the Progress screen). Coming back here after a sync (Done -> enter
--> pop_screen) re-reads sync state from disk rather than showing whatever
-was true when the screen first loaded -- a track this screen doesn't reload
-for stays looking unsynced until the whole app restarts, which is exactly
-the bug this refresh-on-resume exists to avoid.
+(step 4, the Progress screen). Highlighting a playlist fills the right
+pane. Coming back here after a sync (Done -> enter -> pop_screen) re-reads
+sync state from disk rather than showing whatever was true when the screen
+first loaded.
 """
 
 from __future__ import annotations
@@ -20,8 +19,9 @@ from rich.cells import cell_len
 from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
+from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
-from textual.widgets import Footer, Static, Tree
+from textual.widgets import DataTable, Footer, Static, Tree
 from textual.widgets.tree import TreeNode
 
 from app.core.domain import SyncState
@@ -31,32 +31,33 @@ from app.services.sync_service import (
     combine_sync_states,
     playlist_tree_sync_states,
 )
+from app.services.track_preview import TrackPreview, preview_playlist_tracks
 from app.tui.screens.progress import ProgressScreen
 
-_MARKER = {
-    SyncState.SYNCED: ("green", "synced"),
-    SyncState.PARTIAL: ("yellow", "partial"),
-    SyncState.NOT_SYNCED: ("red", "not synced"),
+_COUNT_COLOUR = {
+    SyncState.SYNCED: "green",
+    SyncState.PARTIAL: "yellow",
+    SyncState.NOT_SYNCED: "red",
 }
 # Plain ASCII, not a unicode checkmark/dot: those have ambiguous terminal
 # cell width depending on font, which was throwing the columns below off by
-# a cell on exactly the rows that used them.
+# a cell on exactly the rows that used them. Unselected is a space, not "-".
 _SELECTED = "x"
-_UNSELECTED = "-"
+_UNSELECTED = " "
 _PARTIAL_SELECTED = "~"
 _STATUS_ID = "selection-status"
 _MOUNT_ID = "mount-info"
+_LEGEND_ID = "sync-legend"
 _ALL_NAME = "All playlists"
+_COLUMNS = ("Title", "Genre", "Key", "BPM")
 
-# Fixed-width columns so the count and state sit in the same place on every
-# row. Tree has no column model, so this is a label string padded with
-# knowledge of exactly how many cells Tree's own guide lines and expand icon
-# consume before the label starts at a given depth (see _prefix_width) --
-# without that, rows at different nesting depths (or folder vs. leaf) drift
-# out of alignment by however many cells their guides/icon take.
-_NAME_WIDTH = 30
+# Fixed-width columns so the count sits in the same place on every row.
+# Tree has no column model, so this is a label string padded with knowledge
+# of exactly how many cells Tree's own guide lines and expand icon consume
+# before the label starts at a given depth (see _prefix_width).
+# Half the typical 80-column window after pane border and padding.
+_NAME_WIDTH = 20
 _COUNT_WIDTH = 7
-_STATE_WIDTH = 10
 
 
 @dataclass(frozen=True)
@@ -91,7 +92,30 @@ class LibraryScreen(Screen):
     DEFAULT_CSS = """
     LibraryScreen #mount-info {
         text-style: dim;
-        margin: 0 0 1 1;
+        margin: 0 0 0 1;
+        height: auto;
+    }
+    LibraryScreen #panes {
+        height: 1fr;
+    }
+    LibraryScreen #playlist-pane,
+    LibraryScreen #track-pane {
+        width: 1fr;
+        height: 1fr;
+        border: solid;
+        padding: 0 1;
+    }
+    LibraryScreen #playlist-tree,
+    LibraryScreen #track-table {
+        height: 1fr;
+    }
+    LibraryScreen #sync-legend {
+        height: auto;
+        padding: 0 0 0 0;
+    }
+    LibraryScreen #selection-status {
+        height: auto;
+        margin: 0 1;
     }
     """
 
@@ -103,12 +127,26 @@ class LibraryScreen(Screen):
         super().__init__()
         self.library = library
         self._selected: set[int] = set()
+        self._sort_key: str | None = None
+        self._sort_reverse = False
 
     def compose(self) -> ComposeResult:
         yield Static(f"Mounted: {self.library.mount}", id=_MOUNT_ID)
-        tree: Tree[_Row] = Tree("Playlists", id="playlist-tree")
-        tree.show_root = False
-        yield tree
+        with Horizontal(id="panes"):
+            playlist_pane = Vertical(id="playlist-pane")
+            playlist_pane.border_title = "Playlists"
+            with playlist_pane:
+                tree: Tree[_Row] = Tree("Playlists", id="playlist-tree")
+                tree.show_root = False
+                yield tree
+                yield Static(_legend_text(), id=_LEGEND_ID)
+            track_pane = Vertical(id="track-pane")
+            track_pane.border_title = "Tracks"
+            with track_pane:
+                table: DataTable[str] = DataTable(id="track-table")
+                table.cursor_type = "row"
+                table.zebra_stripes = True
+                yield table
         yield Static("", id=_STATUS_ID)
         yield Footer()
 
@@ -147,6 +185,7 @@ class LibraryScreen(Screen):
         tree.root.expand()
         tree.cursor_line = 0
         tree.focus()
+        self._clear_table()
         self._update_status()
 
     def _add_node(self, parent: TreeNode, state: PlaylistTreeSyncState, depth: int) -> None:
@@ -180,17 +219,18 @@ class LibraryScreen(Screen):
 
     def _label(self, row: _Row, depth: int) -> Text:
         """
-        Build one tree-row label with aligned count and coloured state.
+        Build one tree-row label with a coloured ``x/y`` count.
 
-        Playlist names are arbitrary user data, so the state colour is a
+        Playlist names are arbitrary user data, so the count colour is a
         ``Text`` style, not a markup tag that a ``[`` in the name could break.
+        Only the numerator is green when the row is fully synced.
 
         Args:
             row: Row data to render.
             depth: Nesting depth, used to pad the name around Tree guides.
 
         Returns:
-            Label text with the state word styled red/yellow/green.
+            Label text with the count styled red/yellow/green.
         """
         selected_count = sum(1 for i in row.ids if i in self._selected)
         if selected_count == 0:
@@ -204,10 +244,10 @@ class LibraryScreen(Screen):
         name_field = max(1, _NAME_WIDTH - self._prefix_width(depth, row.is_folder))
         padded_name = name + " " * max(1, name_field - cell_len(name))
 
+        colour = _COUNT_COLOUR[row.state]
         counts = f"{row.synced}/{row.total}"
-        colour, word = _MARKER[row.state]
-        label = Text(f"{padded_name}{counts:>{_COUNT_WIDTH}}  ")
-        label.append(f"{word:>{_STATE_WIDTH}}", style=colour)
+        label = Text(padded_name)
+        label.append(f"{counts:>{_COUNT_WIDTH}}", style=colour)
         return label
 
     def action_toggle_expand(self) -> None:
@@ -252,3 +292,75 @@ class LibraryScreen(Screen):
             self._update_status()
             return
         self.app.push_screen(ProgressScreen(self.library, sorted(self._selected)))
+
+    def on_tree_node_highlighted(self, event: Tree.NodeHighlighted[_Row]) -> None:
+        """Fill the track table from the highlighted playlist."""
+        row = event.node.data
+        if row is None or row.is_folder or len(row.ids) != 1:
+            self._clear_table()
+            return
+        self.run_worker(self._show_tracks(row.ids[0]), exclusive=True)
+
+    async def _show_tracks(self, playlist_id: int) -> None:
+        """
+        Load preview rows on the Rekordbox thread and paint the table.
+
+        Args:
+            playlist_id: Highlighted leaf playlist id.
+        """
+        tracks = await self.app.run_rekordbox(preview_playlist_tracks, self.library, playlist_id)
+        self._fill_table(tracks)
+
+    def _clear_table(self) -> None:
+        """Empty the preview table and restore the default columns."""
+        table = self.query_one("#track-table", DataTable)
+        table.clear(columns=True)
+        table.add_columns(*_COLUMNS)
+        self._sort_key = None
+        self._sort_reverse = False
+
+    def _fill_table(self, tracks: list[TrackPreview]) -> None:
+        """
+        Replace the preview table with one row per track.
+
+        Args:
+            tracks: Playlist order from ``preview_playlist_tracks``.
+        """
+        table = self.query_one("#track-table", DataTable)
+        table.clear(columns=True)
+        table.add_columns(*_COLUMNS)
+        for track in tracks:
+            colour = _COUNT_COLOUR[track.state]
+            table.add_row(
+                Text(track.title, style=colour),
+                Text(track.genre, style=colour),
+                Text(track.key, style=colour),
+                Text(track.bpm, style=colour),
+            )
+        self._sort_key = None
+        self._sort_reverse = False
+
+    def on_data_table_header_selected(self, event: DataTable.HeaderSelected) -> None:
+        """Sort the preview by the clicked column; click again reverses."""
+        key = str(event.column_key)
+        reverse = self._sort_key == key and not self._sort_reverse
+        self._sort_key = key
+        self._sort_reverse = reverse
+        event.data_table.sort(event.column_key, reverse=reverse)
+
+
+def _legend_text() -> Text:
+    """
+    Colour key for the left pane, matching the count traffic lights.
+
+    Returns:
+        Legend line with green / yellow / red words styled.
+    """
+    line = Text()
+    line.append("green", style="green")
+    line.append(" = synced   ")
+    line.append("yellow", style="yellow")
+    line.append(" = partial   ")
+    line.append("red", style="red")
+    line.append(" = not synced")
+    return line

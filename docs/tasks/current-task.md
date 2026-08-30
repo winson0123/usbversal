@@ -1,30 +1,36 @@
 # Current Task
 
 **Status:** `completed`
-**Task ID:** `TASK-302`
+**Task ID:** `TASK-252`
 **Last updated:** 2026-08-30
 
 ## Objective
 
-Record that `_Serato_/Library/location.sqlite` is Serato-created. We never
-author the file or insert rows.
+Library two-pane: Playlists left with coloured `x/y` and no `-`, track
+preview right (Title, Genre, Key, BPM). Settings and analysis-aware
+yellow stay later.
 
 ## Files touched
 
-- `docs/schemas/serato-schema-notes.md`
+- `app/tui/screens/library.py`
+- `app/services/track_preview.py`
+- `tests/test_tui_library.py`
+- `tests/test_track_preview.py`
 - `docs/tasks/backlog.md`
-- `docs/tasks/completed-tasks.md`
 - `docs/HANDOFF.md`
 - `docs/state/task-state.json`
 - `docs/state/repository-state.json`
-- `docs/state/architecture-state.json`
 
 ## Verification criteria
 
-Docs only. No code. `ruff` / `pytest` N/A.
+```bash
+.venv/bin/ruff check .
+.venv/bin/ruff format --check .
+.venv/bin/pytest
+```
 
 ## Verification log
 
-- ruff N/A
-- ruff format N/A
-- pytest N/A
+- ruff ✓
+- ruff format ✓
+- pytest 351 passed / 4 skipped
