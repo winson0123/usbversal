@@ -1,25 +1,22 @@
 # Current Task
 
 **Status:** `completed`
-**Task ID:** `TASK-252`
+**Task ID:** `TASK-304`
 **Last updated:** 2026-08-30
 
 ## Objective
 
-Library two-pane: Playlists left with coloured `x/y` and no `-`, track
-preview right (Title, Genre, Key, BPM). Settings and analysis-aware
-yellow stay later.
+Narrow the Playlists pane, use rounded borders, separate the traffic-light
+legend with a line, and keep the track table from scrolling sideways.
 
 ## Files touched
 
 - `app/tui/screens/library.py`
-- `app/services/track_preview.py`
 - `tests/test_tui_library.py`
-- `tests/test_track_preview.py`
 - `docs/tasks/backlog.md`
 - `docs/HANDOFF.md`
 - `docs/state/task-state.json`
-- `docs/state/repository-state.json`
+- `docs/tasks/completed-tasks.md`
 
 ## Verification criteria
 
@@ -33,4 +30,4 @@ yellow stay later.
 
 - ruff ✓
 - ruff format ✓
-- pytest 351 passed / 4 skipped
+- pytest 352 passed / 4 skipped

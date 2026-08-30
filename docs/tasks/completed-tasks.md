@@ -1246,6 +1246,18 @@ Left pane is the playlist tree plus a traffic-light legend. Right pane is a sort
 
 ---
 
+## TASK-304 — Library pane polish
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Narrower Playlists pane, round borders, lined legend, no sideways table scroll |
+| Verification | ruff ✓ ruff format ✓ pytest 352 passed / 4 skipped |
+
+Playlists is one third, Tracks two thirds. Both panes use `border: round`. The legend is three coloured dots under a rule. Long titles (and playlist names) clip with an ellipsis so Genre / Key / BPM stay on screen.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

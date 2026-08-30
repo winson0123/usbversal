@@ -12,7 +12,7 @@ from textual.widgets import DataTable, Static, Tree
 from app.adapters.serato.naming import volume_label_for
 from app.core.domain import Playlist
 from app.tui.app import RekordboxThreadMixin
-from app.tui.screens.library import LibraryScreen
+from app.tui.screens.library import LibraryScreen, _clip
 from tests.conftest import EMPTY_DATABASE_V2, make_library
 
 
@@ -310,7 +310,7 @@ async def test_count_column_lines_up_regardless_of_depth_or_row_kind(tmp_path: P
     ]
     library = make_library(mount, _adapter(playlists, {1: []}))
     app = _Harness(library)
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(120, 24)) as pilot:
         await pilot.pause()
 
         tree = app.screen.query_one(Tree)
@@ -368,7 +368,9 @@ async def test_library_is_two_panes_with_a_legend(tmp_path: Path) -> None:
         assert app.screen.query_one("#playlist-pane").border_title == "Playlists"
         assert app.screen.query_one("#track-pane").border_title == "Tracks"
         legend = str(app.screen.query_one("#sync-legend", Static).render())
-        assert "green" in legend and "yellow" in legend and "red" in legend
+        assert "synced" in legend and "partial" in legend and "not synced" in legend
+        assert app.screen.query_one("#playlist-pane").styles.border.top[0] == "round"
+        assert app.screen.query_one("#sync-legend").styles.border.top[0] == "solid"
         table = app.screen.query_one("#track-table", DataTable)
         assert [str(col.label) for col in table.columns.values()] == [
             "Title",
@@ -403,3 +405,10 @@ async def test_highlighting_a_playlist_fills_the_track_table(tmp_path: Path) -> 
         table = app.screen.query_one("#track-table", DataTable)
         assert table.row_count == 1
         assert table.get_row_at(0)[0].plain == "Alpha"
+
+
+def test_clip_adds_ellipsis_when_text_is_wider_than_the_column() -> None:
+    """Long titles shrink to the column so Genre / Key / BPM stay visible."""
+    assert _clip("Alpha", 8) == "Alpha"
+    assert _clip("A very long track title", 10) == "A very ..."
+    assert _clip("Hi", 2) == "Hi"

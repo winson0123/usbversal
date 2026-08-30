@@ -55,9 +55,13 @@ _COLUMNS = ("Title", "Genre", "Key", "BPM")
 # Tree has no column model, so this is a label string padded with knowledge
 # of exactly how many cells Tree's own guide lines and expand icon consume
 # before the label starts at a given depth (see _prefix_width).
-# Half the typical 80-column window after pane border and padding.
-_NAME_WIDTH = 20
+# Left pane is about a third of the window; keep the name short so x/y fits.
+_NAME_WIDTH = 16
 _COUNT_WIDTH = 7
+_GENRE_WIDTH = 12
+_KEY_WIDTH = 6
+_BPM_WIDTH = 6
+_TABLE_GUTTER = 8
 
 
 @dataclass(frozen=True)
@@ -98,20 +102,30 @@ class LibraryScreen(Screen):
     LibraryScreen #panes {
         height: 1fr;
     }
-    LibraryScreen #playlist-pane,
-    LibraryScreen #track-pane {
+    LibraryScreen #playlist-pane {
         width: 1fr;
         height: 1fr;
-        border: solid;
+        border: round;
+        padding: 0 1;
+    }
+    LibraryScreen #track-pane {
+        width: 2fr;
+        height: 1fr;
+        border: round;
         padding: 0 1;
     }
     LibraryScreen #playlist-tree,
     LibraryScreen #track-table {
         height: 1fr;
     }
+    LibraryScreen #track-table {
+        overflow-x: hidden;
+    }
     LibraryScreen #sync-legend {
+        dock: bottom;
         height: auto;
-        padding: 0 0 0 0;
+        border-top: solid;
+        padding: 1 0 0 0;
     }
     LibraryScreen #selection-status {
         height: auto;
@@ -146,6 +160,7 @@ class LibraryScreen(Screen):
                 table: DataTable[str] = DataTable(id="track-table")
                 table.cursor_type = "row"
                 table.zebra_stripes = True
+                table.show_horizontal_scrollbar = False
                 yield table
         yield Static("", id=_STATUS_ID)
         yield Footer()
@@ -186,6 +201,7 @@ class LibraryScreen(Screen):
         tree.cursor_line = 0
         tree.focus()
         self._clear_table()
+        self._apply_column_widths()
         self._update_status()
 
     def _add_node(self, parent: TreeNode, state: PlaylistTreeSyncState, depth: int) -> None:
@@ -239,10 +255,9 @@ class LibraryScreen(Screen):
             checkbox = _SELECTED
         else:
             checkbox = _PARTIAL_SELECTED
-        name = f"{checkbox} {row.name}"
-
         name_field = max(1, _NAME_WIDTH - self._prefix_width(depth, row.is_folder))
-        padded_name = name + " " * max(1, name_field - cell_len(name))
+        name = f"{checkbox} {_clip(row.name, max(1, name_field - 2))}"
+        padded_name = name + " " * max(0, name_field - cell_len(name))
 
         colour = _COUNT_COLOUR[row.state]
         counts = f"{row.synced}/{row.total}"
@@ -316,6 +331,7 @@ class LibraryScreen(Screen):
         table = self.query_one("#track-table", DataTable)
         table.clear(columns=True)
         table.add_columns(*_COLUMNS)
+        self._apply_column_widths()
         self._sort_key = None
         self._sort_reverse = False
 
@@ -323,22 +339,60 @@ class LibraryScreen(Screen):
         """
         Replace the preview table with one row per track.
 
+        Titles are clipped to the Title column so Genre / Key / BPM stay
+        on screen without a horizontal scroll.
+
         Args:
             tracks: Playlist order from ``preview_playlist_tracks``.
         """
         table = self.query_one("#track-table", DataTable)
         table.clear(columns=True)
         table.add_columns(*_COLUMNS)
+        title_width = self._title_column_width()
         for track in tracks:
             colour = _COUNT_COLOUR[track.state]
             table.add_row(
-                Text(track.title, style=colour),
-                Text(track.genre, style=colour),
-                Text(track.key, style=colour),
-                Text(track.bpm, style=colour),
+                Text(_clip(track.title, title_width), style=colour),
+                Text(_clip(track.genre, _GENRE_WIDTH), style=colour),
+                Text(_clip(track.key, _KEY_WIDTH), style=colour),
+                Text(_clip(track.bpm, _BPM_WIDTH), style=colour),
             )
+        self._apply_column_widths()
         self._sort_key = None
         self._sort_reverse = False
+
+    def on_resize(self) -> None:
+        """Keep table columns inside the pane when the window changes."""
+        if self.query("#track-table"):
+            self._apply_column_widths()
+
+    def _title_column_width(self) -> int:
+        """
+        Cells left for Title after Genre, Key, BPM, and table chrome.
+
+        Returns:
+            At least 8 cells so a truncated title still reads.
+        """
+        table = self.query_one("#track-table", DataTable)
+        leftover = table.size.width - _GENRE_WIDTH - _KEY_WIDTH - _BPM_WIDTH - _TABLE_GUTTER
+        return max(8, leftover)
+
+    def _apply_column_widths(self) -> None:
+        """
+        Pin every preview column so the table does not scroll sideways.
+
+        Returns:
+            None.
+        """
+        table = self.query_one("#track-table", DataTable)
+        if not table.columns:
+            return
+        widths = (self._title_column_width(), _GENRE_WIDTH, _KEY_WIDTH, _BPM_WIDTH)
+        for key, width in zip(table.columns, widths, strict=True):
+            column = table.columns[key]
+            column.width = width
+            column.auto_width = False
+        table.refresh()
 
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected) -> None:
         """Sort the preview by the clicked column; click again reverses."""
@@ -351,16 +405,47 @@ class LibraryScreen(Screen):
 
 def _legend_text() -> Text:
     """
-    Colour key for the left pane, matching the count traffic lights.
+    Traffic-light key under the playlist tree.
 
     Returns:
-        Legend line with green / yellow / red words styled.
+        Three lines: coloured dot plus synced / partial / not synced.
     """
     line = Text()
-    line.append("green", style="green")
-    line.append(" = synced   ")
-    line.append("yellow", style="yellow")
-    line.append(" = partial   ")
-    line.append("red", style="red")
-    line.append(" = not synced")
+    line.append("•", style="green")
+    line.append(" synced\n")
+    line.append("•", style="yellow")
+    line.append(" partial\n")
+    line.append("•", style="red")
+    line.append(" not synced")
     return line
+
+
+def _clip(text: str, width: int) -> str:
+    """
+    Fit ``text`` into ``width`` cells, with an ellipsis when it overflows.
+
+    Args:
+        text: Display string, possibly longer than the column.
+        width: Maximum cells to occupy.
+
+    Returns:
+        ``text``, or a truncated prefix ending in ``...``.
+    """
+    if width <= 0:
+        return ""
+    if cell_len(text) <= width:
+        return text
+    if width <= 3:
+        clipped = ""
+        for char in text:
+            if cell_len(clipped + char) >= width:
+                break
+            clipped += char
+        return clipped
+    budget = width - 3
+    clipped = ""
+    for char in text:
+        if cell_len(clipped + char) > budget:
+            break
+        clipped += char
+    return clipped + "..."

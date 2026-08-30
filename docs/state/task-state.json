@@ -720,6 +720,11 @@
       "id": "TASK-252",
       "title": "Library two-pane window",
       "completed_at": "2026-08-30T00:00:00Z"
+    },
+    {
+      "id": "TASK-304",
+      "title": "Library pane polish",
+      "completed_at": "2026-08-30T00:00:00Z"
     }
   ],
   "history": [
@@ -1584,6 +1589,12 @@
     {
       "id": "TASK-252",
       "title": "Library two-pane window",
+      "completed_at": "2026-08-30T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-304",
+      "title": "Library pane polish",
       "completed_at": "2026-08-30T00:00:00Z",
       "status": "completed"
     }
