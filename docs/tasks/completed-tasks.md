@@ -1510,6 +1510,20 @@ preview rows are ready, then shows the table.
 
 ---
 
+## TASK-322 — Fix over-truncated titles and scan bar on crate switch
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Titles use the Tracks pane width; a fast crate switch keeps the scan bar |
+| Verification | ruff ✓ ruff format ✓ pytest 379 passed / 4 skipped |
+
+Filling the table while it was hidden clipped titles to 8 cells. The
+cancelled previous load then hid the bar. Title width falls back to
+the pane; only the current load may hide the bar.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

@@ -342,6 +342,7 @@ class LibraryScreen(Screen):
         self._sort_reverse = False
         self._refreshing = False
         self._initial_states = states
+        self._tracks_load_id = 0
 
     def compose(self) -> ComposeResult:
         with Horizontal(id=_HEADER_ID):
@@ -613,26 +614,38 @@ class LibraryScreen(Screen):
         """Fill the track table from the highlighted playlist."""
         row = event.node.data
         if row is None or row.is_folder or len(row.ids) != 1:
+            self._tracks_load_id += 1
             self._set_tracks_loading(False)
             self._clear_table()
             return
+        self._tracks_load_id += 1
+        token = self._tracks_load_id
         self._set_tracks_loading(True)
-        self.run_worker(self._show_tracks(row.ids[0]), exclusive=True, group="track-preview")
+        self.run_worker(self._show_tracks(row.ids[0], token), exclusive=True, group="track-preview")
 
-    async def _show_tracks(self, playlist_id: int) -> None:
+    async def _show_tracks(self, playlist_id: int, token: int) -> None:
         """
         Load preview rows on the Rekordbox thread and paint the table.
 
+        A stale token means a later highlight owns the pane, so this
+        pass must not hide the scan bar or overwrite the table.
+
         Args:
             playlist_id: Highlighted leaf playlist id.
+            token: ``_tracks_load_id`` at the time this load was started.
         """
         try:
             tracks = await self.app.run_rekordbox(
                 preview_playlist_tracks, self.library, playlist_id
             )
-            self._fill_table(tracks)
-        finally:
-            self._set_tracks_loading(False)
+        except Exception:
+            if token == self._tracks_load_id:
+                self._set_tracks_loading(False)
+            raise
+        if token != self._tracks_load_id:
+            return
+        self._set_tracks_loading(False)
+        self._fill_table(tracks)
 
     def _set_tracks_loading(self, loading: bool) -> None:
         """
@@ -703,11 +716,18 @@ class LibraryScreen(Screen):
         """
         Cells left for Title after Genre, Key, BPM, and table chrome.
 
+        Uses the Tracks pane when the table is hidden (scan bar up),
+        because a hidden table reports a width too small to clip against.
+
         Returns:
             At least 8 cells so a truncated title still reads.
         """
         table = self.query_one("#track-table", DataTable)
-        leftover = table.size.width - _GENRE_WIDTH - _KEY_WIDTH - _BPM_WIDTH - _TABLE_GUTTER
+        width = table.size.width
+        if width < 16:
+            pane = self.query_one("#track-pane")
+            width = max(0, pane.size.width - 4)
+        leftover = width - _GENRE_WIDTH - _KEY_WIDTH - _BPM_WIDTH - _TABLE_GUTTER
         return max(8, leftover)
 
     def _apply_column_widths(self) -> None:

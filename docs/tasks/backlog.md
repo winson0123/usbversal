@@ -246,6 +246,7 @@ and none of them exist yet.
 | ~~`TASK-319`~~ | ~~Show Checking analysis on the Home detecting screen~~ | Done — then TASK-320 made it a single phase-3 caption, not a second line. |
 | ~~`TASK-320`~~ | ~~Checking analysis is a single Home phase caption~~ | Done — SEARCHING, OPENING, CHECKING each replace the one status line. |
 | ~~`TASK-321`~~ | ~~Show the Home scan bar in the Library Tracks pane while loading~~ | Done — shared `ScanBar`; table hidden until preview rows are ready. |
+| ~~`TASK-322`~~ | ~~Fix over-truncated titles and scan bar on crate switch~~ | Done — clip against the pane width; a cancelled preview does not hide the bar. |
 
 ---
 

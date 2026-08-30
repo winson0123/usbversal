@@ -618,6 +618,36 @@ async def test_highlighting_a_playlist_fills_the_track_table(tmp_path: Path) -> 
 
 
 @pytest.mark.asyncio
+async def test_titles_use_the_pane_width_after_the_scan_bar(tmp_path: Path) -> None:
+    """A hidden table used to clip titles to 8 cells after the scan bar."""
+    library = _library_with_two_playlists(tmp_path)
+    title = "A Very Long Track Title That Must Survive The Scan Bar"
+    content = type(
+        "Row",
+        (),
+        {
+            "path": "/Contents/a.mp3",
+            "title": title,
+            "genre_id": None,
+            "key_id": None,
+            "bpmx100": 12800,
+        },
+    )()
+    library.rekordbox.database.get_contents.return_value = [content]
+    app = _Harness(library)
+    async with app.run_test(size=(120, 24)) as pilot:
+        await _wait_library(app, pilot)
+        for _ in range(20):
+            await pilot.pause()
+            table = app.screen.query_one("#track-table", DataTable)
+            if table.display and table.row_count:
+                break
+        shown = table.get_row_at(0)[0].plain
+        assert len(shown) > 8
+        assert shown.startswith("A Very Long")
+
+
+@pytest.mark.asyncio
 async def test_tracks_pane_shows_scan_bar_while_loading(tmp_path: Path) -> None:
     """The right pane uses the same Home scan bar until rows are ready."""
     library = _library_with_two_playlists(tmp_path)
@@ -644,6 +674,33 @@ async def test_tracks_pane_shows_scan_bar_while_loading(tmp_path: Path) -> None:
                     break
             assert table.display is True
             assert wrap.display is False
+
+
+@pytest.mark.asyncio
+async def test_fast_crate_switch_keeps_the_scan_bar(tmp_path: Path) -> None:
+    """Cancelling the previous preview must not hide the bar for the next one."""
+    library = _library_with_two_playlists(tmp_path)
+    gate = threading.Event()
+
+    def blocked(*_args, **_kwargs):
+        gate.wait(timeout=5)
+        return []
+
+    with patch("app.tui.screens.library.preview_playlist_tracks", blocked):
+        app = _Harness(library)
+        async with app.run_test() as pilot:
+            await _wait_library(app, pilot)
+            wrap = app.screen.query_one("#track-scan-wrap")
+            assert wrap.display is True
+            await pilot.press("down")
+            await pilot.pause()
+            assert wrap.display is True
+            gate.set()
+            for _ in range(20):
+                await pilot.pause()
+                if app.screen.query_one("#track-table", DataTable).display:
+                    break
+            assert app.screen.query_one("#track-table", DataTable).display is True
 
 
 def test_footer_keys_use_caret_lowercase() -> None:

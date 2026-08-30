@@ -6,8 +6,8 @@ below — that's what a session picking this up should do next.
 
 | | |
 |---|---|
-| Tests | 377 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-321` — Show the Home scan bar in the Library Tracks pane while loading |
+| Tests | 379 passed, 4 skipped (`ruff` and `ruff format` clean) |
+| Last done | `TASK-322` — Fix over-truncated titles and scan bar on crate switch |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -86,6 +86,7 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 59 | ~~`TASK-319`~~ | Show Checking analysis on the Home detecting screen |
 | 60 | ~~`TASK-320`~~ | Checking analysis is a single Home phase caption |
 | 61 | ~~`TASK-321`~~ | Show the Home scan bar in the Library Tracks pane while loading |
+| 62 | ~~`TASK-322`~~ | Fix over-truncated titles and scan bar on crate switch |
 
 Progress screen target layout:
 
@@ -350,8 +351,9 @@ scan bar moving through Opening and Checking analysis, then Library
 opens with colours already computed (TASK-318). Checking analysis is
 its own Home caption after Opening, not a second line (TASK-320).
 The Tracks pane shows the same scan bar while the list is loading
-(TASK-321). The Library two-pane queue is empty. Settings extra
-columns stay unscoped.
+(TASK-321). Title width uses the pane when the table is hidden, and
+a crate switch keeps the bar up (TASK-322). The Library two-pane
+queue is empty. Settings extra columns stay unscoped.
 
 ---
 

@@ -10,14 +10,14 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-321` |
-| Objective | Show the Home scan bar in the Library Tracks pane while loading |
+| Task ID | `TASK-322` |
+| Objective | Fix over-truncated titles and scan bar on crate switch |
 | Completed | 2026-08-30 |
 
 ### Scope
 
-- `ScanBar` widget shared by Home and Library.
-- Tracks pane shows the bar until preview rows are ready.
+- Title column width uses the Tracks pane when the table is hidden.
+- A cancelled preview does not hide the scan bar for the next crate.
 
 ### Verification log
 
@@ -25,7 +25,7 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 377 passed, 4 skipped |
+| `.venv/bin/pytest` | 379 passed, 4 skipped |
 
 ## Next
 

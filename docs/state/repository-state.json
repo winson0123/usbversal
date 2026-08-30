@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-30T09:25:00Z",
+  "updated_at": "2026-08-30T09:32:00Z",
   "project": "usbversal",
   "language": "python",
   "python_version": "3.11+",
@@ -175,7 +175,8 @@
     "tui_home_checks_analysis_before_library": true,
     "tui_home_shows_checking_analysis_on_detect": false,
     "tui_home_checking_analysis_is_own_phase": true,
-    "tui_library_tracks_show_scan_bar_while_loading": true
+    "tui_library_tracks_show_scan_bar_while_loading": true,
+    "tui_library_title_width_uses_pane_while_loading": true
   },
   "packaging": {
     "pyinstaller": true,
@@ -188,8 +189,8 @@
     "ruff": "pass",
     "ruff_format": "pass",
     "pytest": "pass",
-    "last_run": "2026-08-30T09:25:00Z",
-    "tests_passed": 377,
+    "last_run": "2026-08-30T09:32:00Z",
+    "tests_passed": 379,
     "tests_skipped": 4,
     "tests_failed": 0,
     "note": "run with no stick mounted and no dist/usbversal built; the 4 skips are 2 integration tests gated on USBVERSAL_TEST_MOUNT (no default path), the opt-in full PyInstaller build (USBVERSAL_PACKAGING_BUILD=1), and the binary-existence smoke test that needs a prior ./scripts/build-release.sh -- a real build was run and verified during TASK-206, then cleaned up"
