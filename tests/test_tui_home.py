@@ -32,9 +32,10 @@ class _DummyLibraryScreen(Screen):
     is covered by tests/test_tui_library.py; these tests only need proof that
     Home handed off to it with the right library."""
 
-    def __init__(self, library: object) -> None:
+    def __init__(self, library: object, states: object = None) -> None:
         super().__init__()
         self.library = library
+        self.states = states
 
     def compose(self):
         yield Static("dummy")
@@ -120,6 +121,7 @@ async def test_a_valid_mount_opens_the_library_and_hands_off(tmp_path: Path) -> 
     with (
         patch("app.tui.screens.home.probe_mount", return_value=fake_probe),
         patch("app.tui.screens.home.prepare_library", return_value=fake_library),
+        patch("app.tui.screens.home.playlist_tree_sync_states", return_value=()),
         patch("app.tui.screens.home.LibraryScreen", _DummyLibraryScreen),
     ):
         async with app.run_test() as pilot:
@@ -155,6 +157,7 @@ async def test_opening_does_not_look_like_scanning(tmp_path: Path) -> None:
     with (
         patch("app.tui.screens.home.probe_mount", return_value=fake_probe),
         patch("app.tui.screens.home.prepare_library", _slow_prepare),
+        patch("app.tui.screens.home.playlist_tree_sync_states", return_value=()),
         patch("app.tui.screens.home.LibraryScreen", _DummyLibraryScreen),
     ):
         async with app.run_test() as pilot:
@@ -168,6 +171,55 @@ async def test_opening_does_not_look_like_scanning(tmp_path: Path) -> None:
             assert started.is_set()
             assert "Opening the DJ USB" in _status_text(home)
             assert home.query_one("#spinner").display is True
+            release.set()
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            assert isinstance(app.screen, _DummyLibraryScreen)
+
+
+@pytest.mark.asyncio
+async def test_checking_analysis_keeps_the_scan_bar_on_home(tmp_path: Path) -> None:
+    """Analysis colours are computed on Home; the bar keeps moving until Library."""
+    watcher = MountWatcher(_FakeScanner([_point(tmp_path)]))
+    app = UsbversalApp(watcher)
+    fake_probe = type("P", (), {"is_dj_usb": True, "is_supported": True, "has_serato": False})()
+    fake_library = type(
+        "L", (), {"rekordbox": type("R", (), {"list_playlists": lambda self: [1, 2, 3]})()}
+    )()
+    started = threading.Event()
+    release = threading.Event()
+
+    def _slow_states(_library, *, check_analysis: bool = True):
+        started.set()
+        release.wait(timeout=5)
+        return ()
+
+    with (
+        patch("app.tui.screens.home.probe_mount", return_value=fake_probe),
+        patch("app.tui.screens.home.prepare_library", return_value=fake_library),
+        patch("app.tui.screens.home.playlist_tree_sync_states", _slow_states),
+        patch("app.tui.screens.home.LibraryScreen", _DummyLibraryScreen),
+    ):
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            home = app.screen
+            home.poll_mounts()
+            for _ in range(20):
+                await pilot.pause()
+                if started.is_set():
+                    break
+            assert started.is_set()
+            assert isinstance(app.screen, HomeScreen)
+            assert "Checking analysis" in _status_text(home)
+            assert home.query_one("#spinner").display is True
+            first = str(home.query_one("#spinner").render())
+            moved = False
+            for _ in range(10):
+                await pilot.pause()
+                if str(home.query_one("#spinner").render()) != first:
+                    moved = True
+                    break
+            assert moved
             release.set()
             await app.workers.wait_for_complete()
             await pilot.pause()
@@ -216,6 +268,7 @@ async def test_stops_polling_once_a_library_is_open(tmp_path: Path) -> None:
     with (
         patch("app.tui.screens.home.probe_mount", return_value=fake_probe) as probe,
         patch("app.tui.screens.home.prepare_library", return_value=fake_library),
+        patch("app.tui.screens.home.playlist_tree_sync_states", return_value=()),
         patch("app.tui.screens.home.LibraryScreen", _DummyLibraryScreen),
     ):
         async with app.run_test() as pilot:
@@ -250,6 +303,7 @@ async def test_a_rekordbox_only_stick_gets_a_serato_library_bootstrapped(tmp_pat
     with (
         patch("app.tui.screens.home.probe_mount", return_value=fake_probe),
         patch("app.services.library.open_library", return_value=fake_library),
+        patch("app.tui.screens.home.playlist_tree_sync_states", return_value=()),
         patch("app.tui.screens.home.LibraryScreen", _DummyLibraryScreen),
     ):
         async with app.run_test() as pilot:
@@ -417,6 +471,7 @@ async def test_enter_with_a_typed_path_opens_that_library(tmp_path: Path) -> Non
 
     with (
         patch("app.tui.screens.home.prepare_library", return_value=fake_library) as prepare,
+        patch("app.tui.screens.home.playlist_tree_sync_states", return_value=()),
         patch("app.tui.screens.home.LibraryScreen", _DummyLibraryScreen),
     ):
         async with app.run_test() as pilot:

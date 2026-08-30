@@ -6,8 +6,8 @@ below — that's what a session picking this up should do next.
 
 | | |
 |---|---|
-| Tests | 375 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-317` — Library paints before analysis colours finish |
+| Tests | 376 passed, 4 skipped (`ruff` and `ruff format` clean) |
+| Last done | `TASK-318` — Checking analysis stays on Home with a moving scan bar |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -82,6 +82,7 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 55 | ~~`TASK-315`~~ | Report missing audio as an analysis error |
 | 56 | ~~`TASK-316`~~ | Mark existing `location.sqlite` rows analyzed |
 | 57 | ~~`TASK-317`~~ | Library paints before analysis colours finish |
+| 58 | ~~`TASK-318`~~ | Checking analysis stays on Home with a moving scan bar |
 
 Progress screen target layout:
 
@@ -341,11 +342,10 @@ colour and `x/y` now follow analysis (TASK-303): yellow when a track is
 in the crate but Rekordbox analysis is not on the file; the numerator
 counts green only. Missing audio with ANLZ to port is a Done-screen
 error (TASK-315), not a silent skip. When `location.sqlite` already
-exists, a sync sets `analysis_flags` to 31 (TASK-316). Library no
-longer holds the Home scan bar while it reads ANLZ and tags
-(TASK-317): the tree appears from crate membership, then colours
-catch up. The Library two-pane queue is empty. Settings extra
-columns stay unscoped.
+exists, a sync sets `analysis_flags` to 31 (TASK-316). Home keeps the
+scan bar moving through Opening and Checking analysis, then Library
+opens with colours already computed (TASK-318). The Library two-pane
+queue is empty. Settings extra columns stay unscoped.
 
 ---
 

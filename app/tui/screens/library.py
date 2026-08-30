@@ -312,10 +312,16 @@ class LibraryScreen(Screen):
     }}
     """
 
-    def __init__(self, library: UsbLibrary) -> None:
+    def __init__(
+        self,
+        library: UsbLibrary,
+        states: tuple[PlaylistTreeSyncState, ...] | None = None,
+    ) -> None:
         """
         Args:
             library: Opened session handle to read playlists and sync state from.
+            states: Tree already computed on Home, used for the first paint
+                so this screen does not repeat the analysis wait.
         """
         super().__init__()
         self.library = library
@@ -324,6 +330,7 @@ class LibraryScreen(Screen):
         self._sort_key: str | None = None
         self._sort_reverse = False
         self._refreshing = False
+        self._initial_states = states
 
     def compose(self) -> ComposeResult:
         with Horizontal(id=_HEADER_ID):
@@ -356,6 +363,11 @@ class LibraryScreen(Screen):
         activation as well as later resumes (Textual gives no separate
         first-time signal), so this is the one place the tree is built.
         """
+        if self._initial_states is not None:
+            states = self._initial_states
+            self._initial_states = None
+            self._apply_states(states, busy=None)
+            return
         if self._refreshing:
             return
         self._refreshing = True

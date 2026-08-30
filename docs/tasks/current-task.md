@@ -10,15 +10,15 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-317` |
-| Objective | Library paints before analysis colours finish |
+| Task ID | `TASK-318` |
+| Objective | Checking analysis stays on Home with a moving scan bar |
 | Completed | 2026-08-30 |
 
 ### Scope
 
-- Home OPENING caption is "Opening the DJ USB…", not scanning.
-- Library resume returns immediately; crate pass then analysis pass.
-- Track preview uses its own worker group so it cannot cancel refresh.
+- Home phase `CHECKING` after `prepare_library`.
+- `playlist_tree_sync_states` runs on Home; Library is pushed with those states.
+- Scan bar stays mounted and keeps ticking until the handoff.
 
 ### Verification log
 
@@ -26,7 +26,7 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 375 passed, 4 skipped |
+| `.venv/bin/pytest` | 376 passed, 4 skipped |
 
 ## Next
 

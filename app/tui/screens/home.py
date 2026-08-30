@@ -25,6 +25,7 @@ from app.services.library import (
     prepare_library,
     probe_mount,
 )
+from app.services.sync_service import playlist_tree_sync_states
 from app.tui.screens.library import LibraryScreen
 from app.tui.widgets.path_input import PathInput
 
@@ -32,6 +33,7 @@ _NONE_FOUND = "Did not detect a valid DJ USB."
 _RETRY_HINT = "Press 'Enter' to retry auto-scan…"
 _SCANNING = "Automatically detecting for a DJ USB…"
 _OPENING = "Opening the DJ USB…"
+_CHECKING = "Checking analysis…"
 _BANNER_ID = "banner"
 _SPINNER_ID = "spinner"
 _STATUS_ID = "status"
@@ -86,6 +88,7 @@ class HomePhase(StrEnum):
     SEARCHING = "searching"
     FAILED = "failed"
     OPENING = "opening"
+    CHECKING = "checking"
     READY = "ready"
 
 
@@ -164,7 +167,7 @@ class HomeScreen(Screen):
 
     def poll_mounts(self) -> None:
         """One watch tick: check for new mounts and probe any that appeared."""
-        if self._phase in (HomePhase.OPENING, HomePhase.READY):
+        if self._phase in (HomePhase.OPENING, HomePhase.CHECKING, HomePhase.READY):
             return
         for change in self._watcher.poll():
             if change.kind is not MountChangeKind.APPEARED:
@@ -182,7 +185,15 @@ class HomeScreen(Screen):
             self._enter(HomePhase.FAILED)
 
     async def _open(self, mount: Path) -> None:
-        """Prepare the session handle, then hand off to the Library screen."""
+        """
+        Prepare the session, check analysis on Home, then push Library.
+
+        The scan bar stays on this screen (and keeps ticking) until the
+        tree states are ready, so Library does not open mid-check.
+
+        Args:
+            mount: Path that passed the DJ-USB probe, or a typed path.
+        """
         try:
             # prepare_library opens Rekordbox, so it must stay on the app's
             # one dedicated thread -- see UsbversalApp.run_rekordbox.
@@ -191,8 +202,16 @@ class HomeScreen(Screen):
             self._enter(HomePhase.FAILED, f"{_NONE_FOUND} ({exc})")
             return
         self.library = library
+        self._enter(HomePhase.CHECKING)
+        try:
+            states = await self.app.run_rekordbox(
+                playlist_tree_sync_states, library, check_analysis=True
+            )
+        except (OSError, DatabaseNotFoundError, UnsupportedDatabaseError) as exc:
+            self._enter(HomePhase.FAILED, f"{_NONE_FOUND} ({exc})")
+            return
         self._enter(HomePhase.READY)
-        self.app.push_screen(LibraryScreen(library))
+        self.app.push_screen(LibraryScreen(library, states=states))
 
     def _enter(self, phase: HomePhase, error: str = _NONE_FOUND) -> None:
         """
@@ -235,7 +254,12 @@ class HomeScreen(Screen):
         spinner.display = True
         status.display = True
         # Dim, not red -- this is routine "still looking" information.
-        caption = _OPENING if self._phase is HomePhase.OPENING else _SCANNING
+        if self._phase is HomePhase.CHECKING:
+            caption = _CHECKING
+        elif self._phase is HomePhase.OPENING:
+            caption = _OPENING
+        else:
+            caption = _SCANNING
         status.update(Text(caption, style="dim"))
         # Disabled, not just hidden: Textual still auto-focuses a
         # hidden-but-enabled widget when it is the only focusable one.

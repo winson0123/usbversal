@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-30T09:05:00Z",
+  "updated_at": "2026-08-30T09:12:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -790,6 +790,11 @@
       "id": "TASK-317",
       "title": "Library paints before analysis colours finish",
       "completed_at": "2026-08-30T09:05:00Z"
+    },
+    {
+      "id": "TASK-318",
+      "title": "Checking analysis stays on Home with a moving scan bar",
+      "completed_at": "2026-08-30T09:12:00Z"
     }
   ],
   "history": [
@@ -1745,6 +1750,12 @@
       "id": "TASK-317",
       "title": "Library paints before analysis colours finish",
       "completed_at": "2026-08-30T09:05:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-318",
+      "title": "Checking analysis stays on Home with a moving scan bar",
+      "completed_at": "2026-08-30T09:12:00Z",
       "status": "completed"
     }
   ]

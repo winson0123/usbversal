@@ -1457,6 +1457,20 @@ that worker.
 
 ---
 
+## TASK-318 — Checking analysis stays on Home with a moving scan bar
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Keep the Home scan bar moving with "Checking analysis" until Library is ready |
+| Verification | ruff ✓ ruff format ✓ pytest 376 passed / 4 skipped |
+
+Analysis colours are computed on Home after the USB opens. The spinner
+stays the active screen, so it keeps ticking. Library is handed the
+finished tree and paints once.
+
+---
+
 ## Template (for future entries)
 
 ```markdown
