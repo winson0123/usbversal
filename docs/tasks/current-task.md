@@ -4,10 +4,10 @@
 **Task ID:** —
 **Last updated:** 2026-08-30
 
-No active task. Last completed: TASK-295 (in-place tag write when file size is unchanged).
+No active task. Last completed: TASK-296 (append an id3 chunk on tagless WAV).
 
 ## Verification log
 
 - ruff ✓
 - ruff format ✓
-- pytest 334 passed / 4 skipped
+- pytest 337 passed / 4 skipped

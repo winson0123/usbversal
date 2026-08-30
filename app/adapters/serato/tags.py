@@ -1286,18 +1286,98 @@ def _patch_audio_bytes(target: Path, new_data: bytes, original: bytes) -> None:
         raise TagFormatError("in-place write changed the file size; original restored")
 
 
+def _is_wav_chunk_append(original: bytes, new_data: bytes) -> bool:
+    """
+    Return whether ``new_data`` is ``original`` plus a trailing RIFF chunk.
+
+    The WAVE payload after the RIFF size field must be unchanged. Only the
+    4-byte size at offset 4 and bytes past the original end may differ.
+
+    Args:
+        original: File contents before the rewrite.
+        new_data: Rebuilt file contents.
+
+    Returns:
+        True when the audio chunks stay put and only a tail is added.
+    """
+    if len(new_data) <= len(original):
+        return False
+    if not _is_wav(original) or not _is_wav(new_data):
+        return False
+    return original[8:] == new_data[8 : len(original)]
+
+
+def _restore_wav_append(target: Path, original: bytes) -> None:
+    """
+    Undo a WAV tail append by restoring the RIFF size and truncating.
+
+    Args:
+        target: Live audio path.
+        original: File contents read at the start of this write.
+    """
+    try:
+        with target.open("r+b") as handle:
+            handle.seek(4)
+            handle.write(original[4:8])
+            handle.truncate(len(original))
+            handle.flush()
+            os.fsync(handle.fileno())
+    except OSError:
+        _restore_audio_bytes(target, original)
+
+
+def _append_wav_chunk(target: Path, new_data: bytes, original: bytes) -> None:
+    """
+    Patch the RIFF size and append the new tail of a tagless WAVE.
+
+    The ``data`` chunk is not rewritten. A failed write restores the
+    original size and header.
+
+    Args:
+        target: Live audio path.
+        new_data: Verified rebuilt WAVE, longer than ``original``.
+        original: File contents read at the start of this write.
+
+    Raises:
+        TagFormatError: The live size changed under us, or the append failed
+            after restore.
+    """
+    if target.stat().st_size != len(original):
+        _restore_audio_bytes(target, original)
+        raise TagFormatError("audio file size changed during write; original restored")
+    try:
+        with target.open("r+b") as handle:
+            if new_data[4:8] != original[4:8]:
+                handle.seek(4)
+                handle.write(new_data[4:8])
+            handle.seek(len(original))
+            handle.write(new_data[len(original) :])
+            handle.flush()
+            os.fsync(handle.fileno())
+    except OSError as exc:
+        try:
+            _restore_wav_append(target, original)
+        except OSError:
+            pass
+        raise TagFormatError(f"WAV append failed: {exc}") from exc
+    if target.stat().st_size != len(new_data):
+        _restore_wav_append(target, original)
+        raise TagFormatError("WAV append left a short file; original restored")
+
+
 def _commit_audio_bytes(target: Path, new_data: bytes, original: bytes) -> None:
     """
     Commit ``new_data`` onto ``target``.
 
     When the rebuilt file is the same length as ``original``, only the
     changed span is written in place and fsynced. That avoids a full-file
-    ``.tmp`` and ``replace`` on padded MP3 / WAV tags. When the length
-    changes, the rebuilt file is written to a sibling ``.tmp``, flushed,
-    size-checked, and swapped onto ``target``. The live file and its
-    parent directory are fsynced after a swap. If the destination is
-    missing or shorter than ``new_data`` after the swap, ``original`` is
-    written back.
+    ``.tmp`` and ``replace`` on padded MP3 / WAV tags. When ``new_data``
+    is the same WAVE with an ``id3 `` chunk appended, the RIFF size is
+    patched and the tail is written at EOF. Other size-changing writes
+    go through a sibling ``.tmp``, flushed, size-checked, and swapped
+    onto ``target``. The live file and its parent directory are fsynced
+    after a swap. If the destination is missing or shorter than
+    ``new_data`` after the swap, ``original`` is written back.
 
     Args:
         target: Live audio path to replace.
@@ -1307,8 +1387,8 @@ def _commit_audio_bytes(target: Path, new_data: bytes, original: bytes) -> None:
     Raises:
         TagFormatError: The original file is empty, the rebuilt file is
             less than half the original size, the temporary write was
-            truncated, the in-place patch failed, or the destination
-            could not be restored after a failed swap.
+            truncated, the in-place patch or WAV append failed, or the
+            destination could not be restored after a failed swap.
     """
     if not original:
         raise TagFormatError("audio file is empty")
@@ -1320,6 +1400,9 @@ def _commit_audio_bytes(target: Path, new_data: bytes, original: bytes) -> None:
     live_same_size = target.is_file() and target.stat().st_size == len(original)
     if len(new_data) == len(original) and live_same_size:
         _patch_audio_bytes(target, new_data, original)
+        return
+    if live_same_size and _is_wav_chunk_append(original, new_data):
+        _append_wav_chunk(target, new_data, original)
         return
     temporary = _audio_tmp_path(target)
     try:
@@ -1358,8 +1441,10 @@ def write_geob(
     grow; STREAMINFO / ``mdat`` stay identical. Before anything reaches disk,
     the rebuilt file is verified against the original. The original file is
     untouched if verification fails. A same-size rewrite patches only the
-    changed bytes on the live path. A size-changing rewrite uses a sibling
-    ``.tmp`` and ``replace``, then fsyncs the live file and its directory.
+    changed bytes on the live path. A tagless WAVE that only gains an
+    ``id3 `` chunk patches the RIFF size and appends the tail. Other
+    size-changing rewrites use a sibling ``.tmp`` and ``replace``, then
+    fsync the live file and its directory.
     A short or missing destination is overwritten with the original bytes.
     An empty file is refused. When every requested payload already matches
     and nothing is being removed, the file is not rewritten.

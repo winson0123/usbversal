@@ -1,6 +1,7 @@
 """Tests for the audio-file commit path that must not leave a 0-byte song."""
 
 import os
+import struct
 from pathlib import Path
 
 import pytest
@@ -144,6 +145,98 @@ def test_commit_restores_the_span_when_in_place_write_fails(
 
     with pytest.raises(TagFormatError, match="in-place"):
         _commit_audio_bytes(target, b"y" * 100, original)
+
+    assert target.read_bytes() == original
+
+
+def _tagless_wav() -> bytes:
+    """
+    Build a RIFF WAVE that has fmt and data only.
+
+    Returns:
+        A complete WAVE file with no ``id3 `` chunk.
+    """
+    fmt = struct.pack("<HHIIHH", 1, 1, 44100, 88200, 2, 16)
+    pcm = b"\x00\x00" * 16
+    chunks = b"fmt " + struct.pack("<I", 16) + fmt + b"data" + struct.pack("<I", len(pcm)) + pcm
+    return b"RIFF" + struct.pack("<I", 4 + len(chunks)) + b"WAVE" + chunks
+
+
+def test_commit_wav_append_does_not_replace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A tagless WAVE must grow by header patch plus append, not replace."""
+    original_replace = Path.replace
+    replaced: list[Path] = []
+
+    def track_replace(self: Path, dest: Path) -> Path:
+        """Record a replace so the test can forbid it."""
+        replaced.append(Path(dest))
+        return original_replace(self, dest)
+
+    monkeypatch.setattr(Path, "replace", track_replace)
+    original = _tagless_wav()
+    tail = b"id3 " + struct.pack("<I", 10) + b"ID3" + b"\x00" * 7
+    new_data = bytearray(original + tail)
+    new_data[4:8] = struct.pack("<I", len(new_data) - 8)
+    target = tmp_path / "t.wav"
+    target.write_bytes(original)
+
+    _commit_audio_bytes(target, bytes(new_data), original)
+
+    assert replaced == []
+    assert not (tmp_path / "t.wav.tmp").exists()
+    assert target.read_bytes() == bytes(new_data)
+
+
+def test_write_geob_tagless_wav_does_not_replace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """write_geob on a tagless WAVE must not copy the audio through replace."""
+    original_replace = Path.replace
+    replaced: list[Path] = []
+
+    def track_replace(self: Path, dest: Path) -> Path:
+        """Record a replace so the test can forbid it."""
+        replaced.append(Path(dest))
+        return original_replace(self, dest)
+
+    monkeypatch.setattr(Path, "replace", track_replace)
+    target = tmp_path / "t.wav"
+    target.write_bytes(_tagless_wav())
+
+    assert write_geob(target, {"Serato Markers2": b"\x01\x01" + b"\x00" * 8}) is True
+
+    assert replaced == []
+    assert not (tmp_path / "t.wav.tmp").exists()
+    assert read_geob(target)["Serato Markers2"] == b"\x01\x01" + b"\x00" * 8
+
+
+def test_commit_restores_wav_when_append_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failed WAV append restores the original size and RIFF header."""
+    original = _tagless_wav()
+    tail = b"id3 " + struct.pack("<I", 10) + b"ID3" + b"\x00" * 7
+    new_data = bytearray(original + tail)
+    new_data[4:8] = struct.pack("<I", len(new_data) - 8)
+    target = tmp_path / "t.wav"
+    target.write_bytes(original)
+
+    fsync_calls = {"n": 0}
+    real_fsync = os.fsync
+
+    def boom(fd: int) -> None:
+        """Fail the first fsync so restore can still flush."""
+        fsync_calls["n"] += 1
+        if fsync_calls["n"] == 1:
+            raise OSError("disk")
+        real_fsync(fd)
+
+    monkeypatch.setattr("app.adapters.serato.tags.os.fsync", boom)
+
+    with pytest.raises(TagFormatError, match="WAV append"):
+        _commit_audio_bytes(target, bytes(new_data), original)
 
     assert target.read_bytes() == original
 

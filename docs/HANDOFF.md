@@ -6,8 +6,8 @@ below — that's what a session picking this up should do next.
 
 | | |
 |---|---|
-| Tests | 334 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-295` — In-place tag write when file size is unchanged |
+| Tests | 337 passed, 4 skipped (`ruff` and `ruff format` clean) |
+| Last done | `TASK-296` — Append an id3 chunk on tagless WAV |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -59,7 +59,8 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 32 | ~~`TASK-293`~~ | Create ID3 on tagless MPEG MP3 and WAV |
 | 33 | ~~`TASK-294`~~ | M4A `markers` layout and AAC encoder delay |
 | 34 | ~~`TASK-295`~~ | In-place tag write when file size is unchanged |
-| 35 | `TASK-252` | Library two-pane (original ask, last) |
+| 35 | ~~`TASK-296`~~ | Append an id3 chunk on tagless WAV |
+| 36 | `TASK-252` | Library two-pane (original ask, last) |
 
 Progress screen target layout:
 
@@ -244,7 +245,7 @@ and hot cues into the audio tags and, when a grid was written, updates
 | `adapters/rekordbox/anlz.py` | reads hot cues (`PCO2`) and beats (`PQTZ`) |
 | `adapters/serato/beatgrid.py` | encodes `Serato BeatGrid` |
 | `adapters/serato/markers2.py` | encodes/decodes `Serato Markers2` |
-| `adapters/serato/tags.py` | reads/writes GEOB (v2.3/v2.4) and GEO (v2.2) in MP3 / WAV / AIFF, Vorbis comments on FLAC, and `----:com.serato.dj` atoms on M4A / MP4; verifies audio hash and frame read-back; same-size writes patch the dirty span; size-changing writes fsync a sibling `.tmp` and restore the original if replace leaves a short file |
+| `adapters/serato/tags.py` | reads/writes GEOB (v2.3/v2.4) and GEO (v2.2) in MP3 / WAV / AIFF, Vorbis comments on FLAC, and `----:com.serato.dj` atoms on M4A / MP4; verifies audio hash and frame read-back; same-size writes patch the dirty span; tagless WAV appends `id3 `; other size-changing writes fsync a sibling `.tmp` and restore the original if replace leaves a short file |
 | `adapters/serato/library_db.py` | reads/updates `location.sqlite` |
 
 `sync_playlists()` now writes crates, `database V2` records, `neworder.pref`,
@@ -252,10 +253,11 @@ grids, cues, and the index in one pass. A track whose audio or
 ANLZ data cannot be read is skipped and recorded in `SyncReport.analysis_errors`
 rather than aborting the run. `correct_index_bpm()` (TASK-132) does the same
 first-beat-tempo correction library-wide, not only for tracks in a playlist
-being synced. `write_geob` (TASK-131 / TASK-286 / TASK-295) verifies size, audio hash,
-and frame read-back. Same-size writes patch the dirty span in place.
-Size-changing writes fsync a sibling `.tmp` and restore the original
-bytes if replace leaves a short file. `tests/test_never_clobber.py`
+being synced. `write_geob` (TASK-131 / TASK-286 / TASK-295 / TASK-296) verifies size,
+audio hash, and frame read-back. Same-size writes patch the dirty span
+in place. A tagless WAVE appends `id3 ` without rewriting `data`.
+Other size-changing writes fsync a sibling `.tmp` and restore the
+original bytes if replace leaves a short file. `tests/test_never_clobber.py`
 (TASK-133) proves that verification, and the writer generally, never disturbs
 a Mixed In Key or other foreign vendor frame. What none of this has done yet:
 

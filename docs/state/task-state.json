@@ -680,6 +680,11 @@
       "id": "TASK-295",
       "title": "In-place tag write when file size is unchanged",
       "completed_at": "2026-08-30T00:00:00Z"
+    },
+    {
+      "id": "TASK-296",
+      "title": "Append an id3 chunk on tagless WAV instead of rewriting the file",
+      "completed_at": "2026-08-30T00:00:00Z"
     }
   ],
   "history": [
@@ -1496,6 +1501,12 @@
     {
       "id": "TASK-295",
       "title": "In-place tag write when file size is unchanged",
+      "completed_at": "2026-08-30T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-296",
+      "title": "Append an id3 chunk on tagless WAV instead of rewriting the file",
       "completed_at": "2026-08-30T00:00:00Z",
       "status": "completed"
     }

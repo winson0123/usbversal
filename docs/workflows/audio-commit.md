@@ -6,13 +6,17 @@ frame read-back before any byte is meant to reach the live path.
 When the rebuilt file is the same length (padded MP3 / existing WAV
 `id3 `), only the changed span is written in place and fsynced. No
 sibling `.tmp`, no `replace`. A failed patch writes that span back from
-the in-memory original. Size-changing writes still use a sibling `.tmp`
-and `Path.replace` (TASK-286).
+the in-memory original.
 
-A tagless MPEG MP3 (frame sync at byte 0, no ID3v2) gets an empty ID3v2.4
-tag prepended, then grown for the Serato frames. A WAVE with no `id3 `
-chunk gets one appended. The audio payload (MPEG frames / WAV `data`)
-stays identical. A RIFF file that is not WAVE is still rejected.
+A WAVE with no `id3 ` chunk grows only at the end: the RIFF size at
+offset 4 and a new chunk after EOF. The `data` chunk does not move.
+That commit patches those four bytes and appends the tail (TASK-296).
+A failed append restores the original size and RIFF size.
+
+Other size-changing writes still use a sibling `.tmp` and
+`Path.replace` (TASK-286). A tagless MPEG MP3 (frame sync at byte 0,
+no ID3v2) gets an ID3v2.4 tag prepended, so the audio moves and that
+path still replaces. A RIFF file that is not WAVE is still rejected.
 
 On exFAT that replace is not atomic. The destination can be truncated
 before the new bytes land. A re-sync after TASK-285 left every track in

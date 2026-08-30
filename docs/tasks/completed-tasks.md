@@ -1150,6 +1150,18 @@ Same-size GEOB writes (padded MP3 / existing WAV `id3 `) seek, write the dirty s
 
 ---
 
+## TASK-296 — Append an id3 chunk on tagless WAV
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Append an id3 chunk on tagless WAV instead of rewriting the file |
+| Verification | ruff ✓ ruff format ✓ pytest 337 passed / 4 skipped |
+
+A WAVE with no `id3 ` chunk patches the RIFF size and appends the chunk. The `data` chunk is not rewritten. A failed append restores the original size and header. See `docs/workflows/audio-commit.md`.
+
+---
+
 ## Template (for future entries)
 
 ```markdown
