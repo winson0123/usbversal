@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-30T09:16:00Z",
+  "updated_at": "2026-08-30T09:20:00Z",
   "project": "usbversal",
   "language": "python",
   "python_version": "3.11+",
@@ -173,7 +173,8 @@
     "location_sqlite_marks_analyzed": true,
     "tui_library_paints_before_analysis": true,
     "tui_home_checks_analysis_before_library": true,
-    "tui_home_shows_checking_analysis_on_detect": true
+    "tui_home_shows_checking_analysis_on_detect": false,
+    "tui_home_checking_analysis_is_own_phase": true
   },
   "packaging": {
     "pyinstaller": true,
@@ -186,7 +187,7 @@
     "ruff": "pass",
     "ruff_format": "pass",
     "pytest": "pass",
-    "last_run": "2026-08-30T09:16:00Z",
+    "last_run": "2026-08-30T09:20:00Z",
     "tests_passed": 376,
     "tests_skipped": 4,
     "tests_failed": 0,

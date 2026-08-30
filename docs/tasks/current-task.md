@@ -10,13 +10,13 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-319` |
-| Objective | Show Checking analysis on the Home detecting screen |
+| Task ID | `TASK-320` |
+| Objective | Checking analysis is a single Home phase caption |
 | Completed | 2026-08-30 |
 
 ### Scope
 
-- Home detecting and opening captions include a second line:
+- Home status is one line per phase: detecting, opening, then
   Checking analysis.
 
 ### Verification log

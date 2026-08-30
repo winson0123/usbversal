@@ -94,22 +94,22 @@ class HomePhase(StrEnum):
 
 def _busy_caption(phase: HomePhase) -> Text:
     """
-    Status text for a spinning Home phase.
+    One status line for the current spinning Home phase.
 
-    Detecting and opening keep their own first line and add Checking
-    analysis underneath so the first screen shows that work too.
+    SEARCHING, OPENING, and CHECKING are successive captions on the
+    same banner screen, not stacked lines.
 
     Args:
         phase: SEARCHING, OPENING, or CHECKING.
 
     Returns:
-        Dim caption, one or two lines.
+        Dim single-line caption for ``phase``.
     """
     if phase is HomePhase.CHECKING:
         return Text(_CHECKING, style="dim")
     if phase is HomePhase.OPENING:
-        return Text(f"{_OPENING}\n{_CHECKING}", style="dim")
-    return Text(f"{_SCANNING}\n{_CHECKING}", style="dim")
+        return Text(_OPENING, style="dim")
+    return Text(_SCANNING, style="dim")
 
 
 class HomeScreen(Screen):

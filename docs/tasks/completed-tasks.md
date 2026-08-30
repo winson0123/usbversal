@@ -1484,6 +1484,19 @@ underneath so the banner screen shows it from the start.
 
 ---
 
+## TASK-320 — Checking analysis is a single Home phase caption
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Checking analysis replaces the Home status line as phase 3 |
+| Verification | ruff ✓ ruff format ✓ pytest 376 passed / 4 skipped |
+
+Not a second line under detecting or opening. Same banner and scan
+bar; the caption steps SEARCHING, then OPENING, then CHECKING.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

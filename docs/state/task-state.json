@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-30T09:16:00Z",
+  "updated_at": "2026-08-30T09:20:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -800,6 +800,11 @@
       "id": "TASK-319",
       "title": "Show Checking analysis on the Home detecting screen",
       "completed_at": "2026-08-30T09:16:00Z"
+    },
+    {
+      "id": "TASK-320",
+      "title": "Checking analysis is a single Home phase caption",
+      "completed_at": "2026-08-30T09:20:00Z"
     }
   ],
   "history": [
@@ -1767,6 +1772,12 @@
       "id": "TASK-319",
       "title": "Show Checking analysis on the Home detecting screen",
       "completed_at": "2026-08-30T09:16:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-320",
+      "title": "Checking analysis is a single Home phase caption",
+      "completed_at": "2026-08-30T09:20:00Z",
       "status": "completed"
     }
   ]

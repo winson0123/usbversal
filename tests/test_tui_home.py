@@ -170,7 +170,7 @@ async def test_opening_does_not_look_like_scanning(tmp_path: Path) -> None:
                     break
             assert started.is_set()
             assert "Opening the DJ USB" in _status_text(home)
-            assert "Checking analysis" in _status_text(home)
+            assert "Checking analysis" not in _status_text(home)
             assert home.query_one("#spinner").display is True
             release.set()
             await app.workers.wait_for_complete()
@@ -212,6 +212,8 @@ async def test_checking_analysis_keeps_the_scan_bar_on_home(tmp_path: Path) -> N
             assert started.is_set()
             assert isinstance(app.screen, HomeScreen)
             assert "Checking analysis" in _status_text(home)
+            assert "Opening" not in _status_text(home)
+            assert "Automatically detecting" not in _status_text(home)
             assert home.query_one("#spinner").display is True
             first = str(home.query_one("#spinner").render())
             moved = False
@@ -366,7 +368,7 @@ async def test_searching_shows_spinner_and_hides_the_path_input() -> None:
 
         assert home.query_one("#spinner").display is True
         assert "Automatically detecting" in _status_text(home)
-        assert "Checking analysis" in _status_text(home)
+        assert "Checking analysis" not in _status_text(home)
         path_input = home.query_one(PathInput)
         assert path_input.display is False
         assert path_input.disabled is True
