@@ -6,8 +6,8 @@ below — that's what a session picking this up should do next.
 
 | | |
 |---|---|
-| Tests | 369 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-303` — Analysis-aware track colour and honest `x/y` |
+| Tests | 371 passed, 4 skipped (`ruff` and `ruff format` clean) |
+| Last done | `TASK-315` — Report missing audio as an analysis error |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -79,6 +79,7 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 52 | ~~`TASK-313`~~ | Posting amber instead of green; brighter yellow footer keys |
 | 53 | ~~`TASK-314`~~ | Amber on Playlists / Tracks boxes only; traffic lights stay green |
 | 54 | ~~`TASK-303`~~ | Analysis-aware track colour and honest `x/y` |
+| 55 | ~~`TASK-315`~~ | Report missing audio as an analysis error |
 
 Progress screen target layout:
 
@@ -268,8 +269,8 @@ and hot cues into the audio tags and, when a grid was written, updates
 
 `sync_playlists()` now writes crates, `database V2` records, `neworder.pref`,
 grids, cues, and the index in one pass. A track whose audio or
-ANLZ data cannot be read is skipped and recorded in `SyncReport.analysis_errors`
-rather than aborting the run. `correct_index_bpm()` (TASK-132) does the same
+ANLZ data cannot be read, or whose audio file is missing, is recorded in
+`SyncReport.analysis_errors` rather than aborting the run. `correct_index_bpm()` (TASK-132) does the same
 first-beat-tempo correction library-wide, not only for tracks in a playlist
 being synced. `write_geob` (TASK-131 / TASK-286 / TASK-295 / TASK-296 / TASK-297) verifies size,
 audio hash, and frame read-back. Same-size writes patch the dirty span
@@ -335,8 +336,9 @@ in TASK-311. Tight WAV `id3 ` after `data` may grow (TASK-312). Footer keys are 
 boxes use Posting amber; traffic-light green is back (TASK-314). Track
 colour and `x/y` now follow analysis (TASK-303): yellow when a track is
 in the crate but Rekordbox analysis is not on the file; the numerator
-counts green only. The Library two-pane queue is empty. Settings extra
-columns stay unscoped.
+counts green only. Missing audio with ANLZ to port is a Done-screen
+error (TASK-315), not a silent skip. The Library two-pane queue is
+empty. Settings extra columns stay unscoped.
 
 ---
 

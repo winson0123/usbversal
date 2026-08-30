@@ -83,6 +83,38 @@ def test_analysis_session_lets_crates_run_during_jobs(monkeypatch) -> None:
     assert len(results) == 1
 
 
+def test_missing_audio_with_anlz_is_an_error(tmp_path: Path) -> None:
+    """A DAT with no audio file on the mount is a reported failure, not a skip."""
+    dat = tmp_path / "ANLZ0000.DAT"
+    dat.write_bytes(b"PMAI")
+    job = AnalysisJob(
+        raw="/Contents/missing.mp3",
+        audio_path=tmp_path / "missing.mp3",
+        dat_path=dat,
+        key=None,
+    )
+
+    result = process_analysis_track(job)
+
+    assert result.error == "audio file is missing"
+    assert result.analysis is None
+    assert result.cues_written is False
+
+
+def test_no_anlz_is_not_an_error() -> None:
+    """Rekordbox having nothing to port is still a quiet success."""
+    job = AnalysisJob(
+        raw="/Contents/plain.mp3",
+        audio_path=Path("/missing"),
+        dat_path=None,
+        key=None,
+    )
+
+    result = process_analysis_track(job)
+
+    assert result.error is None
+
+
 def test_run_analysis_jobs_emits_progress_for_each_completion(monkeypatch) -> None:
     """Each finished job ticks the bar once, in completion order."""
     monkeypatch.setenv("USBVERSAL_SYNC_WORKERS", "2")

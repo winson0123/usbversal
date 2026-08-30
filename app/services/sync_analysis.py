@@ -184,6 +184,8 @@ def process_analysis_track(job: AnalysisJob) -> AnalysisTrackResult:
     Read one track's ANLZ data and write Serato tags.
 
     Safe on a worker thread: only filesystem paths and plain values.
+    A missing audio file is a failure when Rekordbox has analysis to
+    port. No ANLZ is a quiet skip.
 
     Args:
         job: Track paths and key name prepared on the rekordbox thread.
@@ -191,8 +193,10 @@ def process_analysis_track(job: AnalysisJob) -> AnalysisTrackResult:
     Returns:
         What was written, or the error if the track failed.
     """
-    if job.dat_path is None or not job.audio_path.is_file():
+    if job.dat_path is None:
         return AnalysisTrackResult(job.raw, None, None, False)
+    if not job.audio_path.is_file():
+        return AnalysisTrackResult(job.raw, "audio file is missing", None, False)
     try:
         beats = read_beats(job.dat_path)
         cues = read_hot_cues(extended_path(job.dat_path))

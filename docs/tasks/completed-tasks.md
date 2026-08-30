@@ -1414,6 +1414,20 @@ fold as before; the numerator is the green count.
 
 ---
 
+## TASK-315 — Report missing audio as an analysis error
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | A missing audio file with Rekordbox analysis to port shows on Done, not as a silent skip |
+| Verification | ruff ✓ ruff format ✓ pytest 371 passed / 4 skipped |
+
+`safety day 24sep2025` stayed yellow with no TUI error because
+`She Will Be Loved (Didot Flip)` is in Rekordbox (ANLZ present) but the
+MP3 is not on the stick. Sync treated that as nothing happened.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

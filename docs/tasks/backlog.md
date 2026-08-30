@@ -239,6 +239,7 @@ and none of them exist yet.
 | ~~`TASK-313`~~ | ~~Posting amber instead of TUI green~~ | Done — then corrected: traffic lights stay green (TASK-314). Footer keys still `#ffd700`. |
 | ~~`TASK-314`~~ | ~~Amber on pane borders only~~ | Done — Playlists and Tracks boxes use `#f0b429`; synced / progress / Done stay green. |
 | ~~`TASK-303`~~ | ~~Analysis-aware track colour and honest `x/y`~~ | Done — yellow = in crate but Rekordbox analysis is not on the file. Numerator counts green only. |
+| ~~`TASK-315`~~ | ~~Report missing audio as an analysis error~~ | Done — a DAT with no file on the mount is a Done-screen / error.log failure, not a silent skip. |
 
 ---
 
