@@ -12,7 +12,7 @@ from textual.widgets import DataTable, Static, Tree
 from app.adapters.serato.naming import volume_label_for
 from app.core.domain import Playlist
 from app.tui.app import RekordboxThreadMixin
-from app.tui.screens.library import LibraryScreen, _clip
+from app.tui.screens.library import LibraryScreen, _clip, _legend_text
 from tests.conftest import EMPTY_DATABASE_V2, make_library
 
 
@@ -400,6 +400,7 @@ async def test_library_is_two_panes_with_a_legend(tmp_path: Path) -> None:
         assert "synced" in legend and "partial" in legend and "not synced" in legend
         assert app.screen.query_one("#playlist-pane").styles.border.top[0] == "round"
         assert app.screen.query_one("#sync-legend").styles.border.top[0] == "solid"
+        assert app.screen.query_one("#sync-legend").styles.margin.top == 1
         table = app.screen.query_one("#track-table", DataTable)
         assert [str(col.label) for col in table.columns.values()] == [
             "Title",
@@ -434,6 +435,22 @@ async def test_highlighting_a_playlist_fills_the_track_table(tmp_path: Path) -> 
         table = app.screen.query_one("#track-table", DataTable)
         assert table.row_count == 1
         assert table.get_row_at(0)[0].plain == "Alpha"
+
+
+def test_legend_words_use_the_same_colour_as_the_dot() -> None:
+    """Each legend label is the same traffic-light colour as its bullet."""
+    legend = _legend_text()
+    coloured = {
+        colour: "".join(
+            legend.plain[span.start : span.end]
+            for span in legend.spans
+            if colour in str(span.style)
+        )
+        for colour in ("green", "yellow", "red")
+    }
+    assert "synced" in coloured["green"]
+    assert "partial" in coloured["yellow"]
+    assert "not synced" in coloured["red"]
 
 
 def test_clip_adds_ellipsis_when_text_is_wider_than_the_column() -> None:

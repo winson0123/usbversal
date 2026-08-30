@@ -1273,6 +1273,19 @@ resize. Track-table title clipping is unchanged.
 
 ---
 
+## TASK-306 — Legend rule and coloured words
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Drop the legend rule one row; colour the words to match the dots |
+| Verification | ruff ✓ ruff format ✓ pytest 354 passed / 4 skipped |
+
+The rule is the legend's top border. A one-cell top margin drops it off
+the tree. Each label is the same green / yellow / red as its bullet.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

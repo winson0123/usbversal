@@ -1,13 +1,12 @@
 # Current Task
 
 **Status:** `completed`
-**Task ID:** `TASK-305`
+**Task ID:** `TASK-306`
 **Last updated:** 2026-08-30
 
 ## Objective
 
-Stop clipping playlist tree names to a 16-cell column so nested folders
-stay readable.
+Drop the legend rule one row and colour the legend words to match the dots.
 
 ## Files touched
 
@@ -31,4 +30,4 @@ stay readable.
 
 - ruff ✓
 - ruff format ✓
-- pytest 353 passed / 4 skipped
+- pytest 354 passed / 4 skipped

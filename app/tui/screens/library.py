@@ -125,6 +125,7 @@ class LibraryScreen(Screen):
         dock: bottom;
         height: auto;
         border-top: solid;
+        margin: 1 0 0 0;
         padding: 1 0 0 0;
     }
     LibraryScreen #selection-status {
@@ -438,15 +439,12 @@ def _legend_text() -> Text:
     Traffic-light key under the playlist tree.
 
     Returns:
-        Three lines: coloured dot plus synced / partial / not synced.
+        Three lines: coloured dot and matching word for each sync state.
     """
     line = Text()
-    line.append("•", style="green")
-    line.append(" synced\n")
-    line.append("•", style="yellow")
-    line.append(" partial\n")
-    line.append("•", style="red")
-    line.append(" not synced")
+    line.append("• synced\n", style="green")
+    line.append("• partial\n", style="yellow")
+    line.append("• not synced", style="red")
     return line
 
 

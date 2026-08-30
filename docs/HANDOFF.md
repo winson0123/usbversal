@@ -6,8 +6,8 @@ below — that's what a session picking this up should do next.
 
 | | |
 |---|---|
-| Tests | 353 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-305` — Readable playlist tree names |
+| Tests | 354 passed, 4 skipped (`ruff` and `ruff format` clean) |
+| Last done | `TASK-306` — Legend rule and coloured words |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -69,7 +69,8 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 42 | ~~`TASK-252`~~ | Library two-pane: Playlists left, Tracks right |
 | 43 | ~~`TASK-304`~~ | Narrower Playlists, round borders, clipped table columns |
 | 44 | ~~`TASK-305`~~ | Playlist tree names use the live pane width |
-| 45 | `TASK-303` | Analysis-aware track colour and honest `x/y` |
+| 45 | ~~`TASK-306`~~ | Legend rule one row lower; coloured words |
+| 46 | `TASK-303` | Analysis-aware track colour and honest `x/y` |
 
 Progress screen target layout:
 
@@ -318,7 +319,8 @@ Variable-tempo grids confirmed 2026-08-30
 ([apt-x-blue-grid.md](workflows/apt-x-blue-grid.md)). `location.sqlite` is
 Serato-created; we UPDATE existing rows only (TASK-302). Library two-pane
 shipped (TASK-252), pane polish in TASK-304, readable tree names in
-TASK-305. Next is `TASK-303`: yellow when a track is in the crate but
+TASK-305, legend rule and coloured words in TASK-306. Next is
+`TASK-303`: yellow when a track is in the crate but
 Rekordbox analysis is not on the file, and `x/y` counts green only.
 
 ---
