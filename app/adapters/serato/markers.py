@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.adapters.serato.markers2 import Cue, serato_cue_colour
+from app.adapters.serato.markers2 import Cue
 
 _HEADER = b"\x02\x05" + (14).to_bytes(4, "big")
 _ENTRY_COUNT = 14
@@ -190,8 +190,8 @@ def encode_markers_v1_mp4(cues: list[Cue]) -> bytes:
     Encode the first five hot cues as an MP4 ``markers`` payload.
 
     Serato ignores ID3-shaped Markers_ on M4A. Each row is 19 bytes: a
-    raw big-endian start time, ``0xFFFFFFFF`` unused fields, raw RGB,
-    and a type byte.
+    raw big-endian start time, ``0xFFFFFFFF`` unused fields, the same
+    Rekordbox RGB written on MP3, and a type byte.
 
     Args:
         cues: Hot cues from Rekordbox. Slots outside 0-4 are ignored.
@@ -207,7 +207,7 @@ def encode_markers_v1_mp4(cues: list[Cue]) -> bytes:
         if cue is None:
             body += _MP4_EMPTY_CUE
             continue
-        hex_colour = serato_cue_colour(cue.colour).lstrip("#")
+        hex_colour = cue.colour.lstrip("#")
         colour = bytes.fromhex(hex_colour)
         body += (
             cue.position_ms.to_bytes(4, "big")

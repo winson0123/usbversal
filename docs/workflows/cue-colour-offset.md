@@ -29,3 +29,7 @@ MP4 `markers` ends with a track-colour footer (`00` + RGB). That field
 is not a cue. Writing `00 00 FF FF FF 00 00` made Serato paint the
 jog `#00FFFF`. The footer is now `00 FF FF FF` (no colour). Markers2
 `COLOR` is forced to the same unset value on every cue write.
+
+Cue pads use Rekordbox RGB, same as MP3. TASK-299 briefly mapped
+`#00C4FF` / `#FF0017` onto Lexicon's Serato palette on M4A only;
+that is reverted.

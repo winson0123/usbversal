@@ -30,7 +30,6 @@ from app.adapters.serato.markers2 import (
     decode_markers,
     encode_markers,
     replace_cues,
-    serato_cue_colour,
     unset_track_color,
 )
 from app.adapters.serato.mp4_tags import is_mp4, m4a_encoder_delay_ms
@@ -127,15 +126,6 @@ def write_track_tags(audio_path: Path, beats: list[Beat], cues: list[HotCue]) ->
         cue_rows = [
             Cue(slot=cue.slot, position_ms=cue.position_ms, colour=cue.colour) for cue in cues
         ]
-        if audio_path.suffix.lower() in {".m4a", ".mp4"}:
-            cue_rows = [
-                Cue(
-                    slot=row.slot,
-                    position_ms=row.position_ms,
-                    colour=serato_cue_colour(row.colour),
-                )
-                for row in cue_rows
-            ]
         markers = unset_track_color(
             replace_cues(decode_markers(existing) if existing else [], cue_rows)
         )

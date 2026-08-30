@@ -93,12 +93,12 @@ def test_mp4_markers_footer_is_unset_track_colour() -> None:
     assert mp4_track_colour(_OTONOKE_MP4_MARKERS) == "#00FFFF"
     assert decode_markers_v1_mp4(mp4) == [
         Cue(slot=0, position_ms=70, colour="#31002E"),
-        Cue(slot=1, position_ms=30015, colour="#0088CC"),
+        Cue(slot=1, position_ms=30015, colour="#00C4FF"),
     ]
 
 
-def test_mp4_maps_rekordbox_cyan_onto_the_serato_palette() -> None:
-    """Lexicon stored Rekordbox #00C4FF as Serato #0088CC."""
+def test_mp4_markers_keep_rekordbox_cue_rgb() -> None:
+    """M4A pads use the same ANLZ RGB as MP3, not Lexicon's Serato palette."""
     mp4 = encode_markers_v1_mp4([Cue(slot=0, position_ms=21, colour="#00C4FF")])
 
-    assert decode_markers_v1_mp4(mp4)[0].colour == "#0088CC"
+    assert decode_markers_v1_mp4(mp4)[0].colour == "#00C4FF"

@@ -700,6 +700,11 @@
       "id": "TASK-299",
       "title": "Fix M4A hotcue transfer and do not colour the track",
       "completed_at": "2026-08-30T00:00:00Z"
+    },
+    {
+      "id": "TASK-300",
+      "title": "Write Rekordbox cue RGB on M4A; keep the track uncoloured",
+      "completed_at": "2026-08-30T00:00:00Z"
     }
   ],
   "history": [
@@ -1540,6 +1545,12 @@
     {
       "id": "TASK-299",
       "title": "Fix M4A hotcue transfer and do not colour the track",
+      "completed_at": "2026-08-30T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-300",
+      "title": "Write Rekordbox cue RGB on M4A; keep the track uncoloured",
       "completed_at": "2026-08-30T00:00:00Z",
       "status": "completed"
     }

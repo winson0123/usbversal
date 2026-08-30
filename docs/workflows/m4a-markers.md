@@ -33,9 +33,8 @@ We now write Mixxx's 4-byte unset footer `00 FF FF FF` (276-byte
 payload). Markers2 always gets a `COLOR` of `00 FF FF FF` so a
 leftover Serato colour cannot hide the footer.
 
-Cue RGB stays in the 19-byte rows. Rekordbox `#00C4FF` is stored as
-Serato `#0088CC` (Lexicon's `blue_light` mapping); `#FF0017` as
-`#CC0044`. Other ANLZ colours pass through.
+Cue RGB stays in the 19-byte rows and is the same ANLZ value written
+on MP3 (ADR 0008). Do not snap it to Lexicon's Serato palette.
 
 ## AAC encoder delay
 

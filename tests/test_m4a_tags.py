@@ -10,7 +10,7 @@ import pytest
 from app.adapters.rekordbox.anlz import Beat, HotCue
 from app.adapters.serato.beatgrid import encode_beatgrid
 from app.adapters.serato.markers import decode_markers_v1, encode_markers_v1
-from app.adapters.serato.markers2 import Cue, decode_markers
+from app.adapters.serato.markers2 import Cue, decode_markers, marker_to_cue
 from app.adapters.serato.mp4_tags import m4a_encoder_delay_ms
 from app.adapters.serato.tags import TagFormatError, read_geob, verify_geob_rewrite, write_geob
 from app.services.sync_analysis import write_track_tags
@@ -209,13 +209,13 @@ def test_m4a_markers_atom_uses_mp4_layout(tmp_path: Path) -> None:
 
 
 def test_m4a_write_does_not_set_a_track_colour(tmp_path: Path) -> None:
-    """Markers2 COLOR is white so the jog is not painted from a cue."""
+    """Cue RGB is Rekordbox's; Markers2 COLOR stays unset so the jog is dark."""
     path = _write_m4a(tmp_path)
 
     write_track_tags(
         path,
         [Beat(number=1, bpm=130.0, time_ms=70)],
-        [HotCue(slot=0, position_ms=70, colour="#31002E")],
+        [HotCue(slot=0, position_ms=70, colour="#00C4FF")],
     )
 
     frames = read_geob(path)
@@ -223,6 +223,10 @@ def test_m4a_write_does_not_set_a_track_colour(tmp_path: Path) -> None:
     colors = [marker for marker in markers if marker.name == b"COLOR"]
     assert markers[0].name == b"COLOR"
     assert colors[0].body == b"\x00\xff\xff\xff"
+    written = [marker_to_cue(marker) for marker in markers if marker.name == b"CUE"]
+    assert written[0] is not None
+    assert written[0].colour == "#00C4FF"
+    assert decode_markers_v1(frames["Serato Markers_"])[0].colour == "#00C4FF"
 
 
 def test_m4a_write_subtracts_encoder_delay(tmp_path: Path) -> None:

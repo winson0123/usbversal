@@ -1194,7 +1194,19 @@ The analysis pool starts first. Crates and `neworder.pref` write on the Rekordbo
 | Objective | Stop M4A sync from colouring the Serato track; write cue RGB only into cue rows |
 | Verification | ruff ✓ ruff format ✓ pytest 347 passed / 4 skipped |
 
-The MP4 `markers` footer is the track colour (`00` + RGB). TASK-294's 7-byte leftover tail parsed as `#00FFFF` and filled the jog cyan. Writes now use Mixxx's unset footer `00 FF FF FF`. Markers2 `COLOR` is forced white. Rekordbox `#00C4FF` / `#FF0017` map to Serato `#0088CC` / `#CC0044` on M4A. See `docs/workflows/m4a-markers.md`.
+The MP4 `markers` footer is the track colour (`00` + RGB). TASK-294's 7-byte leftover tail parsed as `#00FFFF` and filled the jog cyan. Writes now use Mixxx's unset footer `00 FF FF FF`. Markers2 `COLOR` is forced white. Rekordbox `#00C4FF` / `#FF0017` map to Serato `#0088CC` / `#CC0044` on M4A (cue RGB mapping superseded by TASK-300). See `docs/workflows/m4a-markers.md`.
+
+---
+
+## TASK-300 — Write Rekordbox cue RGB on M4A; keep the track uncoloured
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Write Rekordbox cue RGB on M4A the same way as MP3; keep the track uncoloured |
+| Verification | ruff ✓ ruff format ✓ pytest 346 passed / 4 skipped |
+
+M4A pads use ANLZ RGB as-is (ADR 0008), not Lexicon's Serato palette. The MP4 `markers` footer and Markers2 `COLOR` stay `00 FF FF FF` so the jog is not painted. See `docs/workflows/m4a-markers.md`.
 
 ---
 

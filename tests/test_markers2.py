@@ -10,7 +10,6 @@ from app.adapters.serato.markers2 import (
     encode_markers,
     marker_to_cue,
     replace_cues,
-    serato_cue_colour,
     unset_track_color,
 )
 
@@ -147,13 +146,6 @@ def test_unset_track_color_inserts_white_when_missing() -> None:
     cleared = unset_track_color([])
 
     assert cleared == [Marker(name=b"COLOR", body=b"\x00\xff\xff\xff")]
-
-
-def test_serato_cue_colour_maps_known_rekordbox_values() -> None:
-    """Known Rekordbox RGBs become Serato Intro colours; others pass through."""
-    assert serato_cue_colour("#00C4FF") == "#0088CC"
-    assert serato_cue_colour("#ff0017") == "#CC0044"
-    assert serato_cue_colour("#31002E") == "#31002E"
 
 
 def test_cue_round_trips_through_encoding() -> None:
