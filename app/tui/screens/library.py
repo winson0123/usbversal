@@ -323,6 +323,7 @@ class LibraryScreen(Screen):
         self._all_ids: tuple[int, ...] = ()
         self._sort_key: str | None = None
         self._sort_reverse = False
+        self._refreshing = False
 
     def compose(self) -> ComposeResult:
         with Horizontal(id=_HEADER_ID):
@@ -346,36 +347,104 @@ class LibraryScreen(Screen):
                 yield table
         yield Footer()
 
-    async def on_screen_resume(self) -> None:
+    def on_screen_resume(self) -> None:
         """
-        (Re)build the tree every time this screen becomes the active one.
+        Schedule a tree rebuild every time this screen becomes active.
 
-        Fires on the screen's first activation as well as later resumes
-        (confirmed empirically -- Textual gives no separate "first time"
-        signal), so this is the one place the tree is built at all; there is
-        no separate on_mount doing it too.
+        Must return before any USB work: awaiting ANLZ and tag reads here
+        kept Home on screen with a frozen scan bar. Fires on the first
+        activation as well as later resumes (Textual gives no separate
+        first-time signal), so this is the one place the tree is built.
         """
-        await self._refresh()
+        if self._refreshing:
+            return
+        self._refreshing = True
+        self._set_status("Reading library…")
+        self.run_worker(
+            self._refresh(), exclusive=True, group="library-refresh", name="library-refresh"
+        )
 
     async def _refresh(self) -> None:
-        tree = self.query_one(Tree)
-        tree.clear()
-        self._selected.clear()
+        """
+        Fill the tree from crate membership, then apply analysis colours.
+
+        Crate-only is cheap enough to show playlists immediately. The
+        second pass opens ANLZ and audio tags and is what used to block
+        the Home scan bar.
+
+        Returns:
+            None.
+        """
+        try:
+            await self._rebuild(check_analysis=False, busy="Checking analysis…")
+            await self._rebuild(check_analysis=True, busy=None)
+        finally:
+            self._refreshing = False
+
+    async def _rebuild(self, *, check_analysis: bool, busy: str | None) -> None:
+        """
+        Replace the tree from one ``playlist_tree_sync_states`` pass.
+
+        Args:
+            check_analysis: When False, skip ANLZ and tag reads.
+            busy: Status text while a later pass is still running, or
+                None to show the selection count.
+
+        Returns:
+            None.
+        """
         # playlist_tree_sync_states reads through library.rekordbox, which
         # must stay on the app's one dedicated thread -- see
         # UsbversalApp.run_rekordbox.
-        states = await self.app.run_rekordbox(playlist_tree_sync_states, self.library)
+        states = await self.app.run_rekordbox(
+            playlist_tree_sync_states, self.library, check_analysis=check_analysis
+        )
+        self._apply_states(states, busy=busy)
+
+    def _apply_states(self, states: tuple[PlaylistTreeSyncState, ...], *, busy: str | None) -> None:
+        """
+        Mirror tree-sync states into the widget, keeping the current selection.
+
+        Args:
+            states: Root-level nodes from ``playlist_tree_sync_states``.
+            busy: Status text when a later pass is still running, or None.
+
+        Returns:
+            None.
+        """
+        tree = self.query_one(Tree)
+        cursor = tree.cursor_line
+        kept = set(self._selected)
+        tree.clear()
+        self._selected.clear()
         self._all_ids = tuple(i for state in states for i in state.leaf_ids)
         for state in states:
             self._add_node(tree.root, state, depth=0)
+        self._selected = {i for i in kept if i in self._all_ids}
 
         tree.root.expand()
-        tree.cursor_line = 0
-        tree.focus()
+        if tree.root.children:
+            tree.cursor_line = cursor
+            tree.focus()
         self._refresh_labels(tree.root, depth=0)
         self._clear_table()
         self._apply_column_widths()
-        self._update_status()
+        if busy is not None:
+            self._set_status(busy)
+        else:
+            self._update_status()
+
+    def _set_status(self, message: str) -> None:
+        """
+        Write the header status line.
+
+        Args:
+            message: Text to show beside the mount path.
+
+        Returns:
+            None.
+        """
+        self.query_one(f"#{_STATUS_ID}", Static).update(message)
 
     def _add_node(self, parent: TreeNode, state: PlaylistTreeSyncState, depth: int) -> None:
         """Recursively mirror a PlaylistTreeSyncState into the Tree widget."""
@@ -519,7 +588,7 @@ class LibraryScreen(Screen):
         if row is None or row.is_folder or len(row.ids) != 1:
             self._clear_table()
             return
-        self.run_worker(self._show_tracks(row.ids[0]), exclusive=True)
+        self.run_worker(self._show_tracks(row.ids[0]), exclusive=True, group="track-preview")
 
     async def _show_tracks(self, playlist_id: int) -> None:
         """

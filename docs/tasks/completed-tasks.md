@@ -1442,6 +1442,21 @@ second sync, after Serato has created the file, marks the rows.
 
 ---
 
+## TASK-317 — Library paints before analysis colours finish
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Do not keep the Home scan bar on screen while Library reads ANLZ and tags |
+| Verification | ruff ✓ ruff format ✓ pytest 375 passed / 4 skipped |
+
+`on_screen_resume` used to await every analysis-ported check, so Home
+stayed up with a frozen scan bar. The tree now appears from crate
+membership; colours follow. Highlighting a crate no longer cancels
+that worker.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

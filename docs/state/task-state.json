@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-30T08:40:00Z",
+  "updated_at": "2026-08-30T09:05:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -785,6 +785,11 @@
       "id": "TASK-316",
       "title": "Mark existing location.sqlite rows analyzed",
       "completed_at": "2026-08-30T08:40:00Z"
+    },
+    {
+      "id": "TASK-317",
+      "title": "Library paints before analysis colours finish",
+      "completed_at": "2026-08-30T09:05:00Z"
     }
   ],
   "history": [
@@ -1734,6 +1739,12 @@
       "id": "TASK-316",
       "title": "Mark existing location.sqlite rows analyzed",
       "completed_at": "2026-08-30T08:40:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-317",
+      "title": "Library paints before analysis colours finish",
+      "completed_at": "2026-08-30T09:05:00Z",
       "status": "completed"
     }
   ]

@@ -144,6 +144,22 @@ def _write_audio(mount: Path, rel: str, *, beatgrid: bool) -> None:
     path.write_bytes(_mp3(frames))
 
 
+def test_crate_only_pass_skips_analysis_counts(tmp_path: Path) -> None:
+    """Crate membership is enough for a first tree paint; complete stays 0."""
+    mount = _stick(
+        tmp_path,
+        crates={_stem(tmp_path, "Pocket"): ["Contents/a.mp3", "Contents/b.mp3"]},
+        indexed=["Contents/a.mp3", "Contents/b.mp3"],
+    )
+    playlist = Playlist(id=1, name="Pocket", parent_id=None, is_folder=False)
+    library = make_library(mount, _adapter([playlist], {1: ["/Contents/a.mp3", "/Contents/b.mp3"]}))
+
+    (state,) = playlist_sync_states(library, check_analysis=False)
+
+    assert state.state is SyncState.PARTIAL
+    assert (state.in_crate, state.complete, state.total) == (2, 0, 2)
+
+
 def test_fully_synced_playlist_is_green(tmp_path: Path) -> None:
     """Every track present in the crate reports as synced."""
     mount = _stick(

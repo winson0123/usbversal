@@ -94,16 +94,22 @@ def _database_index(database_path: Path | None) -> set[str]:
     return {normalize_track_path(t) for t in read_database_track_paths(database_path)}
 
 
-def playlist_sync_states(library: UsbLibrary) -> tuple[PlaylistSyncState, ...]:
+def playlist_sync_states(
+    library: UsbLibrary, *, check_analysis: bool = True
+) -> tuple[PlaylistSyncState, ...]:
     """
     Compute sync state for every Rekordbox playlist on the stick.
 
     A track is green only when it is in the crate and Rekordbox analysis
     is already on the file, or Rekordbox had nothing to port. The
-    numerator in ``x/y`` is that green count.
+    numerator in ``x/y`` is that green count. ``check_analysis=False``
+    skips ANLZ and tag reads so the tree can appear from crate
+    membership alone.
 
     Args:
         library: Opened session handle.
+        check_analysis: When False, ``complete`` stays 0 and no audio
+            or ANLZ file is opened.
 
     Returns:
         PlaylistSyncState per non-folder playlist, in Rekordbox order.
@@ -112,7 +118,7 @@ def playlist_sync_states(library: UsbLibrary) -> tuple[PlaylistSyncState, ...]:
     indexed = _database_index(library.serato_database)
     playlists = library.rekordbox.list_playlists()
     by_id = {p.id: p for p in playlists}
-    contents = contents_by_path(library.rekordbox.database)
+    contents = contents_by_path(library.rekordbox.database) if check_analysis else {}
     cache: dict[str, bool] = {}
 
     states: list[PlaylistSyncState] = []
@@ -127,6 +133,7 @@ def playlist_sync_states(library: UsbLibrary) -> tuple[PlaylistSyncState, ...]:
             indexed,
             contents,
             cache,
+            check_analysis=check_analysis,
         )
         states.append(
             PlaylistSyncState(
@@ -150,6 +157,8 @@ def _playlist_track_counts(
     indexed: set[str],
     contents: dict[str, Any],
     cache: dict[str, bool],
+    *,
+    check_analysis: bool,
 ) -> tuple[int, int, int, int]:
     """
     Count total, in-crate, green, and syncable tracks for one playlist.
@@ -161,6 +170,7 @@ def _playlist_track_counts(
         indexed: Normalized paths present in database V2.
         contents: Path to Rekordbox content row.
         cache: Shared analysis-ported cache.
+        check_analysis: When False, skip ANLZ and tag reads.
 
     Returns:
         ``(total, in_crate, complete, syncable)``.
@@ -176,6 +186,8 @@ def _playlist_track_counts(
         if key not in crate_paths:
             continue
         in_crate += 1
+        if not check_analysis:
+            continue
         content = contents.get(key) or contents.get(serato_path(raw))
         if analysis_is_ported(library.mount, raw, content, cache):
             complete += 1
@@ -233,7 +245,9 @@ def combine_sync_states(states: list[SyncState]) -> SyncState:
     return SyncState.PARTIAL
 
 
-def playlist_tree_sync_states(library: UsbLibrary) -> tuple[PlaylistTreeSyncState, ...]:
+def playlist_tree_sync_states(
+    library: UsbLibrary, *, check_analysis: bool = True
+) -> tuple[PlaylistTreeSyncState, ...]:
     """
     Build the playlist tree with a red/yellow/green state at every node.
 
@@ -245,11 +259,15 @@ def playlist_tree_sync_states(library: UsbLibrary) -> tuple[PlaylistTreeSyncStat
 
     Args:
         library: Opened session handle.
+        check_analysis: Forwarded to ``playlist_sync_states``.
 
     Returns:
         Root-level tree-sync-state nodes, in Rekordbox order.
     """
-    leaf_states = {state.playlist_id: state for state in playlist_sync_states(library)}
+    leaf_states = {
+        state.playlist_id: state
+        for state in playlist_sync_states(library, check_analysis=check_analysis)
+    }
     roots = build_playlist_tree(library.rekordbox.list_playlists())
     return tuple(_walk_playlist_tree(node, leaf_states) for node in roots)
 

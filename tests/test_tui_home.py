@@ -1,5 +1,6 @@
 """Tests for the TUI Home screen (steps 1-2 of the target flow: Waiting/Detect)."""
 
+import threading
 import time
 from pathlib import Path
 from unittest.mock import patch
@@ -132,6 +133,45 @@ async def test_a_valid_mount_opens_the_library_and_hands_off(tmp_path: Path) -> 
             assert home.library is fake_library
             assert isinstance(app.screen, _DummyLibraryScreen)
             assert app.screen.library is fake_library
+
+
+@pytest.mark.asyncio
+async def test_opening_does_not_look_like_scanning(tmp_path: Path) -> None:
+    """While prepare_library runs, the caption is Opening, not Detecting."""
+    watcher = MountWatcher(_FakeScanner([_point(tmp_path)]))
+    app = UsbversalApp(watcher)
+    fake_probe = type("P", (), {"is_dj_usb": True, "is_supported": True, "has_serato": False})()
+    fake_library = type(
+        "L", (), {"rekordbox": type("R", (), {"list_playlists": lambda self: [1, 2, 3]})()}
+    )()
+    started = threading.Event()
+    release = threading.Event()
+
+    def _slow_prepare(_mount: Path):
+        started.set()
+        release.wait(timeout=5)
+        return fake_library
+
+    with (
+        patch("app.tui.screens.home.probe_mount", return_value=fake_probe),
+        patch("app.tui.screens.home.prepare_library", _slow_prepare),
+        patch("app.tui.screens.home.LibraryScreen", _DummyLibraryScreen),
+    ):
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            home = app.screen
+            home.poll_mounts()
+            for _ in range(20):
+                await pilot.pause()
+                if started.is_set():
+                    break
+            assert started.is_set()
+            assert "Opening the DJ USB" in _status_text(home)
+            assert home.query_one("#spinner").display is True
+            release.set()
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            assert isinstance(app.screen, _DummyLibraryScreen)
 
 
 @pytest.mark.asyncio

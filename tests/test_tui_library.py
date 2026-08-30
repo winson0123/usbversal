@@ -1,6 +1,8 @@
 """Tests for the TUI Library screen (step 3: the playlist tree)."""
 
+import asyncio
 import struct
+import threading
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -14,6 +16,7 @@ from textual.widgets._footer import FooterKey
 
 from app.adapters.serato.naming import volume_label_for
 from app.core.domain import Playlist
+from app.services.sync_service import playlist_tree_sync_states
 from app.tui.app import RekordboxThreadMixin, UsbversalApp
 from app.tui.palette import ACCENT, KEY
 from app.tui.screens.library import LibraryScreen, _clip, _legend_text
@@ -154,6 +157,30 @@ class _Harness(RekordboxThreadMixin, App):
         self.push_screen(LibraryScreen(self._library))
 
 
+async def _wait_library(app: App, pilot) -> None:
+    """
+    Wait until the Library tree is filled and analysis colours have landed.
+
+    A second ScreenResume can cancel the first exclusive worker; waiting
+    on every worker then raises. The tree and status line are the signal
+    the latest pass finished.
+
+    Args:
+        app: The running harness app.
+        pilot: Textual test pilot.
+    """
+    for _ in range(50):
+        await pilot.pause()
+        screen = app.screen
+        if not isinstance(screen, LibraryScreen):
+            continue
+        tree = screen.query_one(Tree)
+        status = str(screen.query_one("#selection-status", Static).render())
+        if tree.root.children and "Reading" not in status and "Checking" not in status:
+            return
+    raise AssertionError("library tree never finished loading")
+
+
 def _library_with_two_playlists(tmp_path: Path):
     """One synced, one unsynced top-level playlist."""
     mount = _stick(
@@ -170,12 +197,35 @@ def _library_with_two_playlists(tmp_path: Path):
 
 
 @pytest.mark.asyncio
+async def test_resume_does_not_block_the_screen(tmp_path: Path) -> None:
+    """Home used to stay up, scan bar frozen, until every ANLZ/GEOB was read."""
+    library = _library_with_two_playlists(tmp_path)
+    gate = threading.Event()
+
+    def blocked(lib, *, check_analysis: bool = True):
+        gate.wait(timeout=5)
+        return playlist_tree_sync_states(lib, check_analysis=check_analysis)
+
+    with patch("app.tui.screens.library.playlist_tree_sync_states", blocked):
+        app = _Harness(library)
+        async with app.run_test() as pilot:
+            await asyncio.wait_for(pilot.pause(), timeout=2)
+            assert isinstance(app.screen, LibraryScreen)
+            status = str(app.screen.query_one("#selection-status", Static).render())
+            assert "Reading" in status
+            gate.set()
+            await _wait_library(app, pilot)
+            names = {node.data.name for node in _playlist_nodes(app.screen.query_one(Tree))}
+            assert names == {"Techno", "Trance"}
+
+
+@pytest.mark.asyncio
 async def test_tree_shows_every_playlist_with_its_state(tmp_path: Path) -> None:
     """Each playlist appears labelled with its sync state and synced/total counts."""
     library = _library_with_two_playlists(tmp_path)
     app = _Harness(library)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await _wait_library(app, pilot)
 
         tree = app.screen.query_one(Tree)
         labels = [str(node.label) for node in _playlist_nodes(tree)]
@@ -191,7 +241,7 @@ async def test_tree_has_no_all_playlists_parent(tmp_path: Path) -> None:
     library = _library_with_two_playlists(tmp_path)
     app = _Harness(library)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await _wait_library(app, pilot)
 
         tree = app.screen.query_one(Tree)
         names = [node.data.name for node in tree.root.children]
@@ -205,7 +255,7 @@ async def test_e_does_nothing_on_a_leaf(tmp_path: Path) -> None:
     library = _library_with_two_playlists(tmp_path)
     app = _Harness(library)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await _wait_library(app, pilot)
 
         await pilot.press("e")
         await pilot.pause()
@@ -228,7 +278,7 @@ async def test_returning_to_the_screen_reflects_a_sync_that_just_happened(
     library = _library_with_two_playlists(tmp_path)
     app = _Harness(library)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await _wait_library(app, pilot)
         tree = app.screen.query_one(Tree)
         before = {node.data.name: str(node.label) for node in _playlist_nodes(tree)}
         assert "0/1" in before["Trance"]
@@ -245,7 +295,7 @@ async def test_returning_to_the_screen_reflects_a_sync_that_just_happened(
         app.push_screen(Screen())
         await pilot.pause()
         app.pop_screen()
-        await pilot.pause()
+        await _wait_library(app, pilot)
 
         tree = app.screen.query_one(Tree)
         after = {node.data.name: str(node.label) for node in _playlist_nodes(tree)}
@@ -259,7 +309,7 @@ async def test_a_selects_every_playlist(tmp_path: Path) -> None:
     library = _library_with_two_playlists(tmp_path)
     app = _Harness(library)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await _wait_library(app, pilot)
         await pilot.press("ctrl+a")
         await pilot.pause()
 
@@ -273,7 +323,7 @@ async def test_a_again_clears_the_selection(tmp_path: Path) -> None:
     library = _library_with_two_playlists(tmp_path)
     app = _Harness(library)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await _wait_library(app, pilot)
         await pilot.press("ctrl+a")
         await pilot.press("ctrl+a")
         await pilot.pause()
@@ -288,7 +338,7 @@ async def test_space_selects_the_highlighted_playlist(tmp_path: Path) -> None:
     library = _library_with_two_playlists(tmp_path)
     app = _Harness(library)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await _wait_library(app, pilot)
         await pilot.press("space")
         await pilot.pause()
 
@@ -302,7 +352,7 @@ async def test_space_again_deselects(tmp_path: Path) -> None:
     library = _library_with_two_playlists(tmp_path)
     app = _Harness(library)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await _wait_library(app, pilot)
         await pilot.press("down")
         await pilot.press("space")
         await pilot.press("space")
@@ -325,7 +375,7 @@ async def test_space_on_a_folder_selects_every_descendant(tmp_path: Path) -> Non
     library = make_library(mount, _adapter(playlists, tracks))
     app = _Harness(library)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await _wait_library(app, pilot)
         await pilot.press("space")
         await pilot.pause()
 
@@ -354,7 +404,7 @@ async def test_count_column_lines_up_regardless_of_depth_or_row_kind(tmp_path: P
     library = make_library(mount, _adapter(playlists, {1: []}))
     app = _Harness(library)
     async with app.run_test(size=(120, 24)) as pilot:
-        await pilot.pause()
+        await _wait_library(app, pilot)
 
         tree = app.screen.query_one(Tree)
         app.screen.on_resize()
@@ -380,7 +430,7 @@ async def test_parent_guide_stays_visible_on_a_selected_leaf(tmp_path: Path) -> 
     library = make_library(mount, _adapter(playlists, {1: [], 2: []}))
     app = _Harness(library)
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await _wait_library(app, pilot)
         await pilot.press("down")
         await pilot.press("down")
         await pilot.pause()
@@ -410,7 +460,7 @@ async def test_cursor_on_a_folder_lights_every_child_guide(tmp_path: Path) -> No
     library = make_library(mount, _adapter(playlists, {1: [], 2: []}))
     app = _Harness(library)
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await _wait_library(app, pilot)
         await pilot.press("down")
         await pilot.pause()
 
@@ -435,7 +485,7 @@ async def test_cursor_on_a_crate_lights_the_parent_path(tmp_path: Path) -> None:
     library = make_library(mount, _adapter(playlists, {3: [], 4: [], 5: []}))
     app = _Harness(library)
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await _wait_library(app, pilot)
         await pilot.press("down")
         await pilot.press("down")
         await pilot.pause()
@@ -460,7 +510,7 @@ async def test_nested_playlist_names_stay_readable(tmp_path: Path) -> None:
     library = make_library(mount, _adapter(playlists, {3: [], 4: []}))
     app = _Harness(library)
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await _wait_library(app, pilot)
         app.screen.on_resize()
         await pilot.pause()
 
@@ -481,7 +531,7 @@ async def test_enter_with_no_selection_does_not_start_a_sync(tmp_path: Path) -> 
     app = _Harness(library)
     with patch("app.tui.screens.library.ProgressScreen", _DummyProgressScreen):
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await _wait_library(app, pilot)
             await pilot.press("enter")
             await pilot.pause()
 
@@ -497,7 +547,7 @@ async def test_enter_with_a_selection_starts_the_sync(tmp_path: Path) -> None:
     app = _Harness(library)
     with patch("app.tui.screens.library.ProgressScreen", _DummyProgressScreen):
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await _wait_library(app, pilot)
             await pilot.press("space")
             await pilot.press("enter")
             await pilot.pause()
@@ -513,7 +563,7 @@ async def test_library_is_two_panes_with_a_legend(tmp_path: Path) -> None:
     library = _library_with_two_playlists(tmp_path)
     app = _Harness(library)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await _wait_library(app, pilot)
 
         assert app.screen.query_one("#playlist-pane").border_title == "Playlists"
         assert app.screen.query_one("#track-pane").border_title == "Tracks"
@@ -559,7 +609,7 @@ async def test_highlighting_a_playlist_fills_the_track_table(tmp_path: Path) -> 
     library.rekordbox.database.get_contents.return_value = [content]
     app = _Harness(library)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await _wait_library(app, pilot)
 
         table = app.screen.query_one("#track-table", DataTable)
         assert table.row_count == 1

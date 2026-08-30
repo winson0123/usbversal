@@ -31,6 +31,7 @@ from app.tui.widgets.path_input import PathInput
 _NONE_FOUND = "Did not detect a valid DJ USB."
 _RETRY_HINT = "Press 'Enter' to retry auto-scan…"
 _SCANNING = "Automatically detecting for a DJ USB…"
+_OPENING = "Opening the DJ USB…"
 _BANNER_ID = "banner"
 _SPINNER_ID = "spinner"
 _STATUS_ID = "status"
@@ -234,7 +235,8 @@ class HomeScreen(Screen):
         spinner.display = True
         status.display = True
         # Dim, not red -- this is routine "still looking" information.
-        status.update(Text(_SCANNING, style="dim"))
+        caption = _OPENING if self._phase is HomePhase.OPENING else _SCANNING
+        status.update(Text(caption, style="dim"))
         # Disabled, not just hidden: Textual still auto-focuses a
         # hidden-but-enabled widget when it is the only focusable one.
         path_input.display = False
