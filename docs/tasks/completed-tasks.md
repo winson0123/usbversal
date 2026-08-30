@@ -1471,6 +1471,19 @@ finished tree and paints once.
 
 ---
 
+## TASK-319 — Show Checking analysis on the Home detecting screen
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Show Checking analysis on the first Home screen as well as after open |
+| Verification | ruff ✓ ruff format ✓ pytest 376 passed / 4 skipped |
+
+Detecting and opening keep their own line; Checking analysis sits
+underneath so the banner screen shows it from the start.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

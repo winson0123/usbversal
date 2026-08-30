@@ -92,6 +92,26 @@ class HomePhase(StrEnum):
     READY = "ready"
 
 
+def _busy_caption(phase: HomePhase) -> Text:
+    """
+    Status text for a spinning Home phase.
+
+    Detecting and opening keep their own first line and add Checking
+    analysis underneath so the first screen shows that work too.
+
+    Args:
+        phase: SEARCHING, OPENING, or CHECKING.
+
+    Returns:
+        Dim caption, one or two lines.
+    """
+    if phase is HomePhase.CHECKING:
+        return Text(_CHECKING, style="dim")
+    if phase is HomePhase.OPENING:
+        return Text(f"{_OPENING}\n{_CHECKING}", style="dim")
+    return Text(f"{_SCANNING}\n{_CHECKING}", style="dim")
+
+
 class HomeScreen(Screen):
     """
     Poll for a mount to appear, check it, then push the Library screen.
@@ -254,13 +274,7 @@ class HomeScreen(Screen):
         spinner.display = True
         status.display = True
         # Dim, not red -- this is routine "still looking" information.
-        if self._phase is HomePhase.CHECKING:
-            caption = _CHECKING
-        elif self._phase is HomePhase.OPENING:
-            caption = _OPENING
-        else:
-            caption = _SCANNING
-        status.update(Text(caption, style="dim"))
+        status.update(_busy_caption(self._phase))
         # Disabled, not just hidden: Textual still auto-focuses a
         # hidden-but-enabled widget when it is the only focusable one.
         path_input.display = False

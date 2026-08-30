@@ -243,6 +243,7 @@ and none of them exist yet.
 | ~~`TASK-316`~~ | ~~Mark existing location.sqlite rows analyzed~~ | Done — when the file exists, synced tracks with a beatgrid get `analysis_flags = 31`. Still no create or insert. |
 | ~~`TASK-317`~~ | ~~Library paints before analysis colours finish~~ | Done — then TASK-318 moved the analysis wait back to Home so the scan bar keeps moving. |
 | ~~`TASK-318`~~ | ~~Checking analysis stays on Home with a moving scan bar~~ | Done — Home caption is Checking analysis; Library is pushed with the tree already computed. |
+| ~~`TASK-319`~~ | ~~Show Checking analysis on the Home detecting screen~~ | Done — detecting and opening keep their first line and add Checking analysis underneath. |
 
 ---
 

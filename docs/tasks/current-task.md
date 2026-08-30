@@ -10,15 +10,14 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-318` |
-| Objective | Checking analysis stays on Home with a moving scan bar |
+| Task ID | `TASK-319` |
+| Objective | Show Checking analysis on the Home detecting screen |
 | Completed | 2026-08-30 |
 
 ### Scope
 
-- Home phase `CHECKING` after `prepare_library`.
-- `playlist_tree_sync_states` runs on Home; Library is pushed with those states.
-- Scan bar stays mounted and keeps ticking until the handoff.
+- Home detecting and opening captions include a second line:
+  Checking analysis.
 
 ### Verification log
 
