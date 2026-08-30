@@ -233,6 +233,7 @@ and none of them exist yet.
 | ~~`TASK-307`~~ | ~~Flatten tree; status beside mount~~ | Done — no All playlists parent; `a` selects all; selection count sits beside the mount path. |
 | ~~`TASK-308`~~ | ~~Legend flush under the rule~~ | Done — no blank row between the rule and the coloured labels. |
 | ~~`TASK-309`~~ | ~~^a / ^q, hide tree scrollbar, native table~~ | Done — `^a` Select All, footer `^q`, no playlist scrollbar, track table uses terminal colours. |
+| ~~`TASK-310`~~ | ~~Tree flush to legend; visible parent guides~~ | Done — no gap above the legend rule; cursor row keeps the parent │. |
 | `TASK-303` | Analysis-aware track colour and honest `x/y` | Yellow = in crate but Rekordbox analysis is not on the file. Numerator counts green only. |
 
 ---

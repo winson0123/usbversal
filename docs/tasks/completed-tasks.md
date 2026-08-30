@@ -1328,6 +1328,20 @@ tree's terminal colours. Row text is still traffic-light by crate state.
 
 ---
 
+## TASK-310 — Tree flush to legend; visible parent guides
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Drop the gap above the legend; keep parent │ on the cursor row |
+| Verification | ruff ✓ ruff format ✓ pytest 356 passed / 4 skipped |
+
+The legend's top margin ate a tree row. Textual paints selected guides
+the same colour as the cursor bar, so the parent line vanished on a
+crate. Guides now stay `ansi_default` on the cursor.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

@@ -6,8 +6,8 @@ below — that's what a session picking this up should do next.
 
 | | |
 |---|---|
-| Tests | 355 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-309` — ^a / ^q, hide tree scrollbar, native table |
+| Tests | 356 passed, 4 skipped (`ruff` and `ruff format` clean) |
+| Last done | `TASK-310` — Tree flush to legend; visible parent guides |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -73,7 +73,8 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 46 | ~~`TASK-307`~~ | No All parent; `a` selects all; status in the header |
 | 47 | ~~`TASK-308`~~ | Legend labels sit on the row under the rule |
 | 48 | ~~`TASK-309`~~ | `^a` Select All, `^q` Quit, no tree scrollbar |
-| 49 | `TASK-303` | Analysis-aware track colour and honest `x/y` |
+| 49 | ~~`TASK-310`~~ | Tree flush to the legend; parent │ stays on the cursor |
+| 50 | `TASK-303` | Analysis-aware track colour and honest `x/y` |
 
 Progress screen target layout:
 
@@ -324,7 +325,8 @@ Serato-created; we UPDATE existing rows only (TASK-302). Library two-pane
 shipped (TASK-252), pane polish in TASK-304, readable tree names in
 TASK-305, legend rule and coloured words in TASK-306, flattened tree
 and header status in TASK-307, legend flush under the rule in
-TASK-308, `^a` / `^q` and native track table in TASK-309. Next is
+TASK-308, `^a` / `^q` and native track table in TASK-309, tree flush
+and visible parent guides in TASK-310. Next is
 `TASK-303`: yellow when a track is in the crate but
 Rekordbox analysis is not on the file, and `x/y` counts green only.
 

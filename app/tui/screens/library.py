@@ -127,6 +127,14 @@ class LibraryScreen(Screen):
         scrollbar-size-vertical: 0;
         scrollbar-size-horizontal: 0;
     }
+    LibraryScreen #playlist-tree > .tree--guides,
+    LibraryScreen #playlist-tree > .tree--guides-hover {
+        color: ansi_bright_black;
+    }
+    LibraryScreen #playlist-tree > .tree--guides-selected,
+    LibraryScreen #playlist-tree:focus > .tree--guides-selected {
+        color: ansi_default;
+    }
     LibraryScreen #track-table {
         height: 1fr;
         overflow-x: hidden;
@@ -145,7 +153,7 @@ class LibraryScreen(Screen):
         dock: bottom;
         height: auto;
         border-top: solid;
-        margin: 1 0 0 0;
+        margin: 0;
         padding: 0;
     }
     """

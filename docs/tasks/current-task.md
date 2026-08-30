@@ -1,20 +1,18 @@
 # Current Task
 
 **Status:** `completed`
-**Task ID:** `TASK-309`
+**Task ID:** `TASK-310`
 **Last updated:** 2026-08-30
 
 ## Objective
 
-Select-all is `^a`, quit shows `^q`, hide the playlist scrollbar, and
-match the track table to the native TUI colours.
+Give the playlist tree the row above the legend, and keep parent
+guide lines visible on the cursor row.
 
 ## Files touched
 
 - `app/tui/screens/library.py`
-- `app/tui/app.py`
 - `tests/test_tui_library.py`
-- `docs/planning/interactive-tui.md`
 - `docs/tasks/backlog.md`
 - `docs/tasks/completed-tasks.md`
 - `docs/HANDOFF.md`
@@ -33,4 +31,4 @@ match the track table to the native TUI colours.
 
 - ruff ✓
 - ruff format ✓
-- pytest 355 passed / 4 skipped
+- pytest 356 passed / 4 skipped

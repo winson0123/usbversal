@@ -313,6 +313,35 @@ async def test_count_column_lines_up_regardless_of_depth_or_row_kind(tmp_path: P
 
 
 @pytest.mark.asyncio
+async def test_parent_guide_stays_visible_on_a_selected_leaf(tmp_path: Path) -> None:
+    """The cursor bar used to paint over the parent │ on a crate row."""
+    mount = _stick(tmp_path, crates={}, indexed=[])
+    playlists = [
+        Playlist(id=8, name="Music", parent_id=None, is_folder=True),
+        Playlist(id=9, name="Genres", parent_id=8, is_folder=True),
+        Playlist(id=1, name="Techno", parent_id=9, is_folder=False),
+        Playlist(id=2, name="Trance", parent_id=9, is_folder=False),
+    ]
+    library = make_library(mount, _adapter(playlists, {1: [], 2: []}))
+    app = _Harness(library)
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        await pilot.press("down")
+        await pilot.press("down")
+        await pilot.pause()
+
+        tree = app.screen.query_one(Tree)
+        assert tree.cursor_node is not None
+        assert tree.cursor_node.data.name == "Techno"
+        line = "".join(segment.text for segment in tree.render_line(tree.cursor_line))
+        assert any(guide in line for guide in ("│", "└", "├"))
+        selected = tree.get_component_styles("tree--guides-selected")
+        cursor = tree.get_component_styles("tree--cursor")
+        assert selected.color.a > 0
+        assert selected.color != cursor.background
+
+
+@pytest.mark.asyncio
 async def test_nested_playlist_names_stay_readable(tmp_path: Path) -> None:
     """A fixed 16-cell name column left depth-3 folders as a single letter."""
     mount = _stick(tmp_path, crates={}, indexed=[])
@@ -386,7 +415,7 @@ async def test_library_is_two_panes_with_a_legend(tmp_path: Path) -> None:
         assert "synced" in legend and "partial" in legend and "not synced" in legend
         assert app.screen.query_one("#playlist-pane").styles.border.top[0] == "round"
         assert app.screen.query_one("#sync-legend").styles.border.top[0] == "solid"
-        assert app.screen.query_one("#sync-legend").styles.margin.top == 1
+        assert app.screen.query_one("#sync-legend").styles.margin.top == 0
         assert app.screen.query_one("#sync-legend").styles.padding.top == 0
         header = app.screen.query_one("#header")
         assert [child.id for child in header.children] == ["mount-info", "selection-status"]
