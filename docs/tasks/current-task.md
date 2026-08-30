@@ -1,19 +1,17 @@
 # Current Task
 
 **Status:** `completed`
-**Task ID:** `TASK-307`
+**Task ID:** `TASK-308`
 **Last updated:** 2026-08-30
 
 ## Objective
 
-Drop the All playlists parent so the tree is one level shallower, keep
-select-all on a key, and put the selection count beside the mount path.
+Remove the blank row between the legend rule and the coloured labels.
 
 ## Files touched
 
 - `app/tui/screens/library.py`
 - `tests/test_tui_library.py`
-- `docs/planning/interactive-tui.md`
 - `docs/tasks/backlog.md`
 - `docs/tasks/completed-tasks.md`
 - `docs/HANDOFF.md`

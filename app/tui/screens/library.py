@@ -132,7 +132,7 @@ class LibraryScreen(Screen):
         height: auto;
         border-top: solid;
         margin: 1 0 0 0;
-        padding: 1 0 0 0;
+        padding: 0;
     }
     """
 

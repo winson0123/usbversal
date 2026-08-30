@@ -387,6 +387,7 @@ async def test_library_is_two_panes_with_a_legend(tmp_path: Path) -> None:
         assert app.screen.query_one("#playlist-pane").styles.border.top[0] == "round"
         assert app.screen.query_one("#sync-legend").styles.border.top[0] == "solid"
         assert app.screen.query_one("#sync-legend").styles.margin.top == 1
+        assert app.screen.query_one("#sync-legend").styles.padding.top == 0
         header = app.screen.query_one("#header")
         assert [child.id for child in header.children] == ["mount-info", "selection-status"]
         table = app.screen.query_one("#track-table", DataTable)

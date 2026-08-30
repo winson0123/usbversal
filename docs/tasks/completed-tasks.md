@@ -1301,6 +1301,19 @@ the panes.
 
 ---
 
+## TASK-308 — Legend flush under the rule
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Remove the blank row between the legend rule and the labels |
+| Verification | ruff ✓ ruff format ✓ pytest 354 passed / 4 skipped |
+
+The rule stays one cell below the tree (`margin-top: 1`). Padding under
+the rule is 0 so synced / partial / not synced start on the next row.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

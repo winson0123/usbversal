@@ -231,6 +231,7 @@ and none of them exist yet.
 | ~~`TASK-305`~~ | ~~Readable playlist tree names~~ | Done — name width follows the live tree; Playlists `min-width: 48`. Nested names stay words, not a letter. |
 | ~~`TASK-306`~~ | ~~Legend rule and coloured words~~ | Done — rule sits one row lower; synced / partial / not synced match the dots. |
 | ~~`TASK-307`~~ | ~~Flatten tree; status beside mount~~ | Done — no All playlists parent; `a` selects all; selection count sits beside the mount path. |
+| ~~`TASK-308`~~ | ~~Legend flush under the rule~~ | Done — no blank row between the rule and the coloured labels. |
 | `TASK-303` | Analysis-aware track colour and honest `x/y` | Yellow = in crate but Rekordbox analysis is not on the file. Numerator counts green only. |
 
 ---

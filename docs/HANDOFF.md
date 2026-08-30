@@ -7,7 +7,7 @@ below — that's what a session picking this up should do next.
 | | |
 |---|---|
 | Tests | 354 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-307` — Flatten tree; status beside mount |
+| Last done | `TASK-308` — Legend flush under the rule |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -71,7 +71,8 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 44 | ~~`TASK-305`~~ | Playlist tree names use the live pane width |
 | 45 | ~~`TASK-306`~~ | Legend rule one row lower; coloured words |
 | 46 | ~~`TASK-307`~~ | No All parent; `a` selects all; status in the header |
-| 47 | `TASK-303` | Analysis-aware track colour and honest `x/y` |
+| 47 | ~~`TASK-308`~~ | Legend labels sit on the row under the rule |
+| 48 | `TASK-303` | Analysis-aware track colour and honest `x/y` |
 
 Progress screen target layout:
 
@@ -321,7 +322,8 @@ Variable-tempo grids confirmed 2026-08-30
 Serato-created; we UPDATE existing rows only (TASK-302). Library two-pane
 shipped (TASK-252), pane polish in TASK-304, readable tree names in
 TASK-305, legend rule and coloured words in TASK-306, flattened tree
-and header status in TASK-307. Next is
+and header status in TASK-307, legend flush under the rule in
+TASK-308. Next is
 `TASK-303`: yellow when a track is in the crate but
 Rekordbox analysis is not on the file, and `x/y` counts green only.
 
