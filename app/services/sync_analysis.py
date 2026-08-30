@@ -25,7 +25,14 @@ from app.adapters.rekordbox.anlz import (
 from app.adapters.serato.beatgrid import encode_beatgrid
 from app.adapters.serato.library_db import TrackAnalysis
 from app.adapters.serato.markers import encode_markers_v1
-from app.adapters.serato.markers2 import Cue, decode_markers, encode_markers, replace_cues
+from app.adapters.serato.markers2 import (
+    Cue,
+    decode_markers,
+    encode_markers,
+    replace_cues,
+    serato_cue_colour,
+    unset_track_color,
+)
 from app.adapters.serato.mp4_tags import is_mp4, m4a_encoder_delay_ms
 from app.adapters.serato.tags import TagFormatError, read_geob, write_geob
 from app.services.sync_progress import SyncProgressCallback, emit_progress
@@ -120,7 +127,18 @@ def write_track_tags(audio_path: Path, beats: list[Beat], cues: list[HotCue]) ->
         cue_rows = [
             Cue(slot=cue.slot, position_ms=cue.position_ms, colour=cue.colour) for cue in cues
         ]
-        markers = replace_cues(decode_markers(existing) if existing else [], cue_rows)
+        if audio_path.suffix.lower() in {".m4a", ".mp4"}:
+            cue_rows = [
+                Cue(
+                    slot=row.slot,
+                    position_ms=row.position_ms,
+                    colour=serato_cue_colour(row.colour),
+                )
+                for row in cue_rows
+            ]
+        markers = unset_track_color(
+            replace_cues(decode_markers(existing) if existing else [], cue_rows)
+        )
         updates["Serato Markers2"] = encode_markers(
             markers, payload_size=len(existing) if existing else None
         )

@@ -22,3 +22,10 @@ all eight from Markers2).
 
 Sync now rewrites `Markers_` for slots 0-4 whenever it writes Markers2.
 Cues 6-8 stay Markers2-only.
+
+## M4A track colour (TASK-299)
+
+MP4 `markers` ends with a track-colour footer (`00` + RGB). That field
+is not a cue. Writing `00 00 FF FF FF 00 00` made Serato paint the
+jog `#00FFFF`. The footer is now `00 FF FF FF` (no colour). Markers2
+`COLOR` is forced to the same unset value on every cue write.

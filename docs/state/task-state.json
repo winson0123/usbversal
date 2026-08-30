@@ -695,6 +695,11 @@
       "id": "TASK-298",
       "title": "Overlap crate writes with the analysis worker pool",
       "completed_at": "2026-08-30T00:00:00Z"
+    },
+    {
+      "id": "TASK-299",
+      "title": "Fix M4A hotcue transfer and do not colour the track",
+      "completed_at": "2026-08-30T00:00:00Z"
     }
   ],
   "history": [
@@ -1529,6 +1534,12 @@
     {
       "id": "TASK-298",
       "title": "Overlap crate writes with the analysis worker pool",
+      "completed_at": "2026-08-30T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-299",
+      "title": "Fix M4A hotcue transfer and do not colour the track",
       "completed_at": "2026-08-30T00:00:00Z",
       "status": "completed"
     }

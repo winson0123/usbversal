@@ -11,7 +11,14 @@ _HEADER = b"\x01\x01"
 _LINE_LENGTH = 72
 _B64_ALPHABET = frozenset(b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
 _CUE = b"CUE"
+_COLOR = b"COLOR"
 _CUE_BODY_LENGTH = 13
+_UNSET_TRACK_COLOUR = b"\x00\xff\xff\xff"
+# Lexicon's verified Rekordbox RGB → Serato Intro metadata colours.
+_REKORDBOX_TO_SERATO = {
+    "FF0017": "CC0044",
+    "00C4FF": "0088CC",
+}
 
 
 @dataclass(frozen=True)
@@ -132,6 +139,44 @@ def encode_markers(markers: list[Marker], *, payload_size: int | None = None) ->
     if payload_size is not None and len(payload) < payload_size:
         payload += b"\x00" * (payload_size - len(payload))
     return payload
+
+
+def serato_cue_colour(colour: str) -> str:
+    """
+    Map a Rekordbox cue colour onto Serato's metadata palette.
+
+    Serato DJ Pro stores the Intro-palette value, not the on-screen Pro
+    colour. Two Rekordbox RGBs are known from Lexicon; others pass
+    through so a custom colour is not snapped to the wrong pad.
+
+    Args:
+        colour: ``#RRGGBB`` from ANLZ.
+
+    Returns:
+        ``#RRGGBB`` to write into Markers2 / Markers_.
+    """
+    key = colour.lstrip("#").upper()
+    mapped = _REKORDBOX_TO_SERATO.get(key)
+    if mapped is None:
+        return f"#{key}"
+    return f"#{mapped}"
+
+
+def unset_track_color(markers: list[Marker]) -> list[Marker]:
+    """
+    Force the Markers2 COLOR entry to white (no track colour).
+
+    Cue RGB must not become a track colour. A leftover Serato COLOR is
+    replaced so a re-sync clears the jog.
+
+    Args:
+        markers: Existing entries, with or without COLOR.
+
+    Returns:
+        Entries with COLOR first and body ``00 FF FF FF``.
+    """
+    rest = [marker for marker in markers if marker.name != _COLOR]
+    return [Marker(name=_COLOR, body=_UNSET_TRACK_COLOUR)] + rest
 
 
 def cue_to_marker(cue: Cue) -> Marker:

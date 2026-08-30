@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.adapters.serato.markers2 import Cue
+from app.adapters.serato.markers2 import Cue, serato_cue_colour
 
 _HEADER = b"\x02\x05" + (14).to_bytes(4, "big")
 _ENTRY_COUNT = 14
@@ -16,8 +16,13 @@ _MP4_UNSET = b"\xff\xff\xff\xff"
 _MP4_EMPTY_CUE = _MP4_UNSET + _MP4_UNSET + b"\x00" + _MP4_UNSET + b"\x00\x00\x00\x00\x00\x00"
 _MP4_EMPTY_LOOP = _MP4_UNSET + _MP4_UNSET + b"\x00" + _MP4_UNSET + b"\x00\x00\x00\x00\x03\x00"
 _MP4_ROW = 19
-_MP4_FOOTER = b"\x00\x00\xff\xff\xff\x00\x00"
+# Mixxx / Serato: one 00, then RGB. #FFFFFF means no track colour.
+# TASK-294 copied a 7-byte leftover (00 00 FF FF FF 00 00); Serato reads
+# that as #00FFFF and paints the jog cyan.
+_MP4_FOOTER = b"\x00\xff\xff\xff"
 _MP4_LOOP_ROWS = 9
+_MP4_HEADER_LEN = 6
+_MP4_BODY_LEN = _MP4_HEADER_LEN + _ENTRY_COUNT * _MP4_ROW
 
 
 def _encode_serato32(red: int, green: int, blue: int) -> bytes:
@@ -192,7 +197,8 @@ def encode_markers_v1_mp4(cues: list[Cue]) -> bytes:
         cues: Hot cues from Rekordbox. Slots outside 0-4 are ignored.
 
     Returns:
-        Header, five cue rows, nine empty loop rows, and the colour footer.
+        Header, five cue rows, nine empty loop rows, and the four-byte
+        track-colour footer (``00 FF FF FF``, unset).
     """
     by_slot = {cue.slot: cue for cue in cues if 0 <= cue.slot < _HOT_CUE_SLOTS}
     body = bytearray(_HEADER)
@@ -201,7 +207,7 @@ def encode_markers_v1_mp4(cues: list[Cue]) -> bytes:
         if cue is None:
             body += _MP4_EMPTY_CUE
             continue
-        hex_colour = cue.colour.lstrip("#")
+        hex_colour = serato_cue_colour(cue.colour).lstrip("#")
         colour = bytes.fromhex(hex_colour)
         body += (
             cue.position_ms.to_bytes(4, "big")
@@ -215,6 +221,29 @@ def encode_markers_v1_mp4(cues: list[Cue]) -> bytes:
     body += _MP4_EMPTY_LOOP * _MP4_LOOP_ROWS
     body += _MP4_FOOTER
     return bytes(body)
+
+
+def mp4_track_colour(payload: bytes) -> str:
+    """
+    Return the track colour stored in an MP4 ``markers`` footer.
+
+    Serato reads one ``00`` then three RGB bytes. ``#FFFFFF`` means the
+    track has no colour. A 7-byte leftover footer is still parsed the
+    same way (first four bytes), which is how ``00 00 FF FF …`` became
+    cyan on the jog.
+
+    Args:
+        payload: Raw ``markers`` bytes after the FLAC-style wrapper.
+
+    Returns:
+        ``#RRGGBB``. ``#FFFFFF`` when the footer is missing.
+    """
+    if len(payload) < _MP4_BODY_LEN + 4:
+        return "#FFFFFF"
+    footer = payload[_MP4_BODY_LEN : _MP4_BODY_LEN + 4]
+    if footer[0] != 0:
+        return "#FFFFFF"
+    return f"#{footer[1]:02X}{footer[2]:02X}{footer[3]:02X}"
 
 
 def decode_markers_v1_mp4(payload: bytes) -> list[Cue]:

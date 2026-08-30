@@ -15,8 +15,27 @@ Live check 2026-08-30, `otonoke_bootleg_lufs-10.m4a`: Serato-written
 `markers` is 279 bytes. Cue 0 at 1456 ms is `00 00 05 b0` plus
 `ffffffff` unused fields and `#CC0044`. Our write was 318-byte ID3.
 
-TASK-294 writes the 279-byte MP4 layout. `read_geob` still returns the
+TASK-294 writes the MP4 row layout. `read_geob` still returns the
 ID3 shape so skip-checks stay one codec.
+
+## Track colour footer (TASK-299)
+
+The bytes after the 14 rows are the **track** colour, not padding.
+Mixxx and Serato parse `00` + RGB. `#FFFFFF` means no colour (jog
+stays dark).
+
+TASK-294 copied the 7-byte tail from the otonoke leftover
+(`00 00 FF FF FF 00 00`). Serato reads the first four bytes as
+`#00FFFF` and fills the jog cyan. That is the leftover colour on
+`Rock That Body (Lumarii Remix)`.
+
+We now write Mixxx's 4-byte unset footer `00 FF FF FF` (276-byte
+payload). Markers2 always gets a `COLOR` of `00 FF FF FF` so a
+leftover Serato colour cannot hide the footer.
+
+Cue RGB stays in the 19-byte rows. Rekordbox `#00C4FF` is stored as
+Serato `#0088CC` (Lexicon's `blue_light` mapping); `#FF0017` as
+`#CC0044`. Other ANLZ colours pass through.
 
 ## AAC encoder delay
 

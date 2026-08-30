@@ -6,8 +6,8 @@ below — that's what a session picking this up should do next.
 
 | | |
 |---|---|
-| Tests | 341 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-298` — Overlap crate writes with the analysis pool |
+| Tests | 347 passed, 4 skipped (`ruff` and `ruff format` clean) |
+| Last done | `TASK-299` — Fix M4A hotcue transfer and do not colour the track |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -62,7 +62,8 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 35 | ~~`TASK-296`~~ | Append an id3 chunk on tagless WAV |
 | 36 | ~~`TASK-297`~~ | Read only the tag to decide already on disk |
 | 37 | ~~`TASK-298`~~ | Overlap crate writes with the analysis pool |
-| 38 | `TASK-252` | Library two-pane (original ask, last) |
+| 38 | ~~`TASK-299`~~ | M4A track-colour footer unset; cue RGB stays in cue rows |
+| 39 | `TASK-252` | Library two-pane (original ask, last) |
 
 Progress screen target layout:
 

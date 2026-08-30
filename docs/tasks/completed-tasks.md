@@ -1186,6 +1186,18 @@ The analysis pool starts first. Crates and `neworder.pref` write on the Rekordbo
 
 ---
 
+## TASK-299 — Fix M4A hotcue transfer and do not colour the track
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Stop M4A sync from colouring the Serato track; write cue RGB only into cue rows |
+| Verification | ruff ✓ ruff format ✓ pytest 347 passed / 4 skipped |
+
+The MP4 `markers` footer is the track colour (`00` + RGB). TASK-294's 7-byte leftover tail parsed as `#00FFFF` and filled the jog cyan. Writes now use Mixxx's unset footer `00 FF FF FF`. Markers2 `COLOR` is forced white. Rekordbox `#00C4FF` / `#FF0017` map to Serato `#0088CC` / `#CC0044` on M4A. See `docs/workflows/m4a-markers.md`.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

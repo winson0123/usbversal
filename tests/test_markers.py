@@ -7,6 +7,7 @@ from app.adapters.serato.markers import (
     encode_markers_v1_mp4,
     markers_id3_to_mp4,
     markers_mp4_to_id3,
+    mp4_track_colour,
 )
 from app.adapters.serato.markers2 import Cue
 
@@ -68,11 +69,36 @@ def test_mp4_markers_round_trips_the_first_five_cues() -> None:
     """ID3 and MP4 layouts carry the same slots after conversion."""
     cues = [
         Cue(slot=0, position_ms=70, colour="#31002E"),
+        Cue(slot=1, position_ms=30015, colour="#0088CC"),
+    ]
+
+    mp4 = encode_markers_v1_mp4(cues)
+    assert len(mp4) == 276
+    assert mp4[-4:] == b"\x00\xff\xff\xff"
+    assert decode_markers_v1_mp4(mp4) == cues
+    assert decode_markers_v1(markers_mp4_to_id3(mp4)) == cues
+    assert decode_markers_v1_mp4(markers_id3_to_mp4(encode_markers_v1(cues))) == cues
+
+
+def test_mp4_markers_footer_is_unset_track_colour() -> None:
+    """Cue RGB must not become the jog / track colour."""
+    cues = [
+        Cue(slot=0, position_ms=70, colour="#31002E"),
         Cue(slot=1, position_ms=30015, colour="#00C4FF"),
     ]
 
     mp4 = encode_markers_v1_mp4(cues)
-    assert len(mp4) == 279
-    assert decode_markers_v1_mp4(mp4) == cues
-    assert decode_markers_v1(markers_mp4_to_id3(mp4)) == cues
-    assert decode_markers_v1_mp4(markers_id3_to_mp4(encode_markers_v1(cues))) == cues
+
+    assert mp4_track_colour(mp4) == "#FFFFFF"
+    assert mp4_track_colour(_OTONOKE_MP4_MARKERS) == "#00FFFF"
+    assert decode_markers_v1_mp4(mp4) == [
+        Cue(slot=0, position_ms=70, colour="#31002E"),
+        Cue(slot=1, position_ms=30015, colour="#0088CC"),
+    ]
+
+
+def test_mp4_maps_rekordbox_cyan_onto_the_serato_palette() -> None:
+    """Lexicon stored Rekordbox #00C4FF as Serato #0088CC."""
+    mp4 = encode_markers_v1_mp4([Cue(slot=0, position_ms=21, colour="#00C4FF")])
+
+    assert decode_markers_v1_mp4(mp4)[0].colour == "#0088CC"

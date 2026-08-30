@@ -5,10 +5,13 @@ from pathlib import Path
 
 from app.adapters.serato.markers2 import (
     Cue,
+    Marker,
     decode_markers,
     encode_markers,
     marker_to_cue,
     replace_cues,
+    serato_cue_colour,
+    unset_track_color,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures" / "serato"
@@ -124,6 +127,33 @@ def test_one_extra_base64_character_is_dropped() -> None:
     dirty = clean[:2] + encoded + b"A"
 
     assert decode_markers(dirty) == decode_markers(clean)
+
+
+def test_unset_track_color_replaces_a_leftover_colour() -> None:
+    """A leftover COLOR must not survive as the jog colour."""
+    leftover = [
+        Marker(name=b"COLOR", body=b"\x00\x00\xff\xff"),
+        Marker(name=b"BPMLOCK", body=b"\x01"),
+    ]
+
+    cleared = unset_track_color(leftover)
+
+    assert cleared[0] == Marker(name=b"COLOR", body=b"\x00\xff\xff\xff")
+    assert [marker.name for marker in cleared] == [b"COLOR", b"BPMLOCK"]
+
+
+def test_unset_track_color_inserts_white_when_missing() -> None:
+    """New Markers2 tags need an explicit no-colour COLOR entry."""
+    cleared = unset_track_color([])
+
+    assert cleared == [Marker(name=b"COLOR", body=b"\x00\xff\xff\xff")]
+
+
+def test_serato_cue_colour_maps_known_rekordbox_values() -> None:
+    """Known Rekordbox RGBs become Serato Intro colours; others pass through."""
+    assert serato_cue_colour("#00C4FF") == "#0088CC"
+    assert serato_cue_colour("#ff0017") == "#CC0044"
+    assert serato_cue_colour("#31002E") == "#31002E"
 
 
 def test_cue_round_trips_through_encoding() -> None:
