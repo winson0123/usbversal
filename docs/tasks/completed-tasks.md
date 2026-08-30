@@ -1356,6 +1356,21 @@ lights every child when the cursor is on a folder.
 
 ---
 
+## TASK-312 — Grow a WAV id3 chunk that sits after data
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Grow a tight WAV `id3 ` after `data` without moving the audio stream |
+| Verification | ruff ✓ ruff format ✓ pytest 362 passed / 4 skipped |
+
+Heaven Is A P.wav failed with "growing the tag would move the audio
+stream" while `id3 ` sat after `data` and only a `LIST` followed it.
+That layout may grow. The commit rewrites the metadata tail only. An
+`id3 ` before `data` still refuses.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

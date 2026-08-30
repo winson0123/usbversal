@@ -108,6 +108,73 @@ def test_untouched_frames_are_preserved(wav: Path) -> None:
     assert after["Serato Autotags"] == before["Serato Autotags"]
 
 
+def _synchsafe(value: int) -> bytes:
+    """Encode an integer as a 28-bit synchsafe big-endian value."""
+    return bytes(((value >> shift) & 0x7F) for shift in (21, 14, 7, 0))
+
+
+def _riff_chunk(name: bytes, body: bytes) -> bytes:
+    """
+    Build one little-endian RIFF chunk with even padding.
+
+    Args:
+        name: Four-byte chunk id.
+        body: Chunk payload.
+
+    Returns:
+        Header, payload, and a pad byte when the payload length is odd.
+    """
+    pad = b"\x00" if len(body) & 1 else b""
+    return name + struct.pack("<I", len(body)) + body + pad
+
+
+def _id3_tag(body: bytes = b"") -> bytes:
+    """
+    Build a minimal ID3v2.4 tag.
+
+    Args:
+        body: Declared tag body, with no extra padding.
+
+    Returns:
+        A complete ID3 header plus ``body``.
+    """
+    return b"ID3" + bytes([4, 0, 0]) + _synchsafe(len(body)) + body
+
+
+def _wav_from_chunks(*chunks: bytes) -> bytes:
+    """
+    Wrap RIFF chunks in a WAVE file.
+
+    Args:
+        chunks: Complete ``fmt ``, ``data``, and optional later chunks.
+
+    Returns:
+        A complete WAVE file.
+    """
+    payload = b"".join(chunks)
+    return b"RIFF" + struct.pack("<I", 4 + len(payload)) + b"WAVE" + payload
+
+
+def _fmt_chunk() -> bytes:
+    """Return a 16-bit mono PCM ``fmt `` chunk."""
+    return _riff_chunk(b"fmt ", struct.pack("<HHIIHH", 1, 1, 44100, 88200, 2, 16))
+
+
+def _data_chunk(pcm: bytes | None = None) -> bytes:
+    """
+    Return a ``data`` chunk.
+
+    Args:
+        pcm: Sample bytes. Sixteen silent frames when omitted.
+
+    Returns:
+        A complete ``data`` chunk.
+    """
+    if pcm is None:
+        pcm = b"\x00\x00" * 16
+    return _riff_chunk(b"data", pcm)
+
+
 def _tagless_wav() -> bytes:
     """
     Build a RIFF WAVE that has fmt and data only.
@@ -115,10 +182,31 @@ def _tagless_wav() -> bytes:
     Returns:
         A complete WAVE file with no ``id3 `` chunk.
     """
-    fmt = struct.pack("<HHIIHH", 1, 1, 44100, 88200, 2, 16)
-    pcm = b"\x00\x00" * 16
-    chunks = b"fmt " + struct.pack("<I", 16) + fmt + b"data" + struct.pack("<I", len(pcm)) + pcm
-    return b"RIFF" + struct.pack("<I", 4 + len(chunks)) + b"WAVE" + chunks
+    return _wav_from_chunks(_fmt_chunk(), _data_chunk())
+
+
+def _wav_with_tight_id3(*, before_data: bool, list_after: bool = False) -> bytes:
+    """
+    Build a WAVE whose ``id3 `` has no padding.
+
+    Args:
+        before_data: Place ``id3 `` before ``data`` when True.
+        list_after: Append a trailing ``LIST`` after ``id3 ``.
+
+    Returns:
+        A complete WAVE file with a zero-body ID3 tag.
+    """
+    id3 = _riff_chunk(b"id3 ", _id3_tag())
+    pieces = [_fmt_chunk()]
+    if before_data:
+        pieces.append(id3)
+        pieces.append(_data_chunk(b"\x01\x02" * 16))
+    else:
+        pieces.append(_data_chunk(b"\x01\x02" * 16))
+        pieces.append(id3)
+    if list_after:
+        pieces.append(_riff_chunk(b"LIST", b"INFO"))
+    return _wav_from_chunks(*pieces)
 
 
 def test_non_riff_input_is_rejected(tmp_path: Path) -> None:
@@ -176,12 +264,37 @@ def test_verify_accepts_an_unchanged_rewrite(wav: Path) -> None:
     verify_geob_rewrite(original, original, {})
 
 
-def test_verify_rejects_a_size_change(wav: Path) -> None:
-    """A rebuilt file that grew or shrank is never written."""
-    original = wav.read_bytes()
+def test_verify_rejects_a_size_change_when_id3_is_before_data() -> None:
+    """Growing an ``id3 `` that sits before ``data`` would move the audio."""
+    original = _wav_with_tight_id3(before_data=True)
 
     with pytest.raises(TagFormatError, match="file size"):
         verify_geob_rewrite(original, original + b"\x00", {})
+
+
+def test_tight_wav_id3_after_data_grows(tmp_path: Path) -> None:
+    """A tight ``id3 `` after ``data`` grows; audio and a trailing LIST stay."""
+    path = tmp_path / "after.wav"
+    path.write_bytes(_wav_with_tight_id3(before_data=False, list_after=True))
+    before = _audio_chunk(path)
+
+    write_geob(path, {"Serato BeatGrid": b"\x01\x00\x00\x00\x00\x00\x00"})
+
+    assert read_geob(path)["Serato BeatGrid"] == b"\x01\x00\x00\x00\x00\x00\x00"
+    assert _audio_chunk(path) == before
+    assert b"LIST" in path.read_bytes()
+
+
+def test_tight_wav_id3_before_data_refuses_to_grow(tmp_path: Path) -> None:
+    """A tight ``id3 `` before ``data`` must not move the audio stream."""
+    path = tmp_path / "before.wav"
+    original = _wav_with_tight_id3(before_data=True)
+    path.write_bytes(original)
+
+    with pytest.raises(TagFormatError, match="move the audio stream"):
+        write_geob(path, {"Serato BeatGrid": b"\x01\x00\x00\x00\x00\x00\x00"})
+
+    assert path.read_bytes() == original
 
 
 def test_verify_rejects_a_moved_or_altered_audio_stream(wav: Path) -> None:

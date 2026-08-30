@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-30T05:16:00Z",
+  "updated_at": "2026-08-30T06:20:00Z",
   "allowed_patterns": [
     "adapter_per_vendor",
     "tui_thin_presentation",
@@ -16,6 +16,7 @@
     "verify_rewrite_before_disk_commit",
     "restore_original_on_failed_audio_replace",
     "in_place_same_size_audio_patch",
+    "wav_metadata_tail_rewrite",
     "tui_is_the_product"
   ],
   "forbidden_patterns": [

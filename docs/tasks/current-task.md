@@ -1,23 +1,27 @@
 # Current Task
 
-**Status:** `completed`
-**Task ID:** `TASK-311`
+**Status:** `complete`
+**Task ID:** `TASK-312`
 **Last updated:** 2026-08-30
 
 ## Objective
 
-Light the parent path when the cursor is on a crate, and still light
-every child guide when the cursor is on a folder.
+Grow a WAV ``id3 `` chunk that sits after ``data`` so a tight tag can
+take new Serato frames without moving the audio stream.
 
 ## Files touched
 
-- `app/tui/screens/library.py`
-- `tests/test_tui_library.py`
+- `app/adapters/serato/tags.py`
+- `tests/test_audio_tags.py`
+- `tests/test_audio_commit.py`
+- `docs/workflows/audio-commit.md`
+- `docs/adapters/serato.md`
 - `docs/tasks/backlog.md`
 - `docs/tasks/completed-tasks.md`
 - `docs/HANDOFF.md`
 - `docs/state/task-state.json`
 - `docs/state/repository-state.json`
+- `docs/state/architecture-state.json`
 
 ## Verification criteria
 
@@ -29,6 +33,6 @@ every child guide when the cursor is on a folder.
 
 ## Verification log
 
-- ruff ✓
-- ruff format ✓
-- pytest 358 passed / 4 skipped
+- ruff: pass
+- ruff format: pass
+- pytest: 362 passed / 4 skipped

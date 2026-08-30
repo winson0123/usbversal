@@ -6,8 +6,8 @@ below — that's what a session picking this up should do next.
 
 | | |
 |---|---|
-| Tests | 358 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-311` — Light path to a crate and children of a folder |
+| Tests | 362 passed, 4 skipped (`ruff` and `ruff format` clean) |
+| Last done | `TASK-312` — Grow a WAV id3 chunk that sits after data |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -75,7 +75,8 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 48 | ~~`TASK-309`~~ | `^a` Select All, `^q` Quit, no tree scrollbar |
 | 49 | ~~`TASK-310`~~ | Tree flush to the legend; parent │ stays on the cursor |
 | 50 | ~~`TASK-311`~~ | Path to a crate lights; folder still lights every child |
-| 51 | `TASK-303` | Analysis-aware track colour and honest `x/y` |
+| 51 | ~~`TASK-312`~~ | Grow a WAV `id3 ` that sits after `data` |
+| 52 | `TASK-303` | Analysis-aware track colour and honest `x/y` |
 
 Progress screen target layout:
 
@@ -328,7 +329,7 @@ TASK-305, legend rule and coloured words in TASK-306, flattened tree
 and header status in TASK-307, legend flush under the rule in
 TASK-308, `^a` / `^q` and native track table in TASK-309, tree flush
 and visible parent guides in TASK-310, path and child guide lighting
-in TASK-311. Next is
+in TASK-311. Tight WAV `id3 ` after `data` may grow (TASK-312). Next is
 `TASK-303`: yellow when a track is in the crate but
 Rekordbox analysis is not on the file, and `x/y` counts green only.
 

@@ -214,6 +214,137 @@ def test_write_geob_tagless_wav_does_not_replace(
     assert read_geob(target)["Serato Markers2"] == b"\x01\x01" + b"\x00" * 8
 
 
+def _riff_chunk(name: bytes, body: bytes) -> bytes:
+    """
+    Build one little-endian RIFF chunk with even padding.
+
+    Args:
+        name: Four-byte chunk id.
+        body: Chunk payload.
+
+    Returns:
+        Header, payload, and a pad byte when the payload length is odd.
+    """
+    pad = b"\x00" if len(body) & 1 else b""
+    return name + struct.pack("<I", len(body)) + body + pad
+
+
+def _id3_tag(body: bytes = b"") -> bytes:
+    """
+    Build a minimal ID3v2.4 tag.
+
+    Args:
+        body: Declared tag body, with no extra padding.
+
+    Returns:
+        A complete ID3 header plus ``body``.
+    """
+    return b"ID3" + bytes([4, 0, 0]) + _synchsafe(len(body)) + body
+
+
+def _wav_from_chunks(*chunks: bytes) -> bytes:
+    """
+    Wrap RIFF chunks in a WAVE file.
+
+    Args:
+        chunks: Complete ``fmt ``, ``data``, and optional later chunks.
+
+    Returns:
+        A complete WAVE file.
+    """
+    payload = b"".join(chunks)
+    return b"RIFF" + struct.pack("<I", 4 + len(payload)) + b"WAVE" + payload
+
+
+def _fmt_chunk() -> bytes:
+    """Return a 16-bit mono PCM ``fmt `` chunk."""
+    return _riff_chunk(b"fmt ", struct.pack("<HHIIHH", 1, 1, 44100, 88200, 2, 16))
+
+
+def _data_chunk(pcm: bytes) -> bytes:
+    """
+    Return a ``data`` chunk.
+
+    Args:
+        pcm: Sample bytes.
+
+    Returns:
+        A complete ``data`` chunk.
+    """
+    return _riff_chunk(b"data", pcm)
+
+
+def test_write_geob_grows_wav_id3_after_data_without_replace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Growing an ``id3 `` after ``data`` must not copy the audio through replace."""
+    original_replace = Path.replace
+    replaced: list[Path] = []
+
+    def track_replace(self: Path, dest: Path) -> Path:
+        """Record a replace so the test can forbid it."""
+        replaced.append(Path(dest))
+        return original_replace(self, dest)
+
+    monkeypatch.setattr(Path, "replace", track_replace)
+    pcm = b"\x01\x02" * 16
+    original = _wav_from_chunks(
+        _fmt_chunk(),
+        _data_chunk(pcm),
+        _riff_chunk(b"id3 ", _id3_tag()),
+        _riff_chunk(b"LIST", b"INFO"),
+    )
+    target = tmp_path / "t.wav"
+    target.write_bytes(original)
+
+    assert write_geob(target, {"Serato Markers2": b"\x01\x01" + b"\x00" * 8}) is True
+
+    assert replaced == []
+    assert not (tmp_path / "t.wav.tmp").exists()
+    assert read_geob(target)["Serato Markers2"] == b"\x01\x01" + b"\x00" * 8
+    audio_end = 12 + 24 + 8 + len(pcm)
+    assert target.read_bytes()[8:audio_end] == original[8:audio_end]
+    assert b"LIST" in target.read_bytes()
+
+
+def test_commit_restores_wav_when_tail_rewrite_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failed WAV tail rewrite restores the original id3 and LIST."""
+    pcm = b"\x01\x02" * 16
+    original = _wav_from_chunks(
+        _fmt_chunk(),
+        _data_chunk(pcm),
+        _riff_chunk(b"id3 ", _id3_tag()),
+        _riff_chunk(b"LIST", b"INFO"),
+    )
+    new_data = _wav_from_chunks(
+        _fmt_chunk(),
+        _data_chunk(pcm),
+        _riff_chunk(b"id3 ", _id3_tag(b"\x00" * 64)),
+        _riff_chunk(b"LIST", b"INFO"),
+    )
+    target = tmp_path / "t.wav"
+    target.write_bytes(original)
+
+    fsync_calls = {"n": 0}
+    real_fsync = os.fsync
+
+    def boom(fd: int) -> None:
+        """Fail the first fsync so restore can still flush."""
+        fsync_calls["n"] += 1
+        if fsync_calls["n"] == 1:
+            raise OSError("disk")
+        real_fsync(fd)
+
+    monkeypatch.setattr("app.adapters.serato.tags.os.fsync", boom)
+
+    with pytest.raises(TagFormatError, match="WAV append"):
+        _commit_audio_bytes(target, new_data, original)
+
+    assert target.read_bytes() == original
+
+
 def test_commit_restores_wav_when_append_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

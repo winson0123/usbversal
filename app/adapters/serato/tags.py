@@ -908,8 +908,9 @@ def verify_geob_rewrite(
     Every hand-run analysis pass repeated these checks before trusting a
     write: the audio stream is unchanged, and the frames actually read back.
     An MP3 tag may grow when it has no ``Serato Offsets_``. A tagless MPEG
-    MP3 or WAV may gain an ID3 tag. An AIFF ``ID3 `` chunk may grow or be
-    inserted. MP4 ``moov`` may grow; ``mdat`` must not change. This check
+    MP3 or WAV may gain an ID3 tag. A WAVE ``id3 `` that sits after
+    ``data`` may grow. An AIFF ``ID3 `` chunk may grow or be inserted.
+    MP4 ``moov`` may grow; ``mdat`` must not change. This check
     caught two real defects during that work: a silent no-op when a frame
     did not already exist, and a false positive from hashing a WAV file
     whole instead of just its `data` chunk.
@@ -967,13 +968,18 @@ def _size_change_allowed(original: bytes) -> bool:
         original: File contents before the rewrite.
 
     Returns:
-        True for AIFF / AIFC, a tagless MPEG MP3, a WAVE with no ``id3 ``
-        chunk, and an MP3 with no ``Serato Offsets_``.
+        True for AIFF / AIFC, a tagless MPEG MP3, a WAVE whose ``id3 ``
+        is missing or sits after ``data``, and an MP3 with no
+        ``Serato Offsets_``.
     """
     if _is_aiff(original):
         return True
-    if _is_wav(original) and _wav_id3_span(original) is None:
-        return True
+    if _is_wav(original):
+        found = _wav_id3_span(original)
+        if found is None:
+            return True
+        start, _size = found
+        return _wav_id3_is_after_audio(original, start)
     if _is_mpeg(original):
         return True
     return original[:3] == b"ID3" and _SERATO_OFFSETS not in _read_geob_bytes(original)
@@ -1220,9 +1226,32 @@ def _id3_write_source(data: bytes) -> tuple[bytes, int, int]:
     raise TagFormatError("Unrecognised audio container")
 
 
+def _wav_id3_is_after_audio(data: bytes, start: int) -> bool:
+    """
+    Return whether the WAV ``id3 `` chunk sits entirely after ``data``.
+
+    Args:
+        data: Whole WAVE file.
+        start: ID3 payload offset (after the 8-byte chunk header).
+
+    Returns:
+        True when the chunk header is at or after the audio payload end.
+    """
+    try:
+        audio_start, audio_size = _audio_span(data)
+    except TagFormatError:
+        return False
+    return start - 8 >= audio_start + audio_size
+
+
 def _can_grow_id3(data: bytes, start: int, size: int) -> bool:
     """
     Return whether a rewrite may enlarge the ID3 tag.
+
+    A new tag, an AIFF chunk, or a tagless MPEG may grow. An existing
+    MP3 tag may grow only when it has no ``Serato Offsets_``. An existing
+    WAV ``id3 `` may grow when the whole chunk sits after the ``data``
+    payload so enlarging it does not move the audio stream.
 
     Args:
         data: Whole file contents.
@@ -1230,11 +1259,12 @@ def _can_grow_id3(data: bytes, start: int, size: int) -> bool:
         size: Original tag length from ``_id3_write_source``.
 
     Returns:
-        True when the tag is being created, the file is AIFF, or the MP3
-        has no ``Serato Offsets_``.
+        True when growing the tag cannot move the audio payload.
     """
     if _is_aiff(data) or start < 0 or (start == 0 and size == 0):
         return True
+    if _is_wav(data) and start > 0:
+        return _wav_id3_is_after_audio(data, start)
     return start == 0 and _SERATO_OFFSETS not in _read_geob_bytes(data)
 
 
@@ -1456,39 +1486,77 @@ def _patch_audio_bytes(target: Path, new_data: bytes, original: bytes) -> None:
         raise TagFormatError("in-place write changed the file size; original restored")
 
 
-def _is_wav_chunk_append(original: bytes, new_data: bytes) -> bool:
+def _wav_tail_start(original: bytes, new_data: bytes) -> int | None:
     """
-    Return whether ``new_data`` is ``original`` plus a trailing RIFF chunk.
+    Return the first offset after the RIFF size that differs, when that
+    offset sits at or after the ``data`` payload.
 
-    The WAVE payload after the RIFF size field must be unchanged. Only the
-    4-byte size at offset 4 and bytes past the original end may differ.
+    A tagless WAVE that only gains a trailing chunk returns
+    ``len(original)``. Growing an ``id3 `` that sits after ``data``
+    returns the first changed metadata byte.
 
     Args:
         original: File contents before the rewrite.
         new_data: Rebuilt file contents.
 
     Returns:
-        True when the audio chunks stay put and only a tail is added.
+        Byte offset to start writing, or None when the files are not a
+        safe WAV tail rewrite.
     """
     if len(new_data) <= len(original):
-        return False
+        return None
     if not _is_wav(original) or not _is_wav(new_data):
-        return False
-    return original[8:] == new_data[8 : len(original)]
+        return None
+    try:
+        audio_start, audio_size = _audio_span(original)
+    except TagFormatError:
+        return None
+    audio_end = audio_start + audio_size
+    if audio_end > len(original) or audio_end > len(new_data):
+        return None
+    if original[8:audio_end] != new_data[8:audio_end]:
+        return None
+    offset = audio_end
+    limit = min(len(original), len(new_data))
+    while offset < limit and original[offset] == new_data[offset]:
+        offset += 1
+    return offset
 
 
-def _restore_wav_append(target: Path, original: bytes) -> None:
+def _is_wav_chunk_append(original: bytes, new_data: bytes) -> bool:
     """
-    Undo a WAV tail append by restoring the RIFF size and truncating.
+    Return whether ``new_data`` is a WAVE tail rewrite of ``original``.
+
+    Bytes through the ``data`` payload must match. Only the RIFF size at
+    offset 4 and bytes at or after the audio may differ.
+
+    Args:
+        original: File contents before the rewrite.
+        new_data: Rebuilt file contents.
+
+    Returns:
+        True when the audio stays put and only the metadata tail changes.
+    """
+    return _wav_tail_start(original, new_data) is not None
+
+
+def _restore_wav_append(target: Path, original: bytes, tail_start: int) -> None:
+    """
+    Undo a WAV tail rewrite by restoring the RIFF size, the overwritten
+    tail, and the original length.
 
     Args:
         target: Live audio path.
         original: File contents read at the start of this write.
+        tail_start: First byte that was overwritten after the RIFF size.
     """
     try:
         with target.open("r+b") as handle:
             handle.seek(4)
             handle.write(original[4:8])
+            if tail_start < len(original):
+                handle.seek(tail_start)
+                handle.write(original[tail_start:])
             handle.truncate(len(original))
             handle.flush()
             os.fsync(handle.fileno())
@@ -1498,10 +1566,10 @@ def _restore_wav_append(target: Path, original: bytes) -> None:
 
 def _append_wav_chunk(target: Path, new_data: bytes, original: bytes) -> None:
     """
-    Patch the RIFF size and append the new tail of a tagless WAVE.
+    Patch the RIFF size and rewrite the WAVE metadata tail.
 
-    The ``data`` chunk is not rewritten. A failed write restores the
-    original size and header.
+    Bytes through the ``data`` chunk stay on disk. A failed write
+    restores the original size, RIFF size, and overwritten tail.
 
     Args:
         target: Live audio path.
@@ -1509,9 +1577,12 @@ def _append_wav_chunk(target: Path, new_data: bytes, original: bytes) -> None:
         original: File contents read at the start of this write.
 
     Raises:
-        TagFormatError: The live size changed under us, or the append failed
-            after restore.
+        TagFormatError: The live size changed under us, the rewrite is
+            not a safe tail write, or the write failed after restore.
     """
+    tail_start = _wav_tail_start(original, new_data)
+    if tail_start is None:
+        raise TagFormatError("WAV rewrite is not a safe tail write")
     if target.stat().st_size != len(original):
         _restore_audio_bytes(target, original)
         raise TagFormatError("audio file size changed during write; original restored")
@@ -1520,18 +1591,19 @@ def _append_wav_chunk(target: Path, new_data: bytes, original: bytes) -> None:
             if new_data[4:8] != original[4:8]:
                 handle.seek(4)
                 handle.write(new_data[4:8])
-            handle.seek(len(original))
-            handle.write(new_data[len(original) :])
+            handle.seek(tail_start)
+            handle.write(new_data[tail_start:])
+            handle.truncate(len(new_data))
             handle.flush()
             os.fsync(handle.fileno())
     except OSError as exc:
         try:
-            _restore_wav_append(target, original)
+            _restore_wav_append(target, original, tail_start)
         except OSError:
             pass
         raise TagFormatError(f"WAV append failed: {exc}") from exc
     if target.stat().st_size != len(new_data):
-        _restore_wav_append(target, original)
+        _restore_wav_append(target, original, tail_start)
         raise TagFormatError("WAV append left a short file; original restored")
 
 
@@ -1542,8 +1614,9 @@ def _commit_audio_bytes(target: Path, new_data: bytes, original: bytes) -> None:
     When the rebuilt file is the same length as ``original``, only the
     changed span is written in place and fsynced. That avoids a full-file
     ``.tmp`` and ``replace`` on padded MP3 / WAV tags. When ``new_data``
-    is the same WAVE with an ``id3 `` chunk appended, the RIFF size is
-    patched and the tail is written at EOF. Other size-changing writes
+    is the same WAVE with a longer metadata tail (a new ``id3 `` chunk,
+    or a grown ``id3 `` that sits after ``data``), the RIFF size is
+    patched and only that tail is written. Other size-changing writes
     go through a sibling ``.tmp``, flushed, size-checked, and swapped
     onto ``target``. The live file and its parent directory are fsynced
     after a swap. If the destination is missing or shorter than
@@ -1606,15 +1679,17 @@ def write_geob(
     preserved byte for byte. ID3v2.2 files use ``GEO`` frames; later versions
     use ``GEOB``. ID3 tags keep their original size when padding
     allows; an MP3 tag with no ``Serato Offsets_`` may grow. A tagless MPEG
-    MP3 or WAVE gains an empty ID3v2.4 tag that then grows. An AIFF ``ID3 ``
-    chunk may grow or be created. FLAC Vorbis comments and MP4 ``moov`` may
-    grow; STREAMINFO / ``mdat`` stay identical. Before anything reaches disk,
-    the rebuilt file is verified against the original. The original file is
-    untouched if verification fails. A same-size rewrite patches only the
-    changed bytes on the live path. A tagless WAVE that only gains an
-    ``id3 `` chunk patches the RIFF size and appends the tail. Other
-    size-changing rewrites use a sibling ``.tmp`` and ``replace``, then
-    fsync the live file and its directory.
+    MP3 or WAVE gains an empty ID3v2.4 tag that then grows. A WAVE ``id3 ``
+    that sits after ``data`` may grow; one that sits before ``data`` may
+    not. An AIFF ``ID3 `` chunk may grow or be created. FLAC Vorbis
+    comments and MP4 ``moov`` may grow; STREAMINFO / ``mdat`` stay
+    identical. Before anything reaches disk, the rebuilt file is verified
+    against the original. The original file is untouched if verification
+    fails. A same-size rewrite patches only the changed bytes on the live
+    path. A WAVE that only changes bytes after ``data`` patches the RIFF
+    size and rewrites that tail. Other size-changing rewrites use a
+    sibling ``.tmp`` and ``replace``, then fsync the live file and its
+    directory.
     A short or missing destination is overwritten with the original bytes.
     An empty file is refused. When every requested payload already matches
     and nothing is being removed, only the tag is read and the file is not
@@ -1673,8 +1748,8 @@ def write_geob(
     _append_missing_geob(rebuilt, updates, written, version)
     # Prefer absorbing the edit into padding. An MP3 with no Offsets_ may
     # grow: Offsets_ addresses audio by byte position, so moving that
-    # stream would invalidate the waveform. Tagless MPEG, WAV, and AIFF
-    # may grow or gain an ID3 tag.
+    # stream would invalidate the waveform. Tagless MPEG and AIFF may
+    # grow or gain an ID3 tag. A WAV id3 after data may grow.
     new_tag = _padded_tag(tag, rebuilt, declared, grow=_can_grow_id3(data, start, size))
     new_data = _splice_id3_container(data, start, size, new_tag)
 

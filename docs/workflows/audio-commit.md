@@ -18,6 +18,13 @@ offset 4 and a new chunk after EOF. The `data` chunk does not move.
 That commit patches those four bytes and appends the tail (TASK-296).
 A failed append restores the original size and RIFF size.
 
+A WAVE whose `id3 ` already sits after `data` may grow that chunk
+(TASK-312). Rekordbox often writes a tight tag with a `LIST` after it;
+enlarging `id3 ` shifts only that metadata tail. The commit patches the
+RIFF size and rewrites from the first changed byte after `data`. A
+failed tail write restores the original RIFF size, overwritten tail, and
+length. An `id3 ` that sits before `data` still refuses to grow.
+
 Other size-changing writes still use a sibling `.tmp` and
 `Path.replace` (TASK-286). A tagless MPEG MP3 (frame sync at byte 0,
 no ID3v2) gets an ID3v2.4 tag prepended, so the audio moves and that
