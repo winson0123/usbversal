@@ -6,12 +6,15 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from textual.app import App
+from textual.binding import Binding
 from textual.screen import Screen
-from textual.widgets import DataTable, Static, Tree
+from textual.widgets import DataTable, Footer, Static, Tree
+from textual.widgets._footer import FooterKey
 
 from app.adapters.serato.naming import volume_label_for
 from app.core.domain import Playlist
 from app.tui.app import RekordboxThreadMixin, UsbversalApp
+from app.tui.palette import ACCENT, KEY
 from app.tui.screens.library import LibraryScreen, _clip, _legend_text
 from tests.conftest import EMPTY_DATABASE_V2, make_library
 
@@ -569,6 +572,29 @@ def test_footer_keys_use_caret_lowercase() -> None:
     assert quit_binding.key_display == "^q"
 
 
+@pytest.mark.asyncio
+async def test_footer_keys_use_the_brighter_yellow() -> None:
+    """Shortcut keys are the brighter Posting yellow, not the amber accent."""
+
+    class _FooterApp(App):
+        """Bare shell that paints the same footer CSS as the product."""
+
+        CSS = UsbversalApp.CSS
+        BINDINGS = [Binding("ctrl+q", "quit", "Quit", show=True, key_display="^q")]
+
+        def compose(self):
+            """Show one footer so the key style can be read back."""
+            yield Footer()
+
+    async with _FooterApp().run_test() as pilot:
+        await pilot.pause()
+        key = pilot.app.screen.query_one(FooterKey)
+        style = key.get_component_rich_style("footer-key--key")
+        assert style.color is not None
+        assert style.color.name.lower() == KEY.lower()
+        assert KEY.lower() != ACCENT.lower()
+
+
 def test_legend_words_use_the_same_colour_as_the_dot() -> None:
     """Each legend label is the same traffic-light colour as its bullet."""
     legend = _legend_text()
@@ -578,9 +604,9 @@ def test_legend_words_use_the_same_colour_as_the_dot() -> None:
             for span in legend.spans
             if colour in str(span.style)
         )
-        for colour in ("green", "yellow", "red")
+        for colour in (ACCENT, "yellow", "red")
     }
-    assert "synced" in coloured["green"]
+    assert "synced" in coloured[ACCENT]
     assert "partial" in coloured["yellow"]
     assert "not synced" in coloured["red"]
 

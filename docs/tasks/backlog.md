@@ -236,6 +236,7 @@ and none of them exist yet.
 | ~~`TASK-310`~~ | ~~Tree flush to legend; visible parent guides~~ | Done — no gap above the legend rule; cursor row keeps the parent │. |
 | ~~`TASK-311`~~ | ~~Light path to a crate and children of a folder~~ | Done — cursor on a crate lights the parent path; cursor on a folder still lights every child. |
 | ~~`TASK-312`~~ | ~~Grow a WAV id3 chunk that sits after data~~ | Done — tight Rekordbox WAV tags after `data` grow; only the metadata tail is rewritten. An `id3 ` before `data` still refuses. |
+| ~~`TASK-313`~~ | ~~Posting amber instead of TUI green~~ | Done — synced / success / progress bar use `#f0b429`; footer keys use `#ffd700`. |
 | `TASK-303` | Analysis-aware track colour and honest `x/y` | Yellow = in crate but Rekordbox analysis is not on the file. Numerator counts green only. |
 
 ---

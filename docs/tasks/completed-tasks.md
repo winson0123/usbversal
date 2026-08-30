@@ -1371,6 +1371,20 @@ That layout may grow. The commit rewrites the metadata tail only. An
 
 ---
 
+## TASK-313 — Posting amber instead of TUI green
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Replace TUI green with Posting amber; brighter yellow on footer keys |
+| Verification | ruff ✓ ruff format ✓ pytest 363 passed / 4 skipped |
+
+Synced counts, the legend, progress lines, the Done summary, and the
+progress bar use `#f0b429`. Footer shortcut keys use `#ffd700`. Partial
+and error stay yellow and red.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

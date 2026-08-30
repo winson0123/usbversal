@@ -1,27 +1,26 @@
 # Current Task
 
 **Status:** `complete`
-**Task ID:** `TASK-312`
+**Task ID:** `TASK-313`
 **Last updated:** 2026-08-30
 
 ## Objective
 
-Grow a WAV ``id3 `` chunk that sits after ``data`` so a tight tag can
-take new Serato frames without moving the audio stream.
+Use Posting's amber in place of TUI green, and a brighter yellow on footer keys.
 
 ## Files touched
 
-- `app/adapters/serato/tags.py`
-- `tests/test_audio_tags.py`
-- `tests/test_audio_commit.py`
-- `docs/workflows/audio-commit.md`
-- `docs/adapters/serato.md`
+- `app/tui/palette.py`
+- `app/tui/app.py`
+- `app/tui/screens/library.py`
+- `app/tui/screens/progress.py`
+- `tests/test_tui_library.py`
+- `tests/test_tui_progress.py`
 - `docs/tasks/backlog.md`
 - `docs/tasks/completed-tasks.md`
 - `docs/HANDOFF.md`
 - `docs/state/task-state.json`
 - `docs/state/repository-state.json`
-- `docs/state/architecture-state.json`
 
 ## Verification criteria
 
@@ -35,4 +34,4 @@ take new Serato frames without moving the audio stream.
 
 - ruff: pass
 - ruff format: pass
-- pytest: 362 passed / 4 skipped
+- pytest: 363 passed / 4 skipped

@@ -16,6 +16,7 @@ from textual.binding import Binding
 from textual.driver import Driver
 
 from app.services.library import MountWatcher
+from app.tui.palette import KEY
 from app.tui.screens.home import HomeScreen
 
 _T = TypeVar("_T")
@@ -167,28 +168,32 @@ class UsbversalApp(RekordboxThreadMixin, App):
     # This neutralizes them to the terminal's own colours, same as
     # everything else. Functional highlights (the tree cursor, the progress
     # bar fill) are left alone; they convey real information, not a theme.
-    CSS = """
-    Footer, FooterKey, .footer-key--key, .footer-key--description {
+    CSS = f"""
+    Footer, FooterKey, .footer-key--description {{
         background: transparent;
         color: ansi_default;
-    }
-    Tree {
+    }}
+    FooterKey .footer-key--key {{
         background: transparent;
-    }
-    DataTable {
+        color: {KEY};
+    }}
+    Tree {{
+        background: transparent;
+    }}
+    DataTable {{
         background: transparent;
         color: ansi_default;
-    }
+    }}
     DataTable > .datatable--header,
     DataTable:ansi > .datatable--header,
-    DataTable > .datatable--even-row {
+    DataTable > .datatable--even-row {{
         background: transparent;
         color: ansi_default;
-    }
-    RichLog {
+    }}
+    RichLog {{
         background: transparent;
         color: ansi_default;
-    }
+    }}
     """
 
     def __init__(self, watcher: MountWatcher | None = None) -> None:

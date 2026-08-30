@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-30T06:20:00Z",
+  "updated_at": "2026-08-30T06:35:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -765,6 +765,11 @@
       "id": "TASK-312",
       "title": "Grow a WAV id3 chunk that sits after data",
       "completed_at": "2026-08-30T06:20:00Z"
+    },
+    {
+      "id": "TASK-313",
+      "title": "Posting amber instead of TUI green",
+      "completed_at": "2026-08-30T06:35:00Z"
     }
   ],
   "history": [
@@ -1684,6 +1689,12 @@
       "id": "TASK-312",
       "title": "Grow a WAV id3 chunk that sits after data",
       "completed_at": "2026-08-30T06:20:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-313",
+      "title": "Posting amber instead of TUI green",
+      "completed_at": "2026-08-30T06:35:00Z",
       "status": "completed"
     }
   ]

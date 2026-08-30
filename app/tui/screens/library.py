@@ -34,10 +34,11 @@ from app.services.sync_service import (
     playlist_tree_sync_states,
 )
 from app.services.track_preview import TrackPreview, preview_playlist_tracks
+from app.tui.palette import ACCENT
 from app.tui.screens.progress import ProgressScreen
 
 _COUNT_COLOUR = {
-    SyncState.SYNCED: "green",
+    SyncState.SYNCED: ACCENT,
     SyncState.PARTIAL: "yellow",
     SyncState.NOT_SYNCED: "red",
 }
@@ -409,14 +410,14 @@ class LibraryScreen(Screen):
 
         Playlist names are arbitrary user data, so the count colour is a
         ``Text`` style, not a markup tag that a ``[`` in the name could break.
-        Only the numerator is green when the row is fully synced.
+        Only the numerator is amber when the row is fully synced.
 
         Args:
             row: Row data to render.
             depth: Nesting depth, used to pad the name around Tree guides.
 
         Returns:
-            Label text with the count styled red/yellow/green.
+            Label text with the count styled red/yellow/amber.
         """
         selected_count = sum(1 for i in row.ids if i in self._selected)
         if selected_count == 0:
@@ -627,7 +628,7 @@ def _legend_text() -> Text:
         Three lines: coloured dot and matching word for each sync state.
     """
     line = Text()
-    line.append("• synced\n", style="green")
+    line.append("• synced\n", style=ACCENT)
     line.append("• partial\n", style="yellow")
     line.append("• not synced", style="red")
     return line
