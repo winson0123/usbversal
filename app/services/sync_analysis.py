@@ -26,6 +26,7 @@ from app.adapters.serato.beatgrid import encode_beatgrid
 from app.adapters.serato.library_db import TrackAnalysis
 from app.adapters.serato.markers import encode_markers_v1
 from app.adapters.serato.markers2 import Cue, decode_markers, encode_markers, replace_cues
+from app.adapters.serato.mp4_tags import is_mp4, m4a_encoder_delay_ms
 from app.adapters.serato.tags import TagFormatError, read_geob, write_geob
 from app.services.sync_progress import SyncProgressCallback, emit_progress
 
@@ -108,6 +109,7 @@ def write_track_tags(audio_path: Path, beats: list[Beat], cues: list[HotCue]) ->
     Returns:
         True when tags were rewritten, False when they already matched.
     """
+    beats, cues = _shift_analysis_times(audio_path, beats, cues)
     updates: dict[str, bytes] = {}
     if beats:
         grid = encode_beatgrid(beats)
@@ -126,6 +128,47 @@ def write_track_tags(audio_path: Path, beats: list[Beat], cues: list[HotCue]) ->
     if not updates:
         return False
     return write_geob(audio_path, updates)
+
+
+def _shift_analysis_times(
+    audio_path: Path, beats: list[Beat], cues: list[HotCue]
+) -> tuple[list[Beat], list[HotCue]]:
+    """
+    Subtract AAC encoder delay from M4A times so Serato lines up.
+
+    Rekordbox times include priming samples. Serato's M4A waveform starts
+    at the first decoded sample, so an unshifted grid sits to the right
+    of the first beat.
+
+    Args:
+        audio_path: Audio file on the mount.
+        beats: Rekordbox beats.
+        cues: Rekordbox hot cues.
+
+    Returns:
+        Beats and cues, shifted when the file is MP4 / M4A.
+    """
+    if audio_path.suffix.lower() not in {".m4a", ".mp4"}:
+        return beats, cues
+    data = audio_path.read_bytes()
+    if not is_mp4(data):
+        return beats, cues
+    delay = m4a_encoder_delay_ms(data)
+    if delay <= 0:
+        return beats, cues
+    shifted_beats = [
+        Beat(number=beat.number, bpm=beat.bpm, time_ms=max(0, beat.time_ms - delay))
+        for beat in beats
+    ]
+    shifted_cues = [
+        HotCue(
+            slot=cue.slot,
+            position_ms=max(0, cue.position_ms - delay),
+            colour=cue.colour,
+        )
+        for cue in cues
+    ]
+    return shifted_beats, shifted_cues
 
 
 def process_analysis_track(job: AnalysisJob) -> AnalysisTrackResult:

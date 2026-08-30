@@ -444,7 +444,7 @@ for why this is being revisited.
 | **WAV** | The ID3 stream is wrapped in a RIFF chunk with id `id3 `. The chunk must be rewritten **and the RIFF size field fixed**. A WAVE with no `id3 ` chunk gets one appended. |
 | **AIFF / AIFC** | Same ID3 GEOB as MP3, in a big-endian `ID3 ` chunk. Audio is `SSND` after an 8-byte offset/blockSize header. A file with no ID3 chunk gets one. |
 | **FLAC** | Vorbis comments `SERATO_BEATGRID` / `SERATO_MARKERS_V2`. Value is base64 (no padding, newline every 72 characters) of `application/octet-stream\\0\\0` + description + payload. |
-| **MP4 / M4A** | Freeform atoms `----:com.serato.dj:<name>`. `beatgrid` / `markersv2` / `markers` map to BeatGrid / Markers2 / Markers_. Decoded value is the same wrapper as FLAC. `markers` and `markersv2` wrap base64 every 72 characters; the others do not. |
+| **MP4 / M4A** | Freeform atoms `----:com.serato.dj:<name>`. `beatgrid` / `markersv2` / `markers` map to BeatGrid / Markers2 / Markers_. Decoded value is the same wrapper as FLAC. `markers` and `markersv2` wrap base64 every 72 characters; the others do not. The `markers` *payload* is not ID3 Markers_: raw `uint32` milliseconds, `0xFFFFFFFF` unset, 19-byte rows. Serato ignores pads 1-5 unless that layout is present. AAC encoder delay (iTunSMPB or 2112 samples) is subtracted from times so the grid sits on the first beat. |
 
 Chunk order observed in the WAV fixtures: `fmt ` / `data` / `DISP` / `iXML` / `_PMX` / `LIST` / `id3 `.
 

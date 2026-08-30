@@ -8,10 +8,10 @@
 
 No active task. Next: `TASK-252` — Library two-pane window.
 
-Last done: `TASK-293` — Create ID3 on tagless MP3 and WAV.
+Last done: `TASK-294` — M4A markers layout and AAC encoder delay.
 
-## TASK-293 verification log
+## TASK-294 verification log
 
 - `.venv/bin/ruff check .` — pass
 - `.venv/bin/ruff format --check .` — pass
-- `.venv/bin/pytest` — 326 passed / 4 skipped
+- `.venv/bin/pytest` — 331 passed / 4 skipped

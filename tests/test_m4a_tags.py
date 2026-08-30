@@ -7,9 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from app.adapters.rekordbox.anlz import Beat
+from app.adapters.rekordbox.anlz import Beat, HotCue
 from app.adapters.serato.beatgrid import encode_beatgrid
+from app.adapters.serato.markers import decode_markers_v1, encode_markers_v1
+from app.adapters.serato.markers2 import Cue
+from app.adapters.serato.mp4_tags import m4a_encoder_delay_ms
 from app.adapters.serato.tags import TagFormatError, read_geob, verify_geob_rewrite, write_geob
+from app.services.sync_analysis import write_track_tags
 
 _GRID = encode_beatgrid([Beat(number=1, bpm=128.0, time_ms=0)])
 _MARKERS = b"\x01\x01"
@@ -97,7 +101,8 @@ def _m4a(*, audio: bytes, ilst: bytes = b"") -> bytes:
             File bytes.
         """
         stbl = _box(b"stbl", _stco(chunk_offset))
-        trak = _box(b"trak", _box(b"mdia", _box(b"minf", stbl)))
+        mdhd = _box(b"mdhd", bytes(12) + struct.pack(">II", 44100, 0))
+        trak = _box(b"trak", _box(b"mdia", mdhd + _box(b"minf", stbl)))
         moov = _box(b"moov", trak + udta)
         return ftyp + moov + _box(b"mdat", audio)
 
@@ -187,6 +192,44 @@ def test_verify_rejects_an_altered_mdat(tmp_path: Path) -> None:
 
     with pytest.raises(TagFormatError, match="audio stream"):
         verify_geob_rewrite(original, bytes(corrupted), {"Serato BeatGrid": _GRID})
+
+
+def test_m4a_markers_atom_uses_mp4_layout(tmp_path: Path) -> None:
+    """Serato only honours M4A pads 1-5 when markers is the MP4 row layout."""
+    path = _write_m4a(tmp_path)
+    cues = [Cue(slot=0, position_ms=70, colour="#31002E")]
+    payload = encode_markers_v1(cues)
+
+    write_geob(path, {"Serato Markers_": payload, "Serato Markers2": _MARKERS})
+
+    assert decode_markers_v1(read_geob(path)["Serato Markers_"]) == cues
+    raw = path.read_bytes()
+    # MP4 markers is base64 in the data atom; 0xFFFFFFFF encodes as "////".
+    assert b"////" in raw
+
+
+def test_m4a_write_subtracts_encoder_delay(tmp_path: Path) -> None:
+    """Rekordbox times include AAC priming; the written grid does not."""
+    path = _write_m4a(tmp_path)
+
+    write_track_tags(
+        path,
+        [Beat(number=1, bpm=130.0, time_ms=70)],
+        [HotCue(slot=0, position_ms=70, colour="#31002E")],
+    )
+
+    frames = read_geob(path)
+    position, _bpm = struct.unpack(">ff", frames["Serato BeatGrid"][6:14])
+    assert round(position, 3) == 0.022
+    assert decode_markers_v1(frames["Serato Markers_"])[0].position_ms == 22
+
+
+def test_m4a_encoder_delay_reads_itunsmpb() -> None:
+    """iTunSMPB delay 2112 at 44100 Hz is 48 ms."""
+    mdhd = struct.pack(">I", 28) + b"mdhd" + bytes(12) + struct.pack(">II", 44100, 0)
+    data = mdhd + b"iTunSMPBxxxxdataxxxx 00000000 00000840 000000BE"
+
+    assert m4a_encoder_delay_ms(data) == 48
 
 
 def test_non_mp4_is_rejected(tmp_path: Path) -> None:

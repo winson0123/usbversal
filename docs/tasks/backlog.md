@@ -217,6 +217,7 @@ and none of them exist yet.
 | ~~`TASK-290`~~ | ~~Flush the USB filesystem at the end of sync~~ | Done — `flush_mount` / `syncfs`. TUI does not unmount. |
 | ~~`TASK-291`~~ | ~~Portable volume flush after sync~~ | Done — Linux syncfs, macOS F_FULLFSYNC, Windows FlushFileBuffers. |
 | ~~`TASK-293`~~ | ~~Create ID3 on tagless MP3 and WAV~~ | Done — MPEG frame-sync MP3 prepends ID3v2.4; WAVE without `id3 ` appends a chunk. |
+| ~~`TASK-294`~~ | ~~M4A markers layout and AAC encoder delay~~ | Done — MP4 `markers` is raw ms / `0xFFFFFFFF`; subtract iTunSMPB or 2112-sample priming. See `docs/workflows/m4a-markers.md`. |
 | `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |
 
 ---

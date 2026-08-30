@@ -4,15 +4,20 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import re
 import struct
 from dataclasses import dataclass, field
 
+from app.adapters.serato.markers import markers_id3_to_mp4, markers_mp4_to_id3
 from app.adapters.serato.tags import (
     TagFormatError,
     _flac_b64_decode,
     _unwrap_flac_payload,
     _wrap_flac_payload,
 )
+
+_AAC_PRIME_SAMPLES = 2112
+_ITUNSMPB = re.compile(rb"iTunSMPB.{0,32}([0-9A-Fa-f]{8})\s+([0-9A-Fa-f]{8})\s+([0-9A-Fa-f]{8})")
 
 _SERATO_MEAN = b"com.serato.dj"
 _B64_WRAP = 72
@@ -99,8 +104,65 @@ def read_mp4_geob(data: bytes) -> dict[str, bytes]:
         _decoded_name, payload = _unwrap_flac_payload(
             _flac_b64_decode(raw.decode("ascii", "replace"))
         )
+        if description == "Serato Markers_":
+            payload = markers_mp4_to_id3(payload)
         frames[description] = payload
     return frames
+
+
+def m4a_encoder_delay_ms(data: bytes) -> int:
+    """
+    Return AAC encoder delay in milliseconds.
+
+    Prefers the ``iTunSMPB`` delay field. When that atom is missing, uses
+    the AAC LC priming length (2112 samples) and the ``mdhd`` timescale.
+
+    Args:
+        data: Whole M4A / MP4 file.
+
+    Returns:
+        Delay to subtract from Rekordbox times so Serato's timeline lines
+        up with the first decoded sample. Zero when no timescale is found.
+    """
+    timescale = _mdhd_timescale(data)
+    if timescale <= 0:
+        return 0
+    delay_samples = _AAC_PRIME_SAMPLES
+    match = _ITUNSMPB.search(data)
+    if match is not None:
+        delay_samples = int(match.group(2), 16)
+    return max(0, round(delay_samples * 1000 / timescale))
+
+
+def _mdhd_timescale(data: bytes) -> int:
+    """
+    Return the first ``mdhd`` timescale, or 0 when the box is missing.
+
+    Args:
+        data: Whole MP4 / M4A file.
+
+    Returns:
+        Samples per second stored in ``mdhd``.
+    """
+    offset = 0
+    while offset + 8 <= len(data):
+        size = int.from_bytes(data[offset : offset + 4], "big")
+        kind = data[offset + 4 : offset + 8]
+        if size < 8:
+            return 0
+        if kind == b"mdhd" and offset + 24 <= len(data):
+            version = data[offset + 8]
+            if version == 1 and offset + 32 <= len(data):
+                return int.from_bytes(data[offset + 28 : offset + 32], "big")
+            return int.from_bytes(data[offset + 20 : offset + 24], "big")
+        if kind in _CONTAINERS or kind == b"moov":
+            found = _mdhd_timescale(data[offset + 8 : offset + size])
+            if found:
+                return found
+            offset += size
+            continue
+        offset += size if size > 0 else 8
+    return 0
 
 
 def write_mp4_bytes(data: bytes, updates: dict[str, bytes], dropped: set[str]) -> bytes:
@@ -487,6 +549,8 @@ def _freeform_item(atom_name: str, description: str, payload: bytes) -> _Box:
     Returns:
         An ``----`` box ready to sit in ``ilst``.
     """
+    if description == "Serato Markers_":
+        payload = markers_id3_to_mp4(payload)
     raw = _b64_encode(_wrap_flac_payload(description, payload), wrap=atom_name in _MP4_WRAP)
     return _Box(
         b"----",

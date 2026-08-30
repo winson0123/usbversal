@@ -6,8 +6,8 @@ below — that's what a session picking this up should do next.
 
 | | |
 |---|---|
-| Tests | 326 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-293` — Create ID3 on tagless MP3 and WAV |
+| Tests | 331 passed, 4 skipped (`ruff` and `ruff format` clean) |
+| Last done | `TASK-294` — M4A markers layout and AAC encoder delay |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -57,7 +57,8 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 30 | ~~`TASK-288`~~ | Skip leftover 0-byte crates when reading |
 | 31 | ~~`TASK-289`~~ | List `%%` ancestor stems in `neworder.pref` |
 | 32 | ~~`TASK-293`~~ | Create ID3 on tagless MPEG MP3 and WAV |
-| 33 | `TASK-252` | Library two-pane (original ask, last) |
+| 33 | ~~`TASK-294`~~ | M4A `markers` layout and AAC encoder delay |
+| 34 | `TASK-252` | Library two-pane (original ask, last) |
 
 Progress screen target layout:
 

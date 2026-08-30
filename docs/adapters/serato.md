@@ -25,7 +25,7 @@ fixtures in [`tests/fixtures/serato/`](../../tests/fixtures/serato/).
 | `%%` nested-crate naming | confirmed in Serato (`Gigs%%Played%%safety day`, 2026-08-27) |
 | MP3 ID3 container path | unit-tested (v2.2 / v2.3 / v2.4); not yet confirmed live in Serato |
 | AIFF / AIFC `ID3 ` chunk | unit-tested (TASK-263); not yet confirmed live in Serato |
-| M4A / MP4 `----:com.serato.dj` | unit-tested (TASK-263); first five cues also need a `markers` atom |
+| M4A / MP4 `----:com.serato.dj` | unit-tested (TASK-263); `markers` uses the MP4 row layout (TASK-294) |
 
 Vendor formats still change without notice; treat versions defensively.
 

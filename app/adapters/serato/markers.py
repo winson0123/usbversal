@@ -12,6 +12,12 @@ _TYPE_CUE = 1
 _TYPE_LOOP = 3
 _FOOTER = b"\x07\x7f\x7f\x7f"
 _EMPTY_FIELD = b"\x00\x7f\x7f\x7f\x7f\x7f"
+_MP4_UNSET = b"\xff\xff\xff\xff"
+_MP4_EMPTY_CUE = _MP4_UNSET + _MP4_UNSET + b"\x00" + _MP4_UNSET + b"\x00\x00\x00\x00\x00\x00"
+_MP4_EMPTY_LOOP = _MP4_UNSET + _MP4_UNSET + b"\x00" + _MP4_UNSET + b"\x00\x00\x00\x00\x03\x00"
+_MP4_ROW = 19
+_MP4_FOOTER = b"\x00\x00\xff\xff\xff\x00\x00"
+_MP4_LOOP_ROWS = 9
 
 
 def _encode_serato32(red: int, green: int, blue: int) -> bytes:
@@ -154,3 +160,117 @@ def decode_markers_v1(payload: bytes) -> list[Cue]:
             )
         )
     return cues
+
+
+def _is_mp4_markers(payload: bytes) -> bool:
+    """
+    Return whether ``payload`` is the MP4 ``markers`` layout.
+
+    ID3 Markers_ uses serato32 times and ``0x7f`` unset. MP4 uses a raw
+    millisecond ``uint32`` and ``0xFFFFFFFF`` unset.
+
+    Args:
+        payload: Raw Markers_ bytes.
+
+    Returns:
+        True when the first row uses the MP4 unset pattern.
+    """
+    if len(payload) < 6 + _MP4_ROW:
+        return False
+    return payload[6:10] == _MP4_UNSET or payload[10:14] == _MP4_UNSET
+
+
+def encode_markers_v1_mp4(cues: list[Cue]) -> bytes:
+    """
+    Encode the first five hot cues as an MP4 ``markers`` payload.
+
+    Serato ignores ID3-shaped Markers_ on M4A. Each row is 19 bytes: a
+    raw big-endian start time, ``0xFFFFFFFF`` unused fields, raw RGB,
+    and a type byte.
+
+    Args:
+        cues: Hot cues from Rekordbox. Slots outside 0-4 are ignored.
+
+    Returns:
+        Header, five cue rows, nine empty loop rows, and the colour footer.
+    """
+    by_slot = {cue.slot: cue for cue in cues if 0 <= cue.slot < _HOT_CUE_SLOTS}
+    body = bytearray(_HEADER)
+    for slot in range(_HOT_CUE_SLOTS):
+        cue = by_slot.get(slot)
+        if cue is None:
+            body += _MP4_EMPTY_CUE
+            continue
+        hex_colour = cue.colour.lstrip("#")
+        colour = bytes.fromhex(hex_colour)
+        body += (
+            cue.position_ms.to_bytes(4, "big")
+            + _MP4_UNSET
+            + b"\x00"
+            + _MP4_UNSET
+            + b"\x00"
+            + colour
+            + bytes((_TYPE_CUE, 0))
+        )
+    body += _MP4_EMPTY_LOOP * _MP4_LOOP_ROWS
+    body += _MP4_FOOTER
+    return bytes(body)
+
+
+def decode_markers_v1_mp4(payload: bytes) -> list[Cue]:
+    """
+    Read set hot cues from an MP4 ``markers`` payload.
+
+    Args:
+        payload: Raw ``markers`` atom payload after the FLAC-style wrapper.
+
+    Returns:
+        Cues in slot order. Empty when the payload is too short.
+    """
+    if len(payload) < 6 + _HOT_CUE_SLOTS * _MP4_ROW:
+        return []
+    cues: list[Cue] = []
+    for slot in range(_HOT_CUE_SLOTS):
+        entry = payload[6 + slot * _MP4_ROW : 6 + (slot + 1) * _MP4_ROW]
+        if entry[:4] == _MP4_UNSET:
+            continue
+        position = int.from_bytes(entry[:4], "big")
+        colour = entry[14:17]
+        cues.append(
+            Cue(
+                slot=slot,
+                position_ms=position,
+                colour=f"#{colour[0]:02X}{colour[1]:02X}{colour[2]:02X}",
+            )
+        )
+    return cues
+
+
+def markers_id3_to_mp4(payload: bytes) -> bytes:
+    """
+    Convert an ID3 Markers_ payload to the MP4 ``markers`` layout.
+
+    Args:
+        payload: ID3 or already-MP4 Markers_ bytes.
+
+    Returns:
+        MP4 ``markers`` bytes. Unchanged when already MP4.
+    """
+    if _is_mp4_markers(payload):
+        return payload
+    return encode_markers_v1_mp4(decode_markers_v1(payload))
+
+
+def markers_mp4_to_id3(payload: bytes) -> bytes:
+    """
+    Convert an MP4 ``markers`` payload to the ID3 Markers_ layout.
+
+    Args:
+        payload: MP4 or already-ID3 Markers_ bytes.
+
+    Returns:
+        ID3 Markers_ bytes. Unchanged when already ID3.
+    """
+    if not _is_mp4_markers(payload):
+        return payload
+    return encode_markers_v1(decode_markers_v1_mp4(payload))

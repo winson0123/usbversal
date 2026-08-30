@@ -1126,6 +1126,18 @@ A raw MPEG file (frame sync at byte 0) gets an ID3v2.4 tag prepended. A WAVE wit
 
 ---
 
+## TASK-294 — M4A markers layout and AAC encoder delay
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Write M4A `markers` in Serato's MP4 layout and subtract AAC encoder delay |
+| Verification | ruff ✓ ruff format ✓ pytest 331 passed / 4 skipped |
+
+Serato ignores ID3-shaped Markers_ on M4A. Pads 1-5 need the 279-byte MP4 row layout. Rekordbox times include AAC priming; sync subtracts iTunSMPB or 2112 samples. See `docs/workflows/m4a-markers.md`.
+
+---
+
 ## Template (for future entries)
 
 ```markdown
