@@ -314,6 +314,8 @@ async def test_count_column_lines_up_regardless_of_depth_or_row_kind(tmp_path: P
         await pilot.pause()
 
         tree = app.screen.query_one(Tree)
+        app.screen.on_resize()
+        await pilot.pause()
         lines = ["".join(segment.text for segment in tree.render_line(y)) for y in range(3)]
         # "All playlists" (depth 0, no icon), "Music" (depth 0, folder icon),
         # "Genres" (depth 1, folder icon) -- covers every combination this
@@ -321,6 +323,33 @@ async def test_count_column_lines_up_regardless_of_depth_or_row_kind(tmp_path: P
         positions = {line.index("0/0") for line in lines}
 
         assert len(positions) == 1, lines
+
+
+@pytest.mark.asyncio
+async def test_nested_playlist_names_stay_readable(tmp_path: Path) -> None:
+    """A fixed 16-cell name column left depth-3 folders as a single letter."""
+    mount = _stick(tmp_path, crates={}, indexed=[])
+    playlists = [
+        Playlist(id=1, name="Genres", parent_id=None, is_folder=True),
+        Playlist(id=2, name="House", parent_id=1, is_folder=True),
+        Playlist(id=3, name="Amapiano", parent_id=2, is_folder=False),
+        Playlist(id=4, name="Africa", parent_id=2, is_folder=False),
+    ]
+    library = make_library(mount, _adapter(playlists, {3: [], 4: []}))
+    app = _Harness(library)
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        app.screen.on_resize()
+        await pilot.pause()
+
+        tree = app.screen.query_one(Tree)
+        text = "\n".join(
+            "".join(segment.text for segment in tree.render_line(y))
+            for y in range(tree.virtual_size.height)
+        )
+        assert "Amapiano" in text
+        assert "Africa" in text
+        assert "House" in text
 
 
 @pytest.mark.asyncio

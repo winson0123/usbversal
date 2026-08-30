@@ -1,22 +1,23 @@
 # Current Task
 
 **Status:** `completed`
-**Task ID:** `TASK-304`
+**Task ID:** `TASK-305`
 **Last updated:** 2026-08-30
 
 ## Objective
 
-Narrow the Playlists pane, use rounded borders, separate the traffic-light
-legend with a line, and keep the track table from scrolling sideways.
+Stop clipping playlist tree names to a 16-cell column so nested folders
+stay readable.
 
 ## Files touched
 
 - `app/tui/screens/library.py`
 - `tests/test_tui_library.py`
 - `docs/tasks/backlog.md`
+- `docs/tasks/completed-tasks.md`
 - `docs/HANDOFF.md`
 - `docs/state/task-state.json`
-- `docs/tasks/completed-tasks.md`
+- `docs/state/repository-state.json`
 
 ## Verification criteria
 
@@ -30,4 +31,4 @@ legend with a line, and keep the track table from scrolling sideways.
 
 - ruff ✓
 - ruff format ✓
-- pytest 352 passed / 4 skipped
+- pytest 353 passed / 4 skipped

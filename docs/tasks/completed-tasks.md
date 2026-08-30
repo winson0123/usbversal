@@ -1258,6 +1258,21 @@ Playlists is one third, Tracks two thirds. Both panes use `border: round`. The l
 
 ---
 
+## TASK-305 — Readable playlist tree names
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Nested playlist names stay readable; clip from the live tree width |
+| Verification | ruff ✓ ruff format ✓ pytest 353 passed / 4 skipped |
+
+TASK-304's 16-cell name column plus tree guides left depth-3 folders as a
+single letter. Names now take `tree.size.width − count − gutter`, the
+Playlists pane is `2fr` with `min-width: 48`, and labels refresh on
+resize. Track-table title clipping is unchanged.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

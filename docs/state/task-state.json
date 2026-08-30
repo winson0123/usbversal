@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-30T05:16:00Z",
+  "updated_at": "2026-08-30T05:42:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -724,6 +724,11 @@
     {
       "id": "TASK-304",
       "title": "Library pane polish",
+      "completed_at": "2026-08-30T00:00:00Z"
+    },
+    {
+      "id": "TASK-305",
+      "title": "Readable playlist tree names",
       "completed_at": "2026-08-30T00:00:00Z"
     }
   ],
@@ -1595,6 +1600,12 @@
     {
       "id": "TASK-304",
       "title": "Library pane polish",
+      "completed_at": "2026-08-30T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-305",
+      "title": "Readable playlist tree names",
       "completed_at": "2026-08-30T00:00:00Z",
       "status": "completed"
     }

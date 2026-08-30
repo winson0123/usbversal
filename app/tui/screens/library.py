@@ -55,9 +55,8 @@ _COLUMNS = ("Title", "Genre", "Key", "BPM")
 # Tree has no column model, so this is a label string padded with knowledge
 # of exactly how many cells Tree's own guide lines and expand icon consume
 # before the label starts at a given depth (see _prefix_width).
-# Left pane is about a third of the window; keep the name short so x/y fits.
-_NAME_WIDTH = 16
 _COUNT_WIDTH = 7
+_TREE_GUTTER = 2
 _GENRE_WIDTH = 12
 _KEY_WIDTH = 6
 _BPM_WIDTH = 6
@@ -103,13 +102,14 @@ class LibraryScreen(Screen):
         height: 1fr;
     }
     LibraryScreen #playlist-pane {
-        width: 1fr;
+        width: 2fr;
+        min-width: 48;
         height: 1fr;
         border: round;
         padding: 0 1;
     }
     LibraryScreen #track-pane {
-        width: 2fr;
+        width: 3fr;
         height: 1fr;
         border: round;
         padding: 0 1;
@@ -200,6 +200,7 @@ class LibraryScreen(Screen):
         tree.root.expand()
         tree.cursor_line = 0
         tree.focus()
+        self._refresh_labels(tree.root, depth=0)
         self._clear_table()
         self._apply_column_widths()
         self._update_status()
@@ -255,8 +256,8 @@ class LibraryScreen(Screen):
             checkbox = _SELECTED
         else:
             checkbox = _PARTIAL_SELECTED
-        name_field = max(1, _NAME_WIDTH - self._prefix_width(depth, row.is_folder))
-        name = f"{checkbox} {_clip(row.name, max(1, name_field - 2))}"
+        name_field = max(8, self._name_column_width() - self._prefix_width(depth, row.is_folder))
+        name = f"{checkbox} {_clip(row.name, max(4, name_field - 2))}"
         padded_name = name + " " * max(0, name_field - cell_len(name))
 
         colour = _COUNT_COLOUR[row.state]
@@ -288,10 +289,24 @@ class LibraryScreen(Screen):
         self._update_status()
 
     def _refresh_labels(self, node: TreeNode, depth: int) -> None:
+        """
+        Rewrite every label so checkbox, clip width, and count stay in sync.
+
+        The hidden Tree root has no ``_Row``. Its children start at ``depth``
+        rather than ``depth + 1``, matching how ``_refresh`` labels
+        ``All playlists`` at depth 0.
+
+        Args:
+            node: Node to refresh, then walk into.
+            depth: Nesting depth of ``node`` when it has row data; for the
+                hidden root this is the depth its children should use.
+        """
+        child_depth = depth
         if node.data is not None:
             node.set_label(self._label(node.data, depth))
+            child_depth = depth + 1
         for child in node.children:
-            self._refresh_labels(child, depth + 1)
+            self._refresh_labels(child, child_depth)
 
     def _update_status(self) -> None:
         count = len(self._selected)
@@ -362,9 +377,24 @@ class LibraryScreen(Screen):
         self._sort_reverse = False
 
     def on_resize(self) -> None:
-        """Keep table columns inside the pane when the window changes."""
+        """Reflow tree names and table columns when the window changes."""
+        if self.query("#playlist-tree"):
+            self._refresh_labels(self.query_one(Tree).root, depth=0)
         if self.query("#track-table"):
             self._apply_column_widths()
+
+    def _name_column_width(self) -> int:
+        """
+        Cells available for the playlist name plus checkbox, before ``x/y``.
+
+        Uses the live tree width so nested rows still have room to read.
+        A fixed 16-cell column left depth-3 folders as a single letter.
+
+        Returns:
+            At least 24 cells so a three-level name is still a word.
+        """
+        tree = self.query_one(Tree)
+        return max(24, tree.size.width - _COUNT_WIDTH - _TREE_GUTTER)
 
     def _title_column_width(self) -> int:
         """
