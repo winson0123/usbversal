@@ -2,6 +2,7 @@
 
 import os
 import struct
+from io import BytesIO
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,7 @@ import pytest
 from app.adapters.serato.tags import (
     TagFormatError,
     _commit_audio_bytes,
+    _seek_chunk,
     read_geob,
     write_geob,
 )
@@ -239,6 +241,80 @@ def test_commit_restores_wav_when_append_fails(
         _commit_audio_bytes(target, bytes(new_data), original)
 
     assert target.read_bytes() == original
+
+
+class _CountingBytesIO(BytesIO):
+    """A stream that records how many bytes ``read`` actually copied."""
+
+    def __init__(self, data: bytes) -> None:
+        super().__init__(data)
+        self.bytes_read = 0
+
+    def read(self, size: int | None = -1) -> bytes:
+        """Read bytes and add the copy size to ``bytes_read``."""
+        data = super().read(-1 if size is None else size)
+        self.bytes_read += len(data)
+        return data
+
+
+def test_seek_chunk_does_not_copy_the_wav_data() -> None:
+    """Walking RIFF chunks must seek past ``data``, not pull it."""
+    pcm = b"\x00" * 1_000_000
+    id3 = b"ID3" + bytes([4, 0, 0]) + _synchsafe(0)
+    fmt = struct.pack("<HHIIHH", 1, 1, 44100, 88200, 2, 16)
+    chunks = (
+        b"fmt "
+        + struct.pack("<I", 16)
+        + fmt
+        + b"data"
+        + struct.pack("<I", len(pcm))
+        + pcm
+        + b"id3 "
+        + struct.pack("<I", len(id3))
+        + id3
+    )
+    wav = b"RIFF" + struct.pack("<I", 4 + len(chunks)) + b"WAVE" + chunks
+    stream = _CountingBytesIO(wav)
+    stream.read(12)
+
+    tag = _seek_chunk(stream, b"id3 ", "<I")
+
+    assert tag == id3
+    assert stream.bytes_read < 64
+
+
+def test_read_geob_does_not_read_the_whole_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Comparing frames must not load the audio payload."""
+    payload = b"\x01\x01" + b"\x00" * 8
+    target = tmp_path / "t.mp3"
+    target.write_bytes(_mp3([_geob_frame("Serato Markers2", payload)], padding=64))
+
+    def boom(self: Path) -> bytes:
+        """Fail if the skip path loads the song."""
+        raise AssertionError("read the whole file")
+
+    monkeypatch.setattr(Path, "read_bytes", boom)
+
+    assert read_geob(target)["Serato Markers2"] == payload
+
+
+def test_write_geob_skip_does_not_read_the_whole_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A matching rewrite must not pull the audio to decide skip."""
+    payload = b"\x01\x01" + b"\x00" * 8
+    target = tmp_path / "t.mp3"
+    target.write_bytes(_mp3([_geob_frame("Serato Markers2", payload)], padding=64))
+
+    def boom(self: Path) -> bytes:
+        """Fail if the skip path loads the song."""
+        raise AssertionError("read the whole file")
+
+    monkeypatch.setattr(Path, "read_bytes", boom)
+
+    assert write_geob(target, {"Serato Markers2": payload}) is False
 
 
 def test_commit_fsyncs_the_file_after_replace(

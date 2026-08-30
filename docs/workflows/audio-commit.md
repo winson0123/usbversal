@@ -3,6 +3,11 @@
 `write_geob` rebuilds the file in memory and verifies the audio hash plus
 frame read-back before any byte is meant to reach the live path.
 
+`read_geob` and the skip path read only the tag. WAV ``data``, MPEG
+frames, AIFF ``SSND``, FLAC audio, and MP4 ``mdat`` are seeked past so
+a 50 MB song is not pulled to decide BeatGrid already matches
+(TASK-297). A rewrite still loads the whole file.
+
 When the rebuilt file is the same length (padded MP3 / existing WAV
 `id3 `), only the changed span is written in place and fsynced. No
 sibling `.tmp`, no `replace`. A failed patch writes that span back from

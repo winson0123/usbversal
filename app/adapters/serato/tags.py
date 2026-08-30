@@ -8,6 +8,7 @@ import hashlib
 import os
 import struct
 from pathlib import Path
+from typing import BinaryIO
 
 import structlog
 
@@ -674,6 +675,33 @@ def _verify_flac_rewrite(
             raise TagFormatError(f"{description!r} was supposed to be removed")
 
 
+def _frames_from_id3_tag(tag: bytes) -> dict[str, bytes]:
+    """
+    Parse Serato GEOB payloads from an ID3 tag.
+
+    Args:
+        tag: Full ID3v2 tag, including the 10-byte header.
+
+    Returns:
+        Mapping of GEOB description to payload bytes.
+
+    Raises:
+        TagFormatError: The bytes are not an ID3 tag.
+    """
+    if tag[:3] != b"ID3":
+        raise TagFormatError("No ID3 tag found")
+    version = tag[3]
+    end = 10 + _unsynchsafe(tag[6:10])
+    geob_id = _geob_frame_id(version)
+    frames: dict[str, bytes] = {}
+    for frame_id, _header, body in _iter_id3_frames(tag, version, end):
+        if frame_id != geob_id:
+            continue
+        description, cursor = _geob_description(body)
+        frames[description] = body[cursor:]
+    return frames
+
+
 def _read_geob_bytes(data: bytes) -> dict[str, bytes]:
     """Parse GEOB payloads out of whole file contents already in memory."""
     if data[:4] == b"fLaC":
@@ -689,25 +717,171 @@ def _read_geob_bytes(data: bytes) -> dict[str, bytes]:
     if _is_aiff(data) and _iff_chunk(data, b"ID3 ") is None:
         return {}
     start, size = _tag_span(data)
-    tag = data[start : start + size]
-    if tag[:3] != b"ID3":
-        raise TagFormatError("No ID3 tag found")
+    return _frames_from_id3_tag(data[start : start + size])
 
-    version = tag[3]
-    end = 10 + _unsynchsafe(tag[6:10])
-    geob_id = _geob_frame_id(version)
-    frames: dict[str, bytes] = {}
-    for frame_id, _header, body in _iter_id3_frames(tag, version, end):
-        if frame_id != geob_id:
+
+def _read_exact(handle: BinaryIO, size: int, what: str) -> bytes:
+    """
+    Read ``size`` bytes or raise if the stream ends early.
+
+    Args:
+        handle: Open binary stream.
+        size: Number of bytes required.
+        what: Label for the error message.
+
+    Returns:
+        Exactly ``size`` bytes.
+
+    Raises:
+        TagFormatError: Fewer than ``size`` bytes were available.
+    """
+    data = handle.read(size)
+    if len(data) != size:
+        raise TagFormatError(f"Truncated {what}")
+    return data
+
+
+def _read_id3_tag_from_handle(handle: BinaryIO) -> bytes:
+    """
+    Read one ID3v2 tag from the current position.
+
+    Args:
+        handle: Stream positioned at ``ID3``.
+
+    Returns:
+        The header plus the declared tag body.
+    """
+    header = _read_exact(handle, 10, "ID3 header")
+    if header[:3] != b"ID3":
+        raise TagFormatError("No ID3 tag found")
+    return header + _read_exact(handle, _unsynchsafe(header[6:10]), "ID3 tag")
+
+
+def _seek_chunk(handle: BinaryIO, name: bytes, size_format: str) -> bytes | None:
+    """
+    Walk RIFF/IFF chunks and return the named payload, seeking past others.
+
+    Args:
+        handle: Stream positioned at the first chunk header.
+        name: Four-byte chunk id.
+        size_format: ``<I`` for RIFF or ``>I`` for IFF.
+
+    Returns:
+        The chunk payload, or None when the name is absent.
+    """
+    while True:
+        header = handle.read(8)
+        if len(header) < 8:
+            return None
+        size = struct.unpack(size_format, header[4:8])[0]
+        if header[:4] == name:
+            return _read_exact(handle, size, f"{name!r} chunk")
+        handle.seek(size + (size & 1), os.SEEK_CUR)
+
+
+def _read_flac_metadata(handle: BinaryIO) -> bytes:
+    """
+    Read the FLAC header and metadata blocks, stopping before audio frames.
+
+    Args:
+        handle: Stream positioned at ``fLaC``.
+
+    Returns:
+        ``fLaC`` plus every metadata block.
+    """
+    magic = _read_exact(handle, 4, "FLAC header")
+    if magic != b"fLaC":
+        raise TagFormatError("Unrecognised audio container")
+    parts = [magic]
+    while True:
+        header = _read_exact(handle, 4, "FLAC metadata header")
+        length = int.from_bytes(header[1:4], "big")
+        parts.append(header + _read_exact(handle, length, "FLAC metadata block"))
+        if header[0] & 0x80:
+            break
+    return b"".join(parts)
+
+
+def _read_mp4_without_mdat(handle: BinaryIO) -> bytes:
+    """
+    Read an MP4 file but seek past ``mdat`` instead of loading it.
+
+    Args:
+        handle: Stream positioned at the first box.
+
+    Returns:
+        The file with ``mdat`` bodies omitted.
+    """
+    parts: list[bytes] = []
+    while True:
+        header = handle.read(8)
+        if not header:
+            break
+        if len(header) < 8:
+            raise TagFormatError("Truncated MP4 box")
+        size = int.from_bytes(header[:4], "big")
+        kind = header[4:8]
+        extra = b""
+        header_len = 8
+        if size == 1:
+            extra = _read_exact(handle, 8, "MP4 largesize")
+            size = int.from_bytes(extra, "big")
+            header_len = 16
+        elif size == 0:
+            rest = handle.read()
+            if kind != b"mdat":
+                parts.append(header + rest)
+            break
+        body_len = size - header_len
+        if body_len < 0:
+            raise TagFormatError(f"Invalid MP4 box {kind!r}")
+        if kind == b"mdat":
+            handle.seek(body_len, os.SEEK_CUR)
             continue
-        description, cursor = _geob_description(body)
-        frames[description] = body[cursor:]
-    return frames
+        parts.append(header + extra + _read_exact(handle, body_len, f"MP4 {kind!r} box"))
+    return b"".join(parts)
+
+
+def _read_geob_from_path(target: Path) -> dict[str, bytes]:
+    """
+    Read Serato frames from ``target`` without loading the audio payload.
+
+    Args:
+        target: Audio file path.
+
+    Returns:
+        Mapping of GEOB description to payload bytes.
+    """
+    with target.open("rb") as handle:
+        head = handle.read(16)
+        handle.seek(0)
+        if head[:3] == b"ID3":
+            return _frames_from_id3_tag(_read_id3_tag_from_handle(handle))
+        if _is_mpeg(head):
+            return {}
+        if head[:4] == b"fLaC":
+            return _read_flac_geob(_read_flac_metadata(handle))
+        if _is_wav(head):
+            _read_exact(handle, 12, "RIFF header")
+            tag = _seek_chunk(handle, b"id3 ", "<I")
+            return {} if tag is None else _frames_from_id3_tag(tag)
+        if _is_aiff(head):
+            _read_exact(handle, 12, "FORM header")
+            tag = _seek_chunk(handle, b"ID3 ", ">I")
+            return {} if tag is None else _frames_from_id3_tag(tag)
+        if _is_mp4(head):
+            from app.adapters.serato.mp4_tags import read_mp4_geob
+
+            return read_mp4_geob(_read_mp4_without_mdat(handle))
+        raise TagFormatError("Unrecognised audio container")
 
 
 def read_geob(path: str | Path) -> dict[str, bytes]:
     """
     Read Serato GEOB payloads from an audio file.
+
+    Only the tag region is read. MPEG audio, WAV ``data``, AIFF ``SSND``,
+    FLAC frames, and MP4 ``mdat`` are seeked past.
 
     Args:
         path: Path to an .mp3, .wav, .flac, .aif, .aiff, .m4a, or .mp4 file.
@@ -718,7 +892,7 @@ def read_geob(path: str | Path) -> dict[str, bytes]:
     Raises:
         TagFormatError: The container or tag cannot be parsed.
     """
-    return _read_geob_bytes(Path(path).read_bytes())
+    return _read_geob_from_path(Path(path))
 
 
 def verify_geob_rewrite(
@@ -1108,7 +1282,7 @@ def _splice_aiff_id3(data: bytes, new_tag: bytes) -> bytearray:
 
 
 def _already_on_disk(
-    data: bytes,
+    existing: dict[str, bytes],
     updates: dict[str, bytes],
     dropped_geob: set[str],
     dropped_frames: set[bytes],
@@ -1117,7 +1291,7 @@ def _already_on_disk(
     Return whether the file already has every requested payload and nothing to drop.
 
     Args:
-        data: Whole file contents.
+        existing: GEOB frames already on disk.
         updates: GEOB description to intended payload.
         dropped_geob: GEOB descriptions that must be removed.
         dropped_frames: Frame ids that must be removed.
@@ -1126,10 +1300,6 @@ def _already_on_disk(
         True when a rewrite would not change any requested frame.
     """
     if dropped_geob or dropped_frames:
-        return False
-    try:
-        existing = _read_geob_bytes(data)
-    except TagFormatError:
         return False
     return all(existing.get(name) == payload for name, payload in updates.items())
 
@@ -1447,7 +1617,8 @@ def write_geob(
     fsync the live file and its directory.
     A short or missing destination is overwritten with the original bytes.
     An empty file is refused. When every requested payload already matches
-    and nothing is being removed, the file is not rewritten.
+    and nothing is being removed, only the tag is read and the file is not
+    rewritten.
 
     Args:
         path: Path to an .mp3, .wav, .flac, .aif, .aiff, .m4a, or .mp4 file.
@@ -1470,10 +1641,14 @@ def write_geob(
     _recover_empty_from_tmp(target)
     if not target.is_file() or target.stat().st_size == 0:
         raise TagFormatError("audio file is empty")
-    data = target.read_bytes()
-    if _already_on_disk(data, updates, dropped_geob, dropped_frames):
+    try:
+        existing = read_geob(target)
+    except TagFormatError:
+        existing = None
+    if existing is not None and _already_on_disk(existing, updates, dropped_geob, dropped_frames):
         logger.info("audio_tags_unchanged", path=str(target), frames=sorted(updates))
         return False
+    data = target.read_bytes()
     if data[:4] == b"fLaC":
         new_data = _write_flac_bytes(data, updates, dropped_geob)
         verify_geob_rewrite(data, new_data, updates, remove_geob=dropped_geob)

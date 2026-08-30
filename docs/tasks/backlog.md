@@ -220,6 +220,7 @@ and none of them exist yet.
 | ~~`TASK-294`~~ | ~~M4A markers layout and AAC encoder delay~~ | Done — MP4 `markers` is raw ms / `0xFFFFFFFF`; subtract iTunSMPB or 2112-sample priming. See `docs/workflows/m4a-markers.md`. |
 | ~~`TASK-295`~~ | ~~In-place tag write when file size is unchanged~~ | Done — same-size GEOB writes patch the dirty span; no `.tmp` / `replace`. Size-changing writes keep the TASK-286 tmp path. |
 | ~~`TASK-296`~~ | ~~Append an id3 chunk on tagless WAV~~ | Done — RIFF size patch plus EOF append; `data` does not move. |
+| ~~`TASK-297`~~ | ~~Read only the tag to decide already on disk~~ | Done — skip and `read_geob` seek past audio; a rewrite still loads the file. |
 | `TASK-252` | Library two-pane window | Last in this wave. Colour `x/y` (green only in the numerator), drop `-`, playlists left / tracks right. Per-track red/yellow/green. Spec in HANDOFF.md. Do after 258–263 so AIF tracks and analysis colour are honest. |
 
 ---

@@ -1162,6 +1162,18 @@ A WAVE with no `id3 ` chunk patches the RIFF size and appends the chunk. The `da
 
 ---
 
+## TASK-297 — Read only the tag to decide already on disk
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Read only the tag when deciding a GEOB write is already on disk |
+| Verification | ruff ✓ ruff format ✓ pytest 340 passed / 4 skipped |
+
+`read_geob` and the `write_geob` skip path seek past WAV `data`, MPEG frames, AIFF `SSND`, FLAC audio, and MP4 `mdat`. A rewrite still loads the whole file. See `docs/workflows/audio-commit.md`.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

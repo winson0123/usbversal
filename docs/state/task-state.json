@@ -685,6 +685,11 @@
       "id": "TASK-296",
       "title": "Append an id3 chunk on tagless WAV instead of rewriting the file",
       "completed_at": "2026-08-30T00:00:00Z"
+    },
+    {
+      "id": "TASK-297",
+      "title": "Read only the tag when deciding a GEOB write is already on disk",
+      "completed_at": "2026-08-30T00:00:00Z"
     }
   ],
   "history": [
@@ -1507,6 +1512,12 @@
     {
       "id": "TASK-296",
       "title": "Append an id3 chunk on tagless WAV instead of rewriting the file",
+      "completed_at": "2026-08-30T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-297",
+      "title": "Read only the tag when deciding a GEOB write is already on disk",
       "completed_at": "2026-08-30T00:00:00Z",
       "status": "completed"
     }
