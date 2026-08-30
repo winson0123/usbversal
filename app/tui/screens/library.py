@@ -1,14 +1,12 @@
 """Library screen: playlist tree on the left, track preview on the right.
 
 Arrow keys move, space toggles selection (a folder toggles every descendant
-playlist at once, and the "All playlists" row at the very top -- a real,
-collapsible container for everything else, not just a sibling summary --
-toggles the whole library), "e" expands or collapses the highlighted folder,
-enter confirms and, with at least one playlist selected, starts the sync
-(step 4, the Progress screen). Highlighting a playlist fills the right
-pane. Coming back here after a sync (Done -> enter -> pop_screen) re-reads
-sync state from disk rather than showing whatever was true when the screen
-first loaded.
+playlist at once), "a" selects or clears the whole library, "e" expands or
+collapses the highlighted folder, enter confirms and, with at least one
+playlist selected, starts the sync (step 4, the Progress screen).
+Highlighting a playlist fills the right pane. Coming back here after a
+sync (Done -> enter -> pop_screen) re-reads sync state from disk rather
+than showing whatever was true when the screen first loaded.
 """
 
 from __future__ import annotations
@@ -28,7 +26,6 @@ from app.core.domain import SyncState
 from app.services.library import UsbLibrary
 from app.services.sync_service import (
     PlaylistTreeSyncState,
-    combine_sync_states,
     playlist_tree_sync_states,
 )
 from app.services.track_preview import TrackPreview, preview_playlist_tracks
@@ -47,8 +44,8 @@ _UNSELECTED = " "
 _PARTIAL_SELECTED = "~"
 _STATUS_ID = "selection-status"
 _MOUNT_ID = "mount-info"
+_HEADER_ID = "header"
 _LEGEND_ID = "sync-legend"
-_ALL_NAME = "All playlists"
 _COLUMNS = ("Title", "Genre", "Key", "BPM")
 
 # Fixed-width columns so the count sits in the same place on every row.
@@ -65,8 +62,7 @@ _TABLE_GUTTER = 8
 
 @dataclass(frozen=True)
 class _Row:
-    """Whatever one tree row needs to render and toggle -- a real playlist,
-    folder, or the synthetic "All playlists" row."""
+    """Whatever one tree row needs to render and toggle -- a playlist or folder."""
 
     name: str
     state: SyncState
@@ -89,14 +85,24 @@ class LibraryScreen(Screen):
 
     BINDINGS = [
         Binding("space", "toggle_selection", "Select", show=True, priority=True),
+        Binding("a", "select_all", "All", show=True),
         Binding("e", "toggle_expand", "Expand/collapse", show=True),
     ]
 
     DEFAULT_CSS = """
+    LibraryScreen #header {
+        height: auto;
+        padding: 0 1;
+    }
     LibraryScreen #mount-info {
         text-style: dim;
-        margin: 0 0 0 1;
+        width: 1fr;
         height: auto;
+    }
+    LibraryScreen #selection-status {
+        width: auto;
+        height: auto;
+        text-align: right;
     }
     LibraryScreen #panes {
         height: 1fr;
@@ -128,10 +134,6 @@ class LibraryScreen(Screen):
         margin: 1 0 0 0;
         padding: 1 0 0 0;
     }
-    LibraryScreen #selection-status {
-        height: auto;
-        margin: 0 1;
-    }
     """
 
     def __init__(self, library: UsbLibrary) -> None:
@@ -142,11 +144,14 @@ class LibraryScreen(Screen):
         super().__init__()
         self.library = library
         self._selected: set[int] = set()
+        self._all_ids: tuple[int, ...] = ()
         self._sort_key: str | None = None
         self._sort_reverse = False
 
     def compose(self) -> ComposeResult:
-        yield Static(f"Mounted: {self.library.mount}", id=_MOUNT_ID)
+        with Horizontal(id=_HEADER_ID):
+            yield Static(f"Mounted: {self.library.mount}", id=_MOUNT_ID)
+            yield Static("", id=_STATUS_ID)
         with Horizontal(id="panes"):
             playlist_pane = Vertical(id="playlist-pane")
             playlist_pane.border_title = "Playlists"
@@ -163,7 +168,6 @@ class LibraryScreen(Screen):
                 table.zebra_stripes = True
                 table.show_horizontal_scrollbar = False
                 yield table
-        yield Static("", id=_STATUS_ID)
         yield Footer()
 
     async def on_screen_resume(self) -> None:
@@ -185,18 +189,9 @@ class LibraryScreen(Screen):
         # must stay on the app's one dedicated thread -- see
         # UsbversalApp.run_rekordbox.
         states = await self.app.run_rekordbox(playlist_tree_sync_states, self.library)
-
-        all_row = _Row(
-            name=_ALL_NAME,
-            state=combine_sync_states([state.state for state in states]),
-            synced=sum(state.synced for state in states),
-            total=sum(state.total for state in states),
-            ids=tuple(i for state in states for i in state.leaf_ids),
-            is_folder=True,
-        )
-        all_node = tree.root.add(self._label(all_row, depth=0), data=all_row, expand=True)
+        self._all_ids = tuple(i for state in states for i in state.leaf_ids)
         for state in states:
-            self._add_node(all_node, state, depth=1)
+            self._add_node(tree.root, state, depth=0)
 
         tree.root.expand()
         tree.cursor_line = 0
@@ -268,13 +263,24 @@ class LibraryScreen(Screen):
         return label
 
     def action_toggle_expand(self) -> None:
-        """Expand or collapse the highlighted folder (including "All playlists")."""
+        """Expand or collapse the highlighted folder."""
         node = self.query_one(Tree).cursor_node
         if node is not None and node.allow_expand:
             node.toggle()
 
+    def action_select_all(self) -> None:
+        """Select every playlist, or clear the selection if all are already selected."""
+        if not self._all_ids:
+            return
+        if all(i in self._selected for i in self._all_ids):
+            self._selected.clear()
+        else:
+            self._selected.update(self._all_ids)
+        self._refresh_labels(self.query_one(Tree).root, depth=0)
+        self._update_status()
+
     def action_toggle_selection(self) -> None:
-        """Toggle the highlighted row; a folder or "All" toggles every playlist it covers."""
+        """Toggle the highlighted row; a folder toggles every playlist it covers."""
         tree = self.query_one(Tree)
         node = tree.cursor_node
         if node is None or node.data is None:
@@ -295,7 +301,7 @@ class LibraryScreen(Screen):
 
         The hidden Tree root has no ``_Row``. Its children start at ``depth``
         rather than ``depth + 1``, matching how ``_refresh`` labels
-        ``All playlists`` at depth 0.
+        top-level playlists at depth 0.
 
         Args:
             node: Node to refresh, then walk into.
@@ -310,6 +316,12 @@ class LibraryScreen(Screen):
             self._refresh_labels(child, child_depth)
 
     def _update_status(self) -> None:
+        """
+        Show how many playlists are selected, beside the mount path.
+
+        Returns:
+            None.
+        """
         count = len(self._selected)
         message = f"{count} playlist{'s' if count != 1 else ''} selected"
         if count:

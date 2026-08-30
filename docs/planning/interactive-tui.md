@@ -21,7 +21,7 @@ rather than retrofitted later.
 |---|--------|-----------|
 | 1 | Waiting | `Searching for valid DJ USBs…` / `Did not detect a valid DJ USB` / `Searching for rekordbox exported USBs…` |
 | 2 | Detect | A USB plugged in **while the screen is open** is picked up automatically and checked for rekordbox→Serato sync validity |
-| 3 | Library | Playlist tree. Select all at top level or descend per playlist. Arrow keys move, space toggles, enter confirms. Traffic-light text: **red** not synced, **yellow** partially synced, **green** fully synced |
+| 3 | Library | Playlist tree. `a` selects all, or descend per playlist. Arrow keys move, space toggles, enter confirms. Traffic-light text: **red** not synced, **yellow** partially synced, **green** fully synced |
 | 4 | Progress | Progress bar with estimated time to completion |
 | 5 | Done | Completion summary. Enter returns to the library view. Quit is ^Q. |
 

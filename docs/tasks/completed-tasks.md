@@ -1286,6 +1286,21 @@ the tree. Each label is the same green / yellow / red as its bullet.
 
 ---
 
+## TASK-307 — Flatten tree; status beside mount
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Drop the All playlists parent; `a` selects all; status beside the mount |
+| Verification | ruff ✓ ruff format ✓ pytest 354 passed / 4 skipped |
+
+Top-level folders sit on the hidden Tree root so they are not indented
+under a synthetic parent. `a` toggles the whole library. The selection
+count shares the header with the mount path, which frees the row under
+the panes.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

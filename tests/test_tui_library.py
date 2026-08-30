@@ -78,8 +78,8 @@ def _adapter(playlists: list[Playlist], tracks: dict[int, list[str]]) -> MagicMo
 
 
 def _playlist_nodes(tree: Tree):
-    """Real playlist/folder nodes, one level under the "All playlists" root."""
-    return tree.root.children[0].children
+    """Top-level playlist and folder nodes under the hidden Tree root."""
+    return tree.root.children
 
 
 class _Harness(RekordboxThreadMixin, App):
@@ -131,41 +131,17 @@ async def test_tree_shows_every_playlist_with_its_state(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_all_playlists_row_contains_everything_and_aggregates_it(
-    tmp_path: Path,
-) -> None:
-    """ "All playlists" is a real folder holding every top-level node, and
-    rolls up state/counts across the whole library."""
+async def test_tree_has_no_all_playlists_parent(tmp_path: Path) -> None:
+    """Top-level playlists sit on the hidden root so they are not indented."""
     library = _library_with_two_playlists(tmp_path)
     app = _Harness(library)
     async with app.run_test() as pilot:
         await pilot.pause()
 
         tree = app.screen.query_one(Tree)
-        all_node = tree.root.children[0]
-
-        assert all_node.data.name == "All playlists"
-        assert all_node.allow_expand
-        assert {child.data.name for child in all_node.children} == {"Techno", "Trance"}
-        # Techno is 1/1 synced, Trance is 0/1 -- mixed, so partial; counts sum.
-        assert "1/2" in str(all_node.label)
-        assert "partial" not in str(all_node.label)
-
-
-@pytest.mark.asyncio
-async def test_all_playlists_is_collapsible(tmp_path: Path) -> None:
-    """Pressing "e" on "All playlists" collapses it, hiding every playlist."""
-    library = _library_with_two_playlists(tmp_path)
-    app = _Harness(library)
-    async with app.run_test() as pilot:
-        await pilot.pause()
-        all_node = app.screen.query_one(Tree).root.children[0]
-        assert all_node.is_expanded
-
-        await pilot.press("e")
-        await pilot.pause()
-
-        assert not all_node.is_expanded
+        names = [node.data.name for node in tree.root.children]
+        assert names == ["Techno", "Trance"]
+        assert "All playlists" not in names
 
 
 @pytest.mark.asyncio
@@ -175,7 +151,6 @@ async def test_e_does_nothing_on_a_leaf(tmp_path: Path) -> None:
     app = _Harness(library)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await pilot.press("down")  # move off "All playlists" onto "Techno", a leaf
 
         await pilot.press("e")
         await pilot.pause()
@@ -224,13 +199,13 @@ async def test_returning_to_the_screen_reflects_a_sync_that_just_happened(
 
 
 @pytest.mark.asyncio
-async def test_space_on_all_playlists_selects_everything(tmp_path: Path) -> None:
-    """The cursor starts on the synthetic "All playlists" row; space selects everything."""
+async def test_a_selects_every_playlist(tmp_path: Path) -> None:
+    """Select-all is a key, not a parent row that indents the tree."""
     library = _library_with_two_playlists(tmp_path)
     app = _Harness(library)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await pilot.press("space")
+        await pilot.press("a")
         await pilot.pause()
 
         status = str(app.screen.query_one("#selection-status", Static).render())
@@ -238,13 +213,27 @@ async def test_space_on_all_playlists_selects_everything(tmp_path: Path) -> None
 
 
 @pytest.mark.asyncio
-async def test_space_selects_the_highlighted_playlist(tmp_path: Path) -> None:
-    """Pressing space on a leaf (past the "All" row) toggles just that one."""
+async def test_a_again_clears_the_selection(tmp_path: Path) -> None:
+    """Pressing a when everything is selected returns to nothing selected."""
     library = _library_with_two_playlists(tmp_path)
     app = _Harness(library)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await pilot.press("down")  # move off "All playlists" onto "Techno"
+        await pilot.press("a")
+        await pilot.press("a")
+        await pilot.pause()
+
+        status = str(app.screen.query_one("#selection-status", Static).render())
+        assert "0 playlists selected" in status
+
+
+@pytest.mark.asyncio
+async def test_space_selects_the_highlighted_playlist(tmp_path: Path) -> None:
+    """Pressing space on a leaf toggles just that one."""
+    library = _library_with_two_playlists(tmp_path)
+    app = _Harness(library)
+    async with app.run_test() as pilot:
+        await pilot.pause()
         await pilot.press("space")
         await pilot.pause()
 
@@ -282,7 +271,6 @@ async def test_space_on_a_folder_selects_every_descendant(tmp_path: Path) -> Non
     app = _Harness(library)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await pilot.press("down")  # move off "All playlists" onto "Genres"
         await pilot.press("space")
         await pilot.pause()
 
@@ -297,10 +285,10 @@ async def test_count_column_lines_up_regardless_of_depth_or_row_kind(tmp_path: P
     Tree's own guide lines and expand icon eat a different amount of space
     per row depending on nesting depth and whether the row is a folder or a
     leaf, so naive fixed-width padding on the label text alone drifts out of
-    alignment. _prefix_width compensates for exactly that, so the count
-    column should start at the same character offset on "All playlists"
-    (depth 0, no icon), a folder (depth 0, with an icon), and a leaf nested
-    two levels deep (depth 2, no icon).
+    alignment.     _prefix_width compensates for exactly that, so the count
+    column should start at the same character offset on a top-level
+    folder (depth 0, with an icon), a nested folder (depth 1, with an
+    icon), and a leaf two levels down (depth 2, no icon).
     """
     mount = _stick(tmp_path, crates={}, indexed=[])
     playlists = [
@@ -317,9 +305,8 @@ async def test_count_column_lines_up_regardless_of_depth_or_row_kind(tmp_path: P
         app.screen.on_resize()
         await pilot.pause()
         lines = ["".join(segment.text for segment in tree.render_line(y)) for y in range(3)]
-        # "All playlists" (depth 0, no icon), "Music" (depth 0, folder icon),
-        # "Genres" (depth 1, folder icon) -- covers every combination this
-        # fixture can reach without a third nesting level.
+        # "Music" (depth 0, folder icon), "Genres" (depth 1, folder icon),
+        # "Techno" (depth 2, leaf) -- folder and leaf at different depths.
         positions = {line.index("0/0") for line in lines}
 
         assert len(positions) == 1, lines
@@ -376,7 +363,6 @@ async def test_enter_with_a_selection_starts_the_sync(tmp_path: Path) -> None:
     with patch("app.tui.screens.library.ProgressScreen", _DummyProgressScreen):
         async with app.run_test() as pilot:
             await pilot.pause()
-            await pilot.press("down")  # move off "All playlists" onto "Techno"
             await pilot.press("space")
             await pilot.press("enter")
             await pilot.pause()
@@ -401,6 +387,8 @@ async def test_library_is_two_panes_with_a_legend(tmp_path: Path) -> None:
         assert app.screen.query_one("#playlist-pane").styles.border.top[0] == "round"
         assert app.screen.query_one("#sync-legend").styles.border.top[0] == "solid"
         assert app.screen.query_one("#sync-legend").styles.margin.top == 1
+        header = app.screen.query_one("#header")
+        assert [child.id for child in header.children] == ["mount-info", "selection-status"]
         table = app.screen.query_one("#track-table", DataTable)
         assert [str(col.label) for col in table.columns.values()] == [
             "Title",
@@ -428,8 +416,6 @@ async def test_highlighting_a_playlist_fills_the_track_table(tmp_path: Path) -> 
     library.rekordbox.database.get_contents.return_value = [content]
     app = _Harness(library)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.press("down")
         await pilot.pause()
 
         table = app.screen.query_one("#track-table", DataTable)

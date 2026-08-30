@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-30T05:44:00Z",
+  "updated_at": "2026-08-30T05:47:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -734,6 +734,11 @@
     {
       "id": "TASK-306",
       "title": "Legend rule and coloured words",
+      "completed_at": "2026-08-30T00:00:00Z"
+    },
+    {
+      "id": "TASK-307",
+      "title": "Flatten tree; status beside mount",
       "completed_at": "2026-08-30T00:00:00Z"
     }
   ],
@@ -1617,6 +1622,12 @@
     {
       "id": "TASK-306",
       "title": "Legend rule and coloured words",
+      "completed_at": "2026-08-30T00:00:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-307",
+      "title": "Flatten tree; status beside mount",
       "completed_at": "2026-08-30T00:00:00Z",
       "status": "completed"
     }
