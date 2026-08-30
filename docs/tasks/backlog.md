@@ -226,7 +226,7 @@ and none of them exist yet.
 | ~~`TASK-300`~~ | ~~Write Rekordbox cue RGB on M4A~~ | Done — M4A pads use ANLZ RGB as-is, same as MP3. Track colour footer stays unset. |
 | ~~`TASK-301`~~ | ~~Read PCP2 cue RGB after the UTF-16 comment~~ | Done — named cues (`1.1Bars`) were read as `#31002E`; RGB is after the comment. |
 | ~~`TASK-302`~~ | ~~Do not create `location.sqlite`~~ | Done — Serato authors the 16-table file. Insert is not needed (DBV2 import creates rows). We UPDATE existing rows only. |
-| ~~`TASK-252`~~ | ~~Library two-pane window~~ | Done — Playlists left (coloured `x/y`, no `-`), Tracks right (Title/Genre/Key/BPM). Crate membership is the track colour. Analysis-aware yellow is TASK-303. Settings columns later. |
+| ~~`TASK-252`~~ | ~~Library two-pane window~~ | Done — Playlists left (coloured `x/y`, no `-`), Tracks right (Title/Genre/Key/BPM). Analysis-aware colour is TASK-303. Settings columns later. |
 | ~~`TASK-304`~~ | ~~Library pane polish~~ | Done — narrower Playlists, round borders, lined traffic-light legend, clipped titles so the table does not scroll sideways. |
 | ~~`TASK-305`~~ | ~~Readable playlist tree names~~ | Done — name width follows the live tree; Playlists `min-width: 48`. Nested names stay words, not a letter. |
 | ~~`TASK-306`~~ | ~~Legend rule and coloured words~~ | Done — rule sits one row lower; synced / partial / not synced match the dots. |
@@ -238,7 +238,7 @@ and none of them exist yet.
 | ~~`TASK-312`~~ | ~~Grow a WAV id3 chunk that sits after data~~ | Done — tight Rekordbox WAV tags after `data` grow; only the metadata tail is rewritten. An `id3 ` before `data` still refuses. |
 | ~~`TASK-313`~~ | ~~Posting amber instead of TUI green~~ | Done — then corrected: traffic lights stay green (TASK-314). Footer keys still `#ffd700`. |
 | ~~`TASK-314`~~ | ~~Amber on pane borders only~~ | Done — Playlists and Tracks boxes use `#f0b429`; synced / progress / Done stay green. |
-| `TASK-303` | Analysis-aware track colour and honest `x/y` | Yellow = in crate but Rekordbox analysis is not on the file. Numerator counts green only. |
+| ~~`TASK-303`~~ | ~~Analysis-aware track colour and honest `x/y`~~ | Done — yellow = in crate but Rekordbox analysis is not on the file. Numerator counts green only. |
 
 ---
 

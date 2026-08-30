@@ -55,6 +55,7 @@ from app.services.track_records import (
     load_lookups,
     serato_path,
 )
+from app.services.track_sync import analysis_is_ported, contents_by_path
 from app.storage.mounts import flush_mount
 
 logger = structlog.get_logger(__name__)
@@ -97,8 +98,9 @@ def playlist_sync_states(library: UsbLibrary) -> tuple[PlaylistSyncState, ...]:
     """
     Compute sync state for every Rekordbox playlist on the stick.
 
-    Compares each playlist against the crate it maps to, and against the Serato
-    database index that determines what can be written at all.
+    A track is green only when it is in the crate and Rekordbox analysis
+    is already on the file, or Rekordbox had nothing to port. The
+    numerator in ``x/y`` is that green count.
 
     Args:
         library: Opened session handle.
@@ -110,28 +112,74 @@ def playlist_sync_states(library: UsbLibrary) -> tuple[PlaylistSyncState, ...]:
     indexed = _database_index(library.serato_database)
     playlists = library.rekordbox.list_playlists()
     by_id = {p.id: p for p in playlists}
+    contents = contents_by_path(library.rekordbox.database)
+    cache: dict[str, bool] = {}
 
     states: list[PlaylistSyncState] = []
     for playlist in playlists:
         if playlist.is_folder:
             continue
-        tracks = [
-            normalize_track_path(t) for t in library.rekordbox.get_playlist_track_paths(playlist.id)
-        ]
         crate_name = crate_name_for(playlist, by_id, volume=volume_label_for(library.mount))
-        in_crate = crates.get(crate_name, set())
+        total, in_crate, complete, syncable = _playlist_track_counts(
+            library,
+            playlist.id,
+            crates.get(crate_name, set()),
+            indexed,
+            contents,
+            cache,
+        )
         states.append(
             PlaylistSyncState(
                 playlist_id=playlist.id,
                 playlist_name=playlist.name,
                 crate_name=crate_name,
-                total=len(tracks),
-                in_crate=sum(1 for t in tracks if t in in_crate),
-                syncable=sum(1 for t in tracks if t in indexed),
+                total=total,
+                in_crate=in_crate,
+                complete=complete,
+                syncable=syncable,
             )
         )
     logger.info("sync_states_computed", playlists=len(states))
     return tuple(states)
+
+
+def _playlist_track_counts(
+    library: UsbLibrary,
+    playlist_id: int,
+    crate_paths: set[str],
+    indexed: set[str],
+    contents: dict[str, Any],
+    cache: dict[str, bool],
+) -> tuple[int, int, int, int]:
+    """
+    Count total, in-crate, green, and syncable tracks for one playlist.
+
+    Args:
+        library: Opened session handle.
+        playlist_id: Rekordbox playlist id.
+        crate_paths: Normalized paths already in the mapped crate.
+        indexed: Normalized paths present in database V2.
+        contents: Path to Rekordbox content row.
+        cache: Shared analysis-ported cache.
+
+    Returns:
+        ``(total, in_crate, complete, syncable)``.
+    """
+    raws = library.rekordbox.get_playlist_track_paths(playlist_id)
+    in_crate = 0
+    complete = 0
+    syncable = 0
+    for raw in raws:
+        key = normalize_track_path(raw)
+        if key in indexed:
+            syncable += 1
+        if key not in crate_paths:
+            continue
+        in_crate += 1
+        content = contents.get(key) or contents.get(serato_path(raw))
+        if analysis_is_ported(library.mount, raw, content, cache):
+            complete += 1
+    return len(raws), in_crate, complete, syncable
 
 
 @dataclass(frozen=True)
@@ -143,8 +191,8 @@ class PlaylistTreeSyncState:
         node: Underlying tree node (the playlist/folder plus nested children).
         state: This node's traffic-light state -- a leaf's own state, or a
             folder's rolled up from its descendants.
-        synced: Tracks already in the crate -- a leaf's own ``in_crate``, or
-            the sum across a folder's descendants.
+        synced: Green tracks -- a leaf's own ``complete``, or the sum
+            across a folder's descendants.
         total: Tracks in the playlist -- a leaf's own ``total``, or the sum
             across a folder's descendants.
         leaf_ids: Playlist ids of every non-folder descendant, including
@@ -222,7 +270,7 @@ def _leaf_tree_state(
     return PlaylistTreeSyncState(
         node=node,
         state=leaf.state,
-        synced=leaf.in_crate,
+        synced=leaf.complete,
         total=leaf.total,
         leaf_ids=(node.playlist.id,),
     )
@@ -299,6 +347,7 @@ def sync_states_to_dict(states: tuple[PlaylistSyncState, ...]) -> dict[str, Any]
                 "crate_name": s.crate_name,
                 "total": s.total,
                 "in_crate": s.in_crate,
+                "complete": s.complete,
                 "syncable": s.syncable,
                 "blocked": s.blocked,
                 "state": s.state.value,

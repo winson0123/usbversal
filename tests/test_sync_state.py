@@ -2,6 +2,7 @@
 
 import struct
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from app.adapters.serato.naming import volume_label_for
@@ -13,6 +14,9 @@ from app.services.sync_service import (
     sync_states_to_dict,
 )
 from tests.conftest import EMPTY_DATABASE_V2, make_library
+
+_DAT_REL = "USBANLZ/ANLZ0000.DAT"
+_GEOB_MIME = b"application/octet-stream"
 
 
 def _stem(mount: Path, name: str) -> str:
@@ -59,6 +63,87 @@ def _adapter(playlists: list[Playlist], tracks: dict[int, list[str]]) -> MagicMo
     return adapter
 
 
+def _section(tag: bytes, header_extra: bytes, body: bytes) -> bytes:
+    """Build one ANLZ section with its header and total lengths."""
+    header_len = 12 + len(header_extra)
+    total_len = header_len + len(body)
+    return tag + struct.pack(">II", header_len, total_len) + header_extra + body
+
+
+def _anlz(sections: bytes) -> bytes:
+    """Wrap sections in a PMAI container."""
+    return b"PMAI" + struct.pack(">II", 28, 28 + len(sections)) + b"\x00" * 16 + sections
+
+
+def _pqtz(beats: list[tuple[int, float, int]]) -> bytes:
+    """Build a PQTZ beat grid section."""
+    body = b"".join(struct.pack(">HHI", n, int(bpm * 100), t) for n, bpm, t in beats)
+    return _section(b"PQTZ", b"\x00" * 12, body)
+
+
+def _synchsafe(value: int) -> bytes:
+    """Encode an integer as a 28-bit synchsafe big-endian value."""
+    return bytes(((value >> shift) & 0x7F) for shift in (21, 14, 7, 0))
+
+
+def _geob_frame(description: str, payload: bytes) -> bytes:
+    """Build one raw ID3v2.4 GEOB frame."""
+    body = b"\x00" + _GEOB_MIME + b"\x00\x00" + description.encode("latin1") + b"\x00" + payload
+    return b"GEOB" + _synchsafe(len(body)) + b"\x00\x00" + body
+
+
+def _mp3(frames: list[bytes]) -> bytes:
+    """Build a minimal ID3v2.4 MP3 carrying the given GEOB frames."""
+    body = b"".join(frames)
+    return b"ID3" + bytes([4, 0, 0]) + _synchsafe(len(body)) + body + b"\xff\xfb" + b"\x00" * 64
+
+
+def _content(path: str, dat_rel: str | None = None) -> SimpleNamespace:
+    """
+    Build a Rekordbox-shaped content row for sync-state tests.
+
+    Args:
+        path: Rekordbox content path.
+        dat_rel: Drive-relative ANLZ ``.DAT`` path, or None when unanalysed.
+
+    Returns:
+        Namespace with ``path`` and optional ``analysis_data_file_path``.
+    """
+    return SimpleNamespace(
+        path=path,
+        analysis_data_file_path=f"/{dat_rel}" if dat_rel else None,
+    )
+
+
+def _write_dat(mount: Path, rel: str, beats: list[tuple[int, float, int]]) -> None:
+    """
+    Write an ANLZ ``.DAT`` under the mount.
+
+    Args:
+        mount: Mount root.
+        rel: Drive-relative path for the ``.DAT``.
+        beats: ``(number, bpm, time_ms)`` rows; empty writes a tag with no grid.
+    """
+    path = mount / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(_anlz(_pqtz(beats) if beats else b""))
+
+
+def _write_audio(mount: Path, rel: str, *, beatgrid: bool) -> None:
+    """
+    Write a dummy MP3 under the mount.
+
+    Args:
+        mount: Mount root.
+        rel: Drive-relative audio path.
+        beatgrid: When True, the file already carries ``Serato BeatGrid``.
+    """
+    path = mount / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    frames = [_geob_frame("Serato BeatGrid", b"\x01\x00\x00\x00\x00\x00\x00")] if beatgrid else []
+    path.write_bytes(_mp3(frames))
+
+
 def test_fully_synced_playlist_is_green(tmp_path: Path) -> None:
     """Every track present in the crate reports as synced."""
     mount = _stick(
@@ -72,7 +157,7 @@ def test_fully_synced_playlist_is_green(tmp_path: Path) -> None:
     (state,) = playlist_sync_states(library)
 
     assert state.state is SyncState.SYNCED
-    assert (state.in_crate, state.total, state.blocked) == (2, 2, 0)
+    assert (state.in_crate, state.complete, state.total, state.blocked) == (2, 2, 2, 0)
 
 
 def test_partially_synced_playlist_is_yellow(tmp_path: Path) -> None:
@@ -88,7 +173,7 @@ def test_partially_synced_playlist_is_yellow(tmp_path: Path) -> None:
     (state,) = playlist_sync_states(library)
 
     assert state.state is SyncState.PARTIAL
-    assert (state.in_crate, state.total) == (1, 2)
+    assert (state.in_crate, state.complete, state.total) == (1, 1, 2)
 
 
 def test_missing_crate_is_red(tmp_path: Path) -> None:
@@ -238,8 +323,116 @@ def test_tree_empty_folder_is_red_not_green(tmp_path: Path) -> None:
     assert root.state is SyncState.NOT_SYNCED
 
 
+def test_in_crate_without_anlz_is_green(tmp_path: Path) -> None:
+    """A crate member with no Rekordbox analysis has nothing to port."""
+    mount = _stick(
+        tmp_path,
+        crates={_stem(tmp_path, "Pocket"): ["Contents/a.mp3"]},
+        indexed=["Contents/a.mp3"],
+    )
+    playlist = Playlist(id=1, name="Pocket", parent_id=None, is_folder=False)
+    adapter = _adapter([playlist], {1: ["/Contents/a.mp3"]})
+    adapter.database.get_contents.return_value = [_content("/Contents/a.mp3")]
+    library = make_library(mount, adapter)
+
+    (state,) = playlist_sync_states(library)
+
+    assert state.state is SyncState.SYNCED
+    assert (state.complete, state.in_crate, state.total) == (1, 1, 1)
+
+
+def test_in_crate_with_beats_and_no_beatgrid_is_yellow(tmp_path: Path) -> None:
+    """A crate member whose ANLZ beats are not on the file is partial."""
+    mount = _stick(
+        tmp_path,
+        crates={_stem(tmp_path, "Pocket"): ["Contents/a.mp3"]},
+        indexed=["Contents/a.mp3"],
+    )
+    _write_dat(mount, _DAT_REL, [(1, 128.0, 0)])
+    _write_audio(mount, "Contents/a.mp3", beatgrid=False)
+    playlist = Playlist(id=1, name="Pocket", parent_id=None, is_folder=False)
+    adapter = _adapter([playlist], {1: ["/Contents/a.mp3"]})
+    adapter.database.get_contents.return_value = [_content("/Contents/a.mp3", _DAT_REL)]
+    library = make_library(mount, adapter)
+
+    (state,) = playlist_sync_states(library)
+
+    assert state.state is SyncState.PARTIAL
+    assert (state.complete, state.in_crate, state.total) == (0, 1, 1)
+
+
+def test_in_crate_with_beats_and_beatgrid_is_green(tmp_path: Path) -> None:
+    """A crate member whose ANLZ beats are already on the file is synced."""
+    mount = _stick(
+        tmp_path,
+        crates={_stem(tmp_path, "Pocket"): ["Contents/a.mp3"]},
+        indexed=["Contents/a.mp3"],
+    )
+    _write_dat(mount, _DAT_REL, [(1, 128.0, 0)])
+    _write_audio(mount, "Contents/a.mp3", beatgrid=True)
+    playlist = Playlist(id=1, name="Pocket", parent_id=None, is_folder=False)
+    adapter = _adapter([playlist], {1: ["/Contents/a.mp3"]})
+    adapter.database.get_contents.return_value = [_content("/Contents/a.mp3", _DAT_REL)]
+    library = make_library(mount, adapter)
+
+    (state,) = playlist_sync_states(library)
+
+    assert state.state is SyncState.SYNCED
+    assert (state.complete, state.total) == (1, 1)
+
+
+def test_empty_anlz_is_green(tmp_path: Path) -> None:
+    """A DAT with neither beats nor cues has nothing to port."""
+    mount = _stick(
+        tmp_path,
+        crates={_stem(tmp_path, "Pocket"): ["Contents/a.mp3"]},
+        indexed=["Contents/a.mp3"],
+    )
+    _write_dat(mount, _DAT_REL, [])
+    playlist = Playlist(id=1, name="Pocket", parent_id=None, is_folder=False)
+    adapter = _adapter([playlist], {1: ["/Contents/a.mp3"]})
+    adapter.database.get_contents.return_value = [_content("/Contents/a.mp3", _DAT_REL)]
+    library = make_library(mount, adapter)
+
+    (state,) = playlist_sync_states(library)
+
+    assert state.state is SyncState.SYNCED
+    assert state.complete == 1
+
+
+def test_tree_folder_counts_only_green_tracks(tmp_path: Path) -> None:
+    """A folder's x/y numerator is green descendants only."""
+    mount = _stick(
+        tmp_path,
+        crates={
+            _stem(tmp_path, "Genres%%Techno"): ["Contents/a.mp3"],
+            _stem(tmp_path, "Genres%%Trance"): ["Contents/b.mp3"],
+        },
+        indexed=["Contents/a.mp3", "Contents/b.mp3"],
+    )
+    _write_dat(mount, _DAT_REL, [(1, 128.0, 0)])
+    folder = Playlist(id=9, name="Genres", parent_id=None, is_folder=True)
+    techno = Playlist(id=1, name="Techno", parent_id=9, is_folder=False)
+    trance = Playlist(id=2, name="Trance", parent_id=9, is_folder=False)
+    adapter = _adapter(
+        [folder, techno, trance],
+        {1: ["/Contents/a.mp3"], 2: ["/Contents/b.mp3"]},
+    )
+    adapter.database.get_contents.return_value = [
+        _content("/Contents/a.mp3"),
+        _content("/Contents/b.mp3", _DAT_REL),
+    ]
+    library = make_library(mount, adapter)
+
+    (root,) = playlist_tree_sync_states(library)
+
+    assert root.state is SyncState.PARTIAL
+    assert (root.synced, root.total) == (1, 2)
+    assert [child.state for child in root.children] == [SyncState.SYNCED, SyncState.PARTIAL]
+
+
 def test_tree_leaf_carries_its_own_synced_and_total_counts(tmp_path: Path) -> None:
-    """A leaf's synced/total match its own crate coverage, not just its state."""
+    """A leaf's synced/total match its green count, not just crate membership."""
     mount = _stick(
         tmp_path,
         crates={_stem(tmp_path, "Pocket"): ["Contents/a.mp3"]},

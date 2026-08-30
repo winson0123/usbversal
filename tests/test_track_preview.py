@@ -7,10 +7,18 @@ from app.adapters.serato.naming import volume_label_for
 from app.core.domain import Playlist, SyncState
 from app.services.track_preview import preview_playlist_tracks
 from tests.conftest import make_library
-from tests.test_sync_state import _adapter, _stick
+from tests.test_sync_state import _DAT_REL, _adapter, _stick, _write_audio, _write_dat
 
 
-def _content(*, path: str, title: str, genre_id: int, key_id: int, bpmx100: int) -> SimpleNamespace:
+def _content(
+    *,
+    path: str,
+    title: str,
+    genre_id: int,
+    key_id: int,
+    bpmx100: int,
+    analysis_data_file_path: str | None = None,
+) -> SimpleNamespace:
     """
     Build a Rekordbox-shaped content row for preview tests.
 
@@ -20,6 +28,7 @@ def _content(*, path: str, title: str, genre_id: int, key_id: int, bpmx100: int)
         genre_id: Genre lookup id.
         key_id: Key lookup id.
         bpmx100: Tempo times 100.
+        analysis_data_file_path: Rekordbox ANLZ path, or None when unanalysed.
 
     Returns:
         Namespace with the fields ``preview_playlist_tracks`` reads.
@@ -30,6 +39,7 @@ def _content(*, path: str, title: str, genre_id: int, key_id: int, bpmx100: int)
         genre_id=genre_id,
         key_id=key_id,
         bpmx100=bpmx100,
+        analysis_data_file_path=analysis_data_file_path,
     )
 
 
@@ -73,3 +83,45 @@ def test_preview_of_a_folder_is_empty(tmp_path: Path) -> None:
     library = make_library(mount, adapter)
 
     assert preview_playlist_tracks(library, 9) == []
+
+
+def test_preview_marks_missing_analysis_yellow(tmp_path: Path) -> None:
+    """In-crate with ANLZ beats but no BeatGrid is yellow; no ANLZ stays green."""
+    mount = _stick(
+        tmp_path,
+        crates={f"{volume_label_for(tmp_path)}%%Techno": ["Contents/a.mp3", "Contents/c.mp3"]},
+        indexed=["Contents/a.mp3", "Contents/b.mp3", "Contents/c.mp3"],
+    )
+    _write_dat(mount, _DAT_REL, [(1, 128.0, 0)])
+    _write_audio(mount, "Contents/a.mp3", beatgrid=False)
+    playlist = Playlist(id=1, name="Techno", parent_id=None, is_folder=False)
+    adapter = _adapter(
+        [playlist],
+        {1: ["/Contents/a.mp3", "/Contents/b.mp3", "/Contents/c.mp3"]},
+    )
+    adapter.database.get_contents.return_value = [
+        _content(
+            path="/Contents/a.mp3",
+            title="Alpha",
+            genre_id=1,
+            key_id=2,
+            bpmx100=12800,
+            analysis_data_file_path=f"/{_DAT_REL}",
+        ),
+        _content(path="/Contents/b.mp3", title="Beta", genre_id=1, key_id=2, bpmx100=14000),
+        _content(path="/Contents/c.mp3", title="Gamma", genre_id=1, key_id=2, bpmx100=12000),
+    ]
+    adapter.database.get_genres.return_value = [SimpleNamespace(id=1, name="Techno")]
+    adapter.database.get_keys.return_value = [SimpleNamespace(id=2, name="8A")]
+    adapter.database.get_artists.return_value = []
+    adapter.database.get_albums.return_value = []
+    library = make_library(mount, adapter)
+
+    rows = preview_playlist_tracks(library, 1)
+
+    assert [row.state for row in rows] == [
+        SyncState.PARTIAL,
+        SyncState.NOT_SYNCED,
+        SyncState.SYNCED,
+    ]
+    assert [row.title for row in rows] == ["Alpha", "Beta", "Gamma"]

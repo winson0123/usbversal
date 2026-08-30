@@ -1399,6 +1399,21 @@ Tracks. Footer keys stay `#ffd700`.
 
 ---
 
+## TASK-303 — Analysis-aware track colour and honest x/y
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | Yellow when a track is in the crate but Rekordbox analysis is not on the file; count only green tracks in `x/y` |
+| Verification | ruff ✓ ruff format ✓ pytest 369 passed / 4 skipped |
+
+Red is not in the crate. Yellow is in the crate, but ANLZ beats or cues
+are not on the file. Green is in the crate and those frames are present,
+or Rekordbox had nothing to port. Playlist colour is the same three-way
+fold as before; the numerator is the green count.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

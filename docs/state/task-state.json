@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-30T06:40:00Z",
+  "updated_at": "2026-08-30T07:20:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -8,12 +8,7 @@
     "started_at": null,
     "blocked_reason": null
   },
-  "pending_tasks": [
-    {
-      "id": "TASK-303",
-      "title": "Analysis-aware track colour and honest x/y"
-    }
-  ],
+  "pending_tasks": [],
   "blocked_tasks": [],
   "completed_tasks": [
     {
@@ -775,6 +770,11 @@
       "id": "TASK-314",
       "title": "Amber on pane borders only",
       "completed_at": "2026-08-30T06:40:00Z"
+    },
+    {
+      "id": "TASK-303",
+      "title": "Analysis-aware track colour and honest x/y",
+      "completed_at": "2026-08-30T07:20:00Z"
     }
   ],
   "history": [
@@ -1706,6 +1706,12 @@
       "id": "TASK-314",
       "title": "Amber on pane borders only",
       "completed_at": "2026-08-30T06:40:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-303",
+      "title": "Analysis-aware track colour and honest x/y",
+      "completed_at": "2026-08-30T07:20:00Z",
       "status": "completed"
     }
   ]

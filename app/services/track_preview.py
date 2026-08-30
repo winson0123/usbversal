@@ -12,6 +12,7 @@ from app.core.domain import SyncState
 from app.core.track_paths import normalize_track_path
 from app.services.library import UsbLibrary
 from app.services.track_records import RekordboxLookups, load_lookups, serato_path
+from app.services.track_sync import contents_by_path, track_sync_state
 
 
 @dataclass(frozen=True)
@@ -24,7 +25,10 @@ class TrackPreview:
         genre: Genre name, or empty.
         key: Key name, or empty.
         bpm: Tempo to two decimal places, or empty.
-        state: Green when the track is in the crate, red when it is not.
+        state: Green when the track is in the crate and analysis is on
+            the file (or Rekordbox had nothing to port); yellow when it
+            is in the crate but analysis is missing; red when it is not
+            in the crate.
     """
 
     title: str
@@ -38,8 +42,8 @@ def preview_playlist_tracks(library: UsbLibrary, playlist_id: int) -> list[Track
     """
     Build preview rows for one playlist, in playlist order.
 
-    Crate membership is the colour for this pass: in the crate is green,
-    missing is red. Analysis-on-file (yellow) is a later task.
+    Colour follows crate membership and whether Rekordbox analysis is
+    already on the audio file.
 
     Args:
         library: Opened session handle.
@@ -56,13 +60,20 @@ def preview_playlist_tracks(library: UsbLibrary, playlist_id: int) -> list[Track
 
     crate_name = crate_name_for(playlist, by_id, volume=volume_label_for(library.mount))
     in_crate = _crate_paths(library.serato_root).get(crate_name, set())
-    contents = _contents_by_path(library)
+    contents = contents_by_path(library.rekordbox.database)
     lookups = _safe_lookups(library)
+    cache: dict[str, bool] = {}
     rows: list[TrackPreview] = []
     for raw in library.rekordbox.get_playlist_track_paths(playlist_id):
         path = normalize_track_path(raw)
         content = contents.get(path) or contents.get(serato_path(raw))
-        state = SyncState.SYNCED if path in in_crate else SyncState.NOT_SYNCED
+        state = track_sync_state(
+            in_crate=path in in_crate,
+            mount=library.mount,
+            raw=raw,
+            content=content,
+            cache=cache,
+        )
         rows.append(_row_from_content(path, content, lookups, state))
     return rows
 
@@ -83,33 +94,6 @@ def _crate_paths(serato_root: Path | None) -> dict[str, set[str]]:
         path.stem: {normalize_track_path(t) for t in read_crate_track_paths(path)}
         for path in list_crate_files(serato_root)
     }
-
-
-def _contents_by_path(library: UsbLibrary) -> dict[str, Any]:
-    """
-    Map normalized and drive-relative paths to Rekordbox content rows.
-
-    Args:
-        library: Opened session handle.
-
-    Returns:
-        Path string to content row. Empty when the adapter has no contents.
-    """
-    fetch = getattr(library.rekordbox.database, "get_contents", None)
-    if not callable(fetch):
-        return {}
-    try:
-        rows = list(fetch())
-    except TypeError:
-        return {}
-    by_path: dict[str, Any] = {}
-    for content in rows:
-        raw = getattr(content, "path", None)
-        if not raw:
-            continue
-        by_path[normalize_track_path(str(raw))] = content
-        by_path[serato_path(str(raw))] = content
-    return by_path
 
 
 def _safe_lookups(library: UsbLibrary) -> RekordboxLookups:
@@ -141,7 +125,7 @@ def _row_from_content(
         path: Normalized track path.
         content: Rekordbox content row, or None when missing.
         lookups: Genre and key names.
-        state: Crate-membership colour.
+        state: Traffic-light colour for the row.
 
     Returns:
         Display fields for the table.

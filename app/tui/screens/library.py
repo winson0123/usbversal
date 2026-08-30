@@ -412,7 +412,8 @@ class LibraryScreen(Screen):
 
         Playlist names are arbitrary user data, so the count colour is a
         ``Text`` style, not a markup tag that a ``[`` in the name could break.
-        Only the numerator is green when the row is fully synced.
+        The numerator counts green tracks only. The count colour is the
+        playlist's rolled-up state.
 
         Args:
             row: Row data to render.

@@ -1,36 +1,35 @@
 # Current Task
 
-**Status:** `complete`
-**Task ID:** `TASK-314`
+**Status:** `idle`
+**Task ID:** none
 **Last updated:** 2026-08-30
 
-## Objective
+---
 
-Put traffic-light green back, and paint only the Library pane borders amber.
+## Last Completed
 
-## Files touched
+| Field | Value |
+|-------|-------|
+| Task ID | `TASK-303` |
+| Objective | Yellow when a track is in the crate but Rekordbox analysis is not on the file; `x/y` counts green only |
+| Completed | 2026-08-30 |
 
-- `app/tui/palette.py`
-- `app/tui/screens/library.py`
-- `app/tui/screens/progress.py`
-- `tests/test_tui_library.py`
-- `tests/test_tui_progress.py`
-- `docs/tasks/backlog.md`
-- `docs/tasks/completed-tasks.md`
-- `docs/HANDOFF.md`
-- `docs/state/task-state.json`
-- `docs/state/repository-state.json`
+### Scope
 
-## Verification criteria
+- `app/services/track_sync.py`: shared crate + analysis verdict.
+- `app/core/domain.py`: `PlaylistSyncState.complete`.
+- `app/services/sync_service.py`: tree `x/y` uses the green count.
+- `app/services/track_preview.py`: preview row colours match.
 
-```bash
-.venv/bin/ruff check .
-.venv/bin/ruff format --check .
-.venv/bin/pytest
-```
+### Verification log
 
-## Verification log
+| Check | Result |
+|-------|--------|
+| `.venv/bin/ruff check .` | pass |
+| `.venv/bin/ruff format --check .` | pass |
+| `.venv/bin/pytest` | 369 passed, 4 skipped |
 
-- ruff: pass
-- ruff format: pass
-- pytest: 363 passed / 4 skipped
+## Next
+
+Library two-pane queue is empty. Settings extra columns stay unscoped
+(user deferred). Ask the user.

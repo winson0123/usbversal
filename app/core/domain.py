@@ -108,6 +108,8 @@ class PlaylistSyncState:
         crate_name: Crate filename stem the playlist maps to.
         total: Tracks in the Rekordbox playlist.
         in_crate: Playlist tracks already present in the crate.
+        complete: Playlist tracks that are green: in the crate, and
+            analysis is on the file or Rekordbox had nothing to port.
         syncable: Playlist tracks Serato can index today.
     """
 
@@ -116,14 +118,17 @@ class PlaylistSyncState:
     crate_name: str
     total: int
     in_crate: int
+    complete: int
     syncable: int
 
     @property
     def state(self) -> SyncState:
-        """Traffic-light state derived from crate coverage."""
-        if self.total == 0 or self.in_crate >= self.total:
+        """Traffic-light state: green only counts as finished."""
+        if self.total == 0 or self.complete >= self.total:
             return SyncState.SYNCED
-        return SyncState.PARTIAL if self.in_crate else SyncState.NOT_SYNCED
+        if self.complete == 0 and self.in_crate == 0:
+            return SyncState.NOT_SYNCED
+        return SyncState.PARTIAL
 
     @property
     def blocked(self) -> int:

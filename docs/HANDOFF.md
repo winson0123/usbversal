@@ -6,8 +6,8 @@ below — that's what a session picking this up should do next.
 
 | | |
 |---|---|
-| Tests | 363 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-314` — Amber on pane borders only |
+| Tests | 369 passed, 4 skipped (`ruff` and `ruff format` clean) |
+| Last done | `TASK-303` — Analysis-aware track colour and honest `x/y` |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -78,7 +78,7 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 51 | ~~`TASK-312`~~ | Grow a WAV `id3 ` that sits after `data` |
 | 52 | ~~`TASK-313`~~ | Posting amber instead of green; brighter yellow footer keys |
 | 53 | ~~`TASK-314`~~ | Amber on Playlists / Tracks boxes only; traffic lights stay green |
-| 54 | `TASK-303` | Analysis-aware track colour and honest `x/y` |
+| 54 | ~~`TASK-303`~~ | Analysis-aware track colour and honest `x/y` |
 
 Progress screen target layout:
 
@@ -94,7 +94,7 @@ Progress screen target layout:
 
 ---
 
-## Library screen redesign (TASK-252 done; TASK-303 next)
+## Library screen redesign (TASK-252 and TASK-303 done)
 
 The user asked for this in one message, verbatim:
 
@@ -332,9 +332,11 @@ and header status in TASK-307, legend flush under the rule in
 TASK-308, `^a` / `^q` and native track table in TASK-309, tree flush
 and visible parent guides in TASK-310, path and child guide lighting
 in TASK-311. Tight WAV `id3 ` after `data` may grow (TASK-312). Footer keys are a brighter yellow (TASK-313). The Playlists and Tracks
-boxes use Posting amber; traffic-light green is back (TASK-314). Next is
-`TASK-303`: yellow when a track is in the crate but
-Rekordbox analysis is not on the file, and `x/y` counts green only.
+boxes use Posting amber; traffic-light green is back (TASK-314). Track
+colour and `x/y` now follow analysis (TASK-303): yellow when a track is
+in the crate but Rekordbox analysis is not on the file; the numerator
+counts green only. The Library two-pane queue is empty. Settings extra
+columns stay unscoped.
 
 ---
 
