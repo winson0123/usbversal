@@ -1428,6 +1428,20 @@ MP3 is not on the stick. Sync treated that as nothing happened.
 
 ---
 
+## TASK-316 — Mark existing location.sqlite rows analyzed
+
+| Field | Value |
+|-------|-------|
+| Completed | 2026-08-30 |
+| Objective | When `location.sqlite` exists, set `analysis_flags` to 31 on synced tracks with a beatgrid |
+| Verification | ruff ✓ ruff format ✓ pytest 372 passed / 4 skipped |
+
+The library-list unanalyzed count is this bitmap, not the file tags.
+First open still imports from `database V2` with the flag unset. A
+second sync, after Serato has created the file, marks the rows.
+
+---
+
 ## Template (for future entries)
 
 ```markdown

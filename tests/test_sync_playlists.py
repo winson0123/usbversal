@@ -34,7 +34,8 @@ create table asset (
     file_name text,
     key text not null default '',
     bpm real,
-    is_stale integer not null default 0
+    is_stale integer not null default 0,
+    analysis_flags integer not null default 0
 );
 create table space (id integer, name text, revision integer);
 create table serato (database_name text, revision integer);
@@ -404,6 +405,12 @@ def test_analysis_writes_beatgrid_cues_and_index(tmp_path: Path) -> None:
     analysis = read_track_analysis(library_db_path(mount / "_Serato_"))["Contents/track.wav"]
     assert analysis.bpm == 136.0
     assert analysis.key == "8A"
+    flags = (
+        sqlite3.connect(library_db_path(mount / "_Serato_"))
+        .execute("select analysis_flags from asset where portable_id = 'Contents/track.wav'")
+        .fetchone()[0]
+    )
+    assert flags == 31
 
 
 def test_resync_does_not_recount_matching_tags(tmp_path: Path) -> None:

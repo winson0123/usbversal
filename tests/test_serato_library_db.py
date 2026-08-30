@@ -20,7 +20,8 @@ create table asset (
     file_name text,
     key text not null default '',
     bpm real,
-    is_stale integer not null default 0
+    is_stale integer not null default 0,
+    analysis_flags integer not null default 0
 );
 create table space (id integer, name text, revision integer);
 create table serato (database_name text, revision integer);
@@ -82,10 +83,27 @@ def test_omitted_fields_are_left_alone(database: Path) -> None:
 
 
 def test_unchanged_values_are_not_rewritten(database: Path) -> None:
-    """Writing the values already present updates nothing."""
+    """Writing the values already present, on an analysed row, updates nothing."""
+    con = sqlite3.connect(database)
+    con.execute("update asset set analysis_flags = 31 where portable_id = 'Contents/a.mp3'")
+    con.commit()
+    con.close()
     assert (
         update_track_analysis(database, {"Contents/a.mp3": TrackAnalysis(bpm=71.5, key="Cm")}) == 0
     )
+
+
+def test_marks_existing_row_analyzed(database: Path) -> None:
+    """Same BPM and key still writes analysis_flags when the row is unanalyzed."""
+    changed = update_track_analysis(database, {"Contents/a.mp3": TrackAnalysis(bpm=71.5, key="Cm")})
+
+    con = sqlite3.connect(database)
+    flags = con.execute(
+        "select analysis_flags from asset where portable_id = 'Contents/a.mp3'"
+    ).fetchone()[0]
+    con.close()
+    assert changed == 1
+    assert flags == 31
 
 
 def test_unknown_tracks_are_ignored(database: Path) -> None:

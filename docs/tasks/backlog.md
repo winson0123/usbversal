@@ -240,6 +240,7 @@ and none of them exist yet.
 | ~~`TASK-314`~~ | ~~Amber on pane borders only~~ | Done — Playlists and Tracks boxes use `#f0b429`; synced / progress / Done stay green. |
 | ~~`TASK-303`~~ | ~~Analysis-aware track colour and honest `x/y`~~ | Done — yellow = in crate but Rekordbox analysis is not on the file. Numerator counts green only. |
 | ~~`TASK-315`~~ | ~~Report missing audio as an analysis error~~ | Done — a DAT with no file on the mount is a Done-screen / error.log failure, not a silent skip. |
+| ~~`TASK-316`~~ | ~~Mark existing location.sqlite rows analyzed~~ | Done — when the file exists, synced tracks with a beatgrid get `analysis_flags = 31`. Still no create or insert. |
 
 ---
 

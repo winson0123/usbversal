@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-30T07:25:00Z",
+  "updated_at": "2026-08-30T08:40:00Z",
   "active_task": {
     "id": null,
     "title": null,
@@ -780,6 +780,11 @@
       "id": "TASK-315",
       "title": "Report missing audio as an analysis error",
       "completed_at": "2026-08-30T07:25:00Z"
+    },
+    {
+      "id": "TASK-316",
+      "title": "Mark existing location.sqlite rows analyzed",
+      "completed_at": "2026-08-30T08:40:00Z"
     }
   ],
   "history": [
@@ -1723,6 +1728,12 @@
       "id": "TASK-315",
       "title": "Report missing audio as an analysis error",
       "completed_at": "2026-08-30T07:25:00Z",
+      "status": "completed"
+    },
+    {
+      "id": "TASK-316",
+      "title": "Mark existing location.sqlite rows analyzed",
+      "completed_at": "2026-08-30T08:40:00Z",
       "status": "completed"
     }
   ]

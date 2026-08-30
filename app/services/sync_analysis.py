@@ -67,14 +67,16 @@ class AnalysisTrackResult:
     Attributes:
         raw: Rekordbox track path.
         error: Failure message, or None.
-        analysis: Index row to write when a beatgrid was rewritten.
+        analysis: Index row to write when the track has a beatgrid.
         cues_written: True when Markers2 was rewritten.
+        tags_written: True when the audio file was rewritten.
     """
 
     raw: str
     error: str | None
     analysis: TrackAnalysis | None
     cues_written: bool
+    tags_written: bool = False
 
 
 def analysis_worker_count(job_count: int) -> int:
@@ -205,10 +207,8 @@ def process_analysis_track(job: AnalysisJob) -> AnalysisTrackResult:
         wrote = write_track_tags(job.audio_path, beats, cues)
     except (AnlzError, TagFormatError, OSError, binascii.Error) as exc:
         return AnalysisTrackResult(job.raw, str(exc), None, False)
-    analysis = None
-    if wrote and beats:
-        analysis = TrackAnalysis(bpm=beats[0].bpm, key=job.key)
-    return AnalysisTrackResult(job.raw, None, analysis, bool(wrote and cues))
+    analysis = TrackAnalysis(bpm=beats[0].bpm, key=job.key) if beats else None
+    return AnalysisTrackResult(job.raw, None, analysis, bool(wrote and cues), wrote)
 
 
 class AnalysisSession:

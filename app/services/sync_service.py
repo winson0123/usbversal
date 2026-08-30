@@ -516,10 +516,9 @@ def _analysis_from_results(
     """
     Update ``location.sqlite`` from finished analysis jobs.
 
-    Only a track that got a real beatgrid updates the library index, so
-    the list stays in step with what the deck now reads from the file. A
-    track this pass could not write is left exactly as Serato had it,
-    rather than guessed at from Rekordbox's own BPM.
+    A track with a beatgrid updates the library index even when the tags
+    were already on disk, so the list can be marked analyzed. A track
+    this pass could not write is left exactly as Serato had it.
 
     Args:
         results: Per-track outcomes from the analysis pool.
@@ -529,6 +528,7 @@ def _analysis_from_results(
         Counts of what was written, and one message per track that failed.
     """
     cues_written = 0
+    grids_written = 0
     errors: list[str] = []
     updates: dict[str, TrackAnalysis] = {}
     for result in results:
@@ -537,6 +537,8 @@ def _analysis_from_results(
             continue
         if result.analysis is not None:
             updates[serato_path(result.raw)] = result.analysis
+            if result.tags_written:
+                grids_written += 1
         if result.cues_written:
             cues_written += 1
 
@@ -546,13 +548,13 @@ def _analysis_from_results(
 
     logger.info(
         "analysis_sync_completed",
-        grids_written=len(updates),
+        grids_written=grids_written,
         cues_written=cues_written,
         index_rows_updated=rows_updated,
         errors=len(errors),
     )
     return AnalysisSyncResult(
-        grids_written=len(updates),
+        grids_written=grids_written,
         cues_written=cues_written,
         index_rows_updated=rows_updated,
         errors=tuple(errors),

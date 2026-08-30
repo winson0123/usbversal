@@ -16,6 +16,8 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 FILENAME = "location.sqlite"
+# Bitmap Serato stores on tracks it has analysed. Confirmed on WONSIN.
+_ANALYZED_FLAGS = 31
 
 
 def library_db_path(serato_root: Path) -> Path:
@@ -72,7 +74,9 @@ def update_track_analysis(
 
     Each changed row takes a new revision above the current maximum, and the
     space revision follows, which is how Serato records that rows have moved on.
-    Rows are also marked stale so Serato re-reads the file it came from.
+    Rows are also marked stale so Serato re-reads the file it came from, and
+    ``analysis_flags`` is set to the analysed bitmap so the library list
+    drops the unanalyzed count.
 
     Args:
         database_path: Path to location.sqlite.
@@ -88,19 +92,23 @@ def update_track_analysis(
         con.row_factory = sqlite3.Row
         revision = con.execute("select max(revision) from asset").fetchone()[0] or 0
         changed = 0
-        for row in con.execute("select id, portable_id, bpm, key from asset").fetchall():
+        for row in con.execute(
+            "select id, portable_id, bpm, key, analysis_flags from asset"
+        ).fetchall():
             wanted = updates.get(row["portable_id"])
             if wanted is None:
                 continue
             bpm = row["bpm"] if wanted.bpm is None else wanted.bpm
             key = row["key"] if wanted.key is None else wanted.key
-            if bpm == row["bpm"] and key == row["key"]:
+            already_analyzed = row["analysis_flags"] == _ANALYZED_FLAGS
+            if bpm == row["bpm"] and key == row["key"] and already_analyzed:
                 continue
             revision += 1
             changed += 1
             con.execute(
-                "update asset set bpm = ?, key = ?, revision = ?, is_stale = 1 where id = ?",
-                (bpm, key, revision, row["id"]),
+                "update asset set bpm = ?, key = ?, analysis_flags = ?, "
+                "revision = ?, is_stale = 1 where id = ?",
+                (bpm, key, _ANALYZED_FLAGS, revision, row["id"]),
             )
         if changed:
             con.execute("update space set revision = ?", (revision,))

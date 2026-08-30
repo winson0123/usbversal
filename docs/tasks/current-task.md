@@ -10,14 +10,15 @@
 
 | Field | Value |
 |-------|-------|
-| Task ID | `TASK-315` |
-| Objective | Report a missing audio file as an analysis error instead of skipping it silently |
+| Task ID | `TASK-316` |
+| Objective | When `location.sqlite` exists, mark synced tracks analyzed |
 | Completed | 2026-08-30 |
 
 ### Scope
 
-- `app/services/sync_analysis.py`: missing audio + ANLZ is `"audio file is missing"`.
-- `tests/test_sync_analysis.py`: error vs quiet no-ANLZ.
+- `app/adapters/serato/library_db.py`: set `analysis_flags` to 31.
+- `app/services/sync_analysis.py`: still send an index row when tags already match.
+- Tests for the flag and a no-op when already 31.
 
 ### Verification log
 
@@ -25,8 +26,9 @@
 |-------|--------|
 | `.venv/bin/ruff check .` | pass |
 | `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 371 passed, 4 skipped |
+| `.venv/bin/pytest` | 372 passed, 4 skipped |
 
 ## Next
 
-Ask the user. Settings extra columns stay unscoped.
+Ask the user. Re-sync after Serato has created `location.sqlite` to
+flip the library-list blues.

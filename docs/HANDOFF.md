@@ -6,8 +6,8 @@ below — that's what a session picking this up should do next.
 
 | | |
 |---|---|
-| Tests | 371 passed, 4 skipped (`ruff` and `ruff format` clean) |
-| Last done | `TASK-315` — Report missing audio as an analysis error |
+| Tests | 372 passed, 4 skipped (`ruff` and `ruff format` clean) |
+| Last done | `TASK-316` — Mark existing `location.sqlite` rows analyzed |
 | Branch | `main`, clean, **no remote** |
 | Stick | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path. |
 
@@ -80,6 +80,7 @@ Scoped 2026-08-29. Do **not** fold these into one TASK-252 commit.
 | 53 | ~~`TASK-314`~~ | Amber on Playlists / Tracks boxes only; traffic lights stay green |
 | 54 | ~~`TASK-303`~~ | Analysis-aware track colour and honest `x/y` |
 | 55 | ~~`TASK-315`~~ | Report missing audio as an analysis error |
+| 56 | ~~`TASK-316`~~ | Mark existing `location.sqlite` rows analyzed |
 
 Progress screen target layout:
 
@@ -256,8 +257,9 @@ That was done by hand in the terminal.
 
 **As of TASK-130, `sync_playlists()` reproduces it.** For every track in a
 synced playlist that has Rekordbox analysis data, it now writes the beatgrid
-and hot cues into the audio tags and, when a grid was written, updates
-`location.sqlite` so the list agrees with the deck:
+and hot cues into the audio tags and, when a grid is on the file, updates
+`location.sqlite` BPM, key, and `analysis_flags` (31) so the list can
+show analyzed:
 
 | Module | Does |
 |--------|------|
@@ -337,8 +339,9 @@ boxes use Posting amber; traffic-light green is back (TASK-314). Track
 colour and `x/y` now follow analysis (TASK-303): yellow when a track is
 in the crate but Rekordbox analysis is not on the file; the numerator
 counts green only. Missing audio with ANLZ to port is a Done-screen
-error (TASK-315), not a silent skip. The Library two-pane queue is
-empty. Settings extra columns stay unscoped.
+error (TASK-315), not a silent skip. When `location.sqlite` already
+exists, a sync sets `analysis_flags` to 31 (TASK-316). The Library
+two-pane queue is empty. Settings extra columns stay unscoped.
 
 ---
 

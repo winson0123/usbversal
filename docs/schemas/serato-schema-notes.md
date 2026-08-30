@@ -209,10 +209,13 @@ list BPM, or refuse the library.
 Insert is not needed after Serato creates the file. New tracks we sync already
 get an `otrk` in `database V2`. Serato stores that file's size and MD5 in
 `last_seen_dbv2_library` and creates `asset` / `space_asset` rows on import.
-We only UPDATE `bpm` and `key` on rows whose `portable_id` already exists,
-because size-preserving tag writes do not make Serato re-read the file. If
-the file is absent, skip it. First-open list BPM comes from `database V2`
-`tbpm` and the BeatGrid tag.
+We only UPDATE `bpm`, `key`, and `analysis_flags` on rows whose
+`portable_id` already exists, because size-preserving tag writes do not
+make Serato re-read the file. `analysis_flags` is set to 31 (analysed)
+so the library list drops the unanalyzed count. If the file is absent,
+skip it. First-open list BPM comes from `database V2` `tbpm` and the
+BeatGrid tag; the analysed mark is not available until Serato has
+created this file.
 
 ## `database V2` [verified]
 
