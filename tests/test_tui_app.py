@@ -4,7 +4,7 @@ rbox's PyOneLibrary is not Send: pyo3 aborts the whole process if it is ever
 touched from a thread other than the one that created it. Every call that
 opens or reads through UsbLibrary.rekordbox must go through
 run_rekordbox so it stays pinned to one thread for the library's whole
-session -- this is what a real stick caught in practice (see TASK-206-208
+session. This is what a real stick caught in practice (see TASK-206-208
 follow-up) that mocked-library tests could not, since a mock has no thread
 affinity to violate.
 """
@@ -26,7 +26,7 @@ from app.tui.screens.home import HomeScreen
 
 
 class _Harness(RekordboxThreadMixin, App):
-    """A bare app with nothing but the mixin -- no on_mount at all."""
+    """A bare app with nothing but the mixin, no on_mount at all."""
 
 
 @pytest.mark.asyncio
@@ -119,7 +119,7 @@ async def test_drop_parked_libraries_runs_on_the_rekordbox_thread() -> None:
 
 @pytest.mark.asyncio
 async def test_quit_from_home_does_not_hop_to_the_rekordbox_thread() -> None:
-    """With nothing open, quit is just park-nothing plus exit -- no thread hop."""
+    """With nothing open, quit is just park-nothing plus exit. No thread hop."""
     app = UsbversalApp()
     hops = 0
     original = app.run_rekordbox

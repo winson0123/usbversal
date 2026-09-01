@@ -44,7 +44,7 @@ class PathInput(Input):
     """Path entry field with Tab-cycling through matching directories.
 
     Each Tab press advances to the next matching directory, wrapping back
-    to the first after the last -- rather than completing to a common
+    to the first after the last, rather than completing to a common
     prefix, which still leaves an ambiguous path needing to be finished by
     hand. Retyping (the value no longer matching where the cycle left it)
     starts a fresh cycle from whatever's typed now.

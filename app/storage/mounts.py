@@ -14,8 +14,8 @@ from app.core.domain import MountPoint
 # Linux BLKFLSBUF: flush the block layer so USB mass-storage finishes.
 _BLKFLSBUF = 0x1261
 
-# Manual override for a setup none of the automatic scanners cover -- an
-# unusual auto-mount daemon, a container, a path the user just prefers.
+# Manual override for a setup none of the automatic scanners cover.
+# An unusual auto-mount daemon, a container, a path the user just prefers.
 MOUNT_ENV_VAR = "USBVERSAL_MOUNT"
 
 
@@ -320,7 +320,7 @@ def get_mount_scanner() -> MountScanner:
     Return the platform-appropriate mount scanner.
 
     `USBVERSAL_MOUNT` is checked on every platform, alongside whatever the
-    platform's automatic scanner finds -- for a setup it doesn't cover.
+    platform's automatic scanner finds, for a setup it doesn't cover.
 
     Returns:
         MountScanner implementation for the current platform.

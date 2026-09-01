@@ -24,7 +24,7 @@ from tests.conftest import EMPTY_DATABASE_V2, make_library
 
 
 class _DummyProgressScreen(Screen):
-    """Stands in for the real Progress screen -- that screen's own behaviour
+    """Stands in for the real Progress screen. That screen's own behaviour
     is covered by tests/test_tui_progress.py; these tests only need proof
     that Library handed off to it with the right selection."""
 
@@ -166,7 +166,7 @@ async def _wait_library(app: App, pilot) -> None:
     the latest pass finished.
 
     Args:
-        app: The running harness app.
+        app: The running test app.
         pilot: Textual test pilot.
     """
     for _ in range(50):
@@ -260,7 +260,7 @@ async def test_e_does_nothing_on_a_leaf(tmp_path: Path) -> None:
         await pilot.press("e")
         await pilot.pause()
 
-        # Still there, still showing everything -- nothing broke.
+        # Still there, still showing everything. Nothing broke.
         tree = app.screen.query_one(Tree)
         assert {child.data.name for child in _playlist_nodes(tree)} == {"Techno", "Trance"}
 
@@ -291,7 +291,7 @@ async def test_returning_to_the_screen_reflects_a_sync_that_just_happened(
         )
 
         # Simulate returning from Progress/Done: push another screen, then
-        # pop back to this one -- the same path DoneScreen's enter takes.
+        # pop back to this one, the same path DoneScreen's enter takes.
         app.push_screen(Screen())
         await pilot.pause()
         app.pop_screen()
@@ -388,7 +388,7 @@ async def test_count_column_lines_up_regardless_of_depth_or_row_kind(tmp_path: P
         await pilot.pause()
         lines = ["".join(segment.text for segment in tree.render_line(y)) for y in range(3)]
         # "Music" (depth 0, folder icon), "Genres" (depth 1, folder icon),
-        # "Techno" (depth 2, leaf) -- folder and leaf at different depths.
+        # "Techno" (depth 2, leaf). Folder and leaf at different depths.
         positions = {line.index("0/0") for line in lines}
 
         assert len(positions) == 1, lines

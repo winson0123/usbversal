@@ -1,24 +1,22 @@
-# Current Task
+# Current task
 
 **Status:** `complete`
-**Task ID:** `TASK-325`
+**Task ID:** `TASK-326`
 **Last updated:** 2026-09-01
-
----
 
 ## Objective
 
-Define the git workflow that cuts a v1 release and builds Windows, macOS, and Linux binaries.
+Cut AI writing patterns from repo docs and comments. Keep the product meaning.
 
 ## Files touched
 
-- `.github/workflows/release.yml`
-- `docs/workflows/release-workflow.md`
-- `scripts/build-release.sh`
-- `README.md`
+- `README.md`, `AGENT.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`
+- `docs/**/*.md`
+- Comments in `app/` that used the same patterns
+- `tests/fixtures/serato/README.md`
+- Several test module comments
 - `docs/state/task-state.json`
 - `docs/state/repository-state.json`
-- `docs/tasks/backlog.md`
 
 ## Verification
 
@@ -28,8 +26,6 @@ Define the git workflow that cuts a v1 release and builds Windows, macOS, and Li
 .venv/bin/pytest
 ```
 
-| Check | Result |
-|-------|--------|
-| ruff check | pass |
-| ruff format | pass |
-| pytest | 332 passed, 3 skipped |
+- ruff check: pass
+- ruff format: pass, 91 files already formatted
+- pytest: 332 passed, 3 skipped

@@ -199,11 +199,11 @@ class PlaylistTreeSyncState:
 
     Attributes:
         node: Underlying tree node (the playlist/folder plus nested children).
-        state: This node's traffic-light state -- a leaf's own state, or a
+        state: This node's traffic-light state. A leaf's own state, or a
             folder's rolled up from its descendants.
-        synced: Green tracks -- a leaf's own ``complete``, or the sum
+        synced: Green tracks. A leaf's own ``complete``, or the sum
             across a folder's descendants.
-        total: Tracks in the playlist -- a leaf's own ``total``, or the sum
+        total: Tracks in the playlist. A leaf's own ``total``, or the sum
             across a folder's descendants.
         leaf_ids: Playlist ids of every non-folder descendant, including
             this node when it is itself a playlist.
@@ -222,9 +222,9 @@ def combine_sync_states(states: list[SyncState]) -> SyncState:
     """
     Combine several sync states into one overall verdict.
 
-    Green only if every one is fully synced, red only if none of them are --
+    Green only if every one is fully synced, red only if none of them are,
     including no states at all, which reads as nothing outstanding to sync
-    rather than vacuously "all synced" -- yellow otherwise. Used both for a
+    rather than vacuously "all synced". Yellow otherwise. Used both for a
     folder's rollup from its children and, in the TUI, for a library-wide
     "select all" node's rollup from every top-level playlist.
 
@@ -250,9 +250,9 @@ def playlist_tree_sync_states(
     Build the playlist tree with a red/yellow/green state at every node.
 
     A leaf's state and counts come straight from ``playlist_sync_states``. A
-    folder's state is rolled up from its children -- which, for a nested
-    folder, is already itself a rollup, so the same three-way rule composes
-    correctly at every depth without re-walking descendants -- and its counts
+    folder's state is rolled up from its children. For a nested
+    folder, that is already itself a rollup, so the same three-way rule
+    composes correctly at every depth without re-walking descendants. Counts
     are simply the sum of its children's.
 
     Args:

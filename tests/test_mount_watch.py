@@ -80,7 +80,7 @@ def test_changes_are_sorted_by_path(tmp_path: Path) -> None:
 
 
 def test_a_second_watcher_starts_with_no_memory_of_the_first(tmp_path: Path) -> None:
-    """Watchers do not share state -- each tracks its own poll history."""
+    """Watchers do not share state. Each tracks its own poll history."""
     scanner = _FakeScanner([_point(tmp_path / "usb")])
     MountWatcher(scanner).poll()
 

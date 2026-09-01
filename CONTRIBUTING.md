@@ -1,88 +1,78 @@
-# Contributing to Usbversal
+# Contributing
 
-Thank you for contributing. This project uses a **single-task execution model** designed for both human developers and autonomous agents.
+One task at a time, whether you are a person or an agent. That rule
+exists because two open tasks in this repo step on the same USB
+formats.
 
-## Before You Start
+## Before you start
 
-1. Read [`AGENT.md`](AGENT.md) — mandatory for all contributors.
-2. Read [`ARCHITECTURE.md`](ARCHITECTURE.md) for module boundaries.
-3. Check [`docs/tasks/current-task.md`](docs/tasks/current-task.md) and [`docs/state/task-state.json`](docs/state/task-state.json) — only one task may be active.
+1. Read [`AGENT.md`](AGENT.md).
+2. Read [`ARCHITECTURE.md`](ARCHITECTURE.md).
+3. Check [`docs/tasks/current-task.md`](docs/tasks/current-task.md) and
+   [`docs/state/task-state.json`](docs/state/task-state.json). Only one
+   task may be active.
 
-## Coding Standards
+## Code
 
-| Area | Standard |
-|------|----------|
+| Area | Rule |
+|------|------|
 | Language | Python 3.11+ |
-| Style | PEP 8; enforced via `ruff` |
-| Formatting | `ruff format` |
-| Type hints | Required on public APIs |
-| Docstrings | Required on all functions (description, inputs, outputs) |
-| Naming | `snake_case` modules/functions; `PascalCase` classes |
-| Imports | stdlib → third-party → local; absolute imports in package |
+| Style | PEP 8, `ruff` |
+| Format | `ruff format` |
+| Types | On public APIs |
+| Docstrings | On every function: what it does, inputs, outputs |
+| Names | `snake_case` modules and functions, `PascalCase` classes |
+| Imports | stdlib, then third-party, then local. Absolute inside `app/`. |
 
-## Task Discipline
+## Tasks
 
-- Pick **one** task from `docs/tasks/backlog.md` or assign via `task-state.json`.
-- Mark it active in `current-task.md` and JSON state before coding.
-- Scope must list **exact files** to touch.
-- Decompose tasks larger than ~1 day into atomic subtasks.
-- Do not start a second task until the first is committed and state is updated.
-
-## Single-Task Execution Model
+Pick one item from `docs/tasks/backlog.md` or assign it in
+`task-state.json`. Write the scope in `current-task.md` with exact
+file paths before you edit. Split anything that will take more than a
+day. Do not start a second task until the first is committed.
 
 ```
-Read state → Scope task → Minimal implement → Verify → Update docs/state → One commit
+Read state → Scope → Smallest change → Verify → Update docs/state → One commit
 ```
 
-Parallel feature work across adapters and TUI is **not allowed**.
+## Tests
 
-## Testing Requirements
+| Kind | Where |
+|------|-------|
+| Unit | `pytest` on domain, storage, adapter helpers |
+| Integration | Files under `tests/fixtures/` |
+| Live USB | Only when the task says so |
 
-| Level | Requirement |
-|-------|-------------|
-| Unit | `pytest` for domain, storage, adapter helpers |
-| Integration | Fixture-based DB files under `tests/fixtures/` |
-| USB validation | Auto-detected mounts only when a task explicitly requires a live stick |
+All tests must pass before you mark the task complete. Paste the
+commands into `current-task.md`.
 
-All tests must pass before marking a task complete. Record commands in `current-task.md` verification log.
+## Commits
 
-## Commit Discipline
+Exactly one commit per finished task. Message: `[TASK-XXX] Short
+imperative summary`. Do not mix a refactor with a feature. Do not
+commit secrets or a real DJ database.
 
-- **Exactly one commit per completed task.**
-- Message format: `[TASK-XXX] Short imperative summary`
-- Include task ID in body when helpful.
-- Do not mix refactors with feature work in the same commit.
-- Do not commit secrets or real DJ databases.
+## TUI
 
-## TUI Thin-Layer Requirement
+`app/tui/` draws screens and handles keys. It calls services. It does
+not contain sync logic and it does not import vendor parsers.
 
-The TUI (`app/tui/`) must:
+That work sits in `app/core/`, `app/adapters/`, `app/services/`, and
+`app/storage/`.
 
-- Render screens and handle keys
-- Dispatch to services — **no business logic in TUI modules**
-- Stay off vendor parsers
+## USB and vendor files
 
-Parsing and schema mapping belong in `app/core/`, `app/adapters/`, `app/services/`, and `app/storage/`.
+Never write under `PIONEER/`. Restore the Rekordbox USB if you need
+the old state. Do not assume Rekordbox or Serato schemas stay still.
+Do not create or insert into `location.sqlite`. Keep unknown fields.
+Add fixture tests before you open a new write path.
 
-## Safety Requirements for Database Work
+## Docs
 
-- Never write under `PIONEER/`. Recovery is restoring the Rekordbox USB.
-- Never assume Rekordbox/Serato schema stability.
-- Never create or insert into `location.sqlite`.
-- Track unknown fields (see adapter docs).
-- Add integration tests with fixture DBs before enabling new write paths.
+If behavior or architecture changed, update `docs/`, add or edit an
+ADR for a real choice, and refresh `docs/state/*.json`.
 
-## Documentation Updates
+## Pull requests
 
-When changing behavior or architecture:
-
-- Update relevant `docs/` pages
-- Add or update ADRs in `docs/decisions/` for significant choices
-- Update `docs/state/*.json` files
-
-## Pull Requests
-
-- One task per PR preferred
-- Link task ID in PR description
-- CI must pass: `ruff`, `pytest`
-- Reviewers verify write paths never touch `PIONEER/`
+One task per PR. Put the task ID in the description. CI is `ruff` and
+`pytest`. Reviewers check that writes never touch `PIONEER/`.

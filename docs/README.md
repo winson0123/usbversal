@@ -1,30 +1,30 @@
-# Documentation Index
+# Docs
 
-Entry point for humans and autonomous agents.
+Start here if you are reading the tree, not the TUI.
 
-## Start Here
+## Start here
 
-| Role | Document |
-|------|----------|
+| Who | File |
+|-----|------|
 | Agent | [`../AGENT.md`](../AGENT.md) |
 | Architecture | [`../ARCHITECTURE.md`](../ARCHITECTURE.md) |
 | Current task | [`tasks/current-task.md`](tasks/current-task.md) |
 | Machine state | [`state/`](state/) |
 
-## Structure
+## Folders
 
-| Directory | Contents |
-|-----------|----------|
-| [`architecture/`](architecture/) | System design |
-| [`adapters/`](adapters/) | Rekordbox and Serato adapter specs |
+| Directory | What is in it |
+|-----------|----------------|
+| [`architecture/`](architecture/) | How layers connect |
+| [`adapters/`](adapters/) | Rekordbox and Serato I/O |
 | [`storage/`](storage/) | USB detection and host paths |
-| [`decisions/`](decisions/) | Architecture Decision Records |
+| [`decisions/`](decisions/) | ADRs |
 | [`tasks/`](tasks/) | Current task and backlog |
-| [`schemas/`](schemas/) | Vendor schema notes for writers |
-| [`workflows/`](workflows/) | Release, verification, write-path procedures |
-| [`state/`](state/) | JSON machine-readable state |
+| [`schemas/`](schemas/) | On-disk layouts the writers must keep |
+| [`workflows/`](workflows/) | Release, verify, write paths |
+| [`state/`](state/) | JSON state |
 
-## State Files
+## State
 
 | File | Tracks |
 |------|--------|
@@ -37,10 +37,10 @@ Entry point for humans and autonomous agents.
 | ADR | Decision |
 |-----|----------|
 | [0001](decisions/0001-use-python.md) | Python |
-| [0002](decisions/0002-use-asyncio.md) | asyncio + Rekordbox thread |
-| [0003](decisions/0003-use-pyinstaller.md) | PyInstaller packaging |
+| [0002](decisions/0002-use-asyncio.md) | asyncio and a Rekordbox thread |
+| [0003](decisions/0003-use-pyinstaller.md) | PyInstaller |
 | [0004](decisions/0004-use-rbox-rekordbox-reader.md) | rbox for One Library |
 | [0005](decisions/0005-use-serato-tools.md) | serato-tools for crates |
 | [0008](decisions/0008-beatgrid-and-cue-sync-validated-in-serato.md) | Beatgrid and cue writes |
-| [0009](decisions/0009-use-textual-for-the-tui.md) | Textual TUI |
+| [0009](decisions/0009-use-textual-for-the-tui.md) | Textual |
 | [0010](decisions/0010-tolerate-leftover-markers2-base64.md) | Leftover Markers2 base64 |

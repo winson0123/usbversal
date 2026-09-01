@@ -81,7 +81,7 @@ class HomeScreen(Screen):
 
     A mount is "valid" when it has a supported Rekordbox export
     (``MountProbe.is_dj_usb and MountProbe.is_supported``). Serato need not
-    exist yet -- ``prepare_library`` creates an empty one first when
+    exist yet. ``prepare_library`` creates an empty one first when
     it doesn't, so a plain rekordbox stick is never a dead end.
 
     ``SEARCHING`` lasts until a mount is accepted, rejected, or
@@ -179,7 +179,7 @@ class HomeScreen(Screen):
         """
         try:
             # prepare_library opens Rekordbox, so it must stay on the app's
-            # one dedicated thread -- see UsbversalApp.run_rekordbox.
+            # one dedicated thread. See UsbversalApp.run_rekordbox.
             library = await self.app.run_rekordbox(prepare_library, mount)
         except (OSError, DatabaseNotFoundError, UnsupportedDatabaseError) as exc:
             self._enter(HomePhase.FAILED, f"{_NONE_FOUND} ({exc})")
@@ -222,7 +222,7 @@ class HomeScreen(Screen):
         if self._phase is HomePhase.FAILED:
             spinner.display = False
             status.display = True
-            # Text(), not markup -- the message can embed an arbitrary
+            # Text(), not markup. The message can embed an arbitrary
             # exception string, which could itself contain "[...]" that
             # markup parsing would misread as a tag. The retry hint lives
             # here, not in the input's placeholder: the status line has
@@ -236,9 +236,9 @@ class HomeScreen(Screen):
 
         spinner.display = True
         status.display = True
-        # Dim, not red -- this is routine "still looking" information.
+        # Dim, not red. This is routine "still looking" information.
         status.update(_busy_caption(self._phase))
-        # Disabled, not just hidden: Textual still auto-focuses a
+        # Hide and disable it. Textual still auto-focuses a
         # hidden-but-enabled widget when it is the only focusable one.
         path_input.display = False
         path_input.disabled = True

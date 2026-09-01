@@ -3,8 +3,8 @@
 About a fifth of the reference library carries Mixed In Key frames (`Key`,
 `Energy`, `CuePoints`, and its own unprefixed `BeatGrid`, distinct from
 `Serato BeatGrid`), and one file carries Sound Forge frames. Nothing in this
-codebase is meant to touch them -- write_geob only rebuilds the frame
-descriptions it is explicitly told to -- but until now nothing proved it.
+codebase is meant to touch them. write_geob only rebuilds the frame
+descriptions it is explicitly told to, but until now nothing proved it.
 """
 
 from pathlib import Path
@@ -17,7 +17,7 @@ _GEOB_MIME = b"application/octet-stream"
 
 # Mixed In Key's own frame names, per docs/HANDOFF.md. Sound Forge's exact
 # frame name is not documented anywhere in this repo, so "Unknown Vendor Tag"
-# stands in for it -- the guarantee has to hold for any frame we don't own,
+# stands in for it. The guarantee has to hold for any frame we don't own,
 # not just the ones we happen to have a name for.
 _FOREIGN_FRAMES = {
     "Key": b"8A",

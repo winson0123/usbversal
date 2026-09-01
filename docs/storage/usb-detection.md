@@ -1,10 +1,6 @@
-# USB Detection
+# USB detection
 
-**Status:** implemented.
-
-## Auto-detect
-
-The TUI scans for a DJ USB on the platform's usual removable-media roots:
+The TUI looks for a DJ USB on the usual removable-media roots.
 
 | OS | Roots |
 |----|-------|
@@ -12,23 +8,22 @@ The TUI scans for a DJ USB on the platform's usual removable-media roots:
 | macOS | `/Volumes` |
 | Windows | Drive letters |
 
-`USBVERSAL_MOUNT` is a silent escape hatch when the scanner misses a path
-(WSL, unusual mounts). Integration tests use `USBVERSAL_TEST_MOUNT`.
-There is no hardcoded default mount.
+`USBVERSAL_MOUNT` covers WSL and odd mounts the scanner misses.
+Integration tests use `USBVERSAL_TEST_MOUNT`. There is no hardcoded
+default.
 
 ## Signatures
 
 | Path | Meaning |
 |------|---------|
-| `PIONEER/rekordbox/exportLibrary.db` | Rekordbox One Library (required) |
-| `PIONEER/rekordbox/export.pdb` | DeviceSQL only — unsupported |
-| `_Serato_/database V2` | Existing Serato library |
+| `PIONEER/rekordbox/exportLibrary.db` | Rekordbox One Library. Required. |
+| `PIONEER/rekordbox/export.pdb` | DeviceSQL only. Unsupported. |
+| `_Serato_/database V2` | An existing Serato library |
 
-A Rekordbox-only stick is bootstrapped with an empty `_Serato_` before
-sync. `export.pdb` without `exportLibrary.db` is rejected.
+A Rekordbox-only stick gets an empty `_Serato_` before sync.
+`export.pdb` without `exportLibrary.db` is rejected.
 
 ## Host logs
 
-Failed sync items are written under `~/.local/share/usbversal/<volume>/`.
-Do not keep a host backup or rollback path; recovery is restoring the
-Rekordbox USB.
+Failed sync items go under `~/.local/share/usbversal/<volume>/`.
+Do not keep a host backup. Recovery is restoring the Rekordbox USB.

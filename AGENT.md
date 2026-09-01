@@ -1,54 +1,48 @@
-# Agent Execution Contract
+# Agent rules
 
-This document is the **mandatory execution harness** for all autonomous coding agents working on Usbversal. Read it completely before any implementation work.
+Read this before you touch code. I mean the whole thing.
 
-## Project Context
+Usbversal is a Python TUI that copies Rekordbox metadata onto Serato on
+a USB stick. Stay inside the layers in `ARCHITECTURE.md`. Keep
+`docs/state/` honest after every task.
 
-Usbversal is a **Python TUI** for safe, metadata-only Rekordbox → Serato library sync on USB-mounted media. Agents must respect scaffolding boundaries defined in `ARCHITECTURE.md` and machine-readable state under `docs/state/`.
+## One task at a time
 
----
+Only one task may be active. Do not implement two features in parallel.
+If the job is too big, split it in `docs/tasks/backlog.md` first.
 
-## Single Task Rule
+Before you start, `docs/state/task-state.json` must show
+`active_task.status` as `idle`, or already set to your task ID.
 
-- **Only ONE task may be active at any time.**
-- **No parallel implementation work** across modules, adapters, or screens.
-- If a task is too large, **decompose it** into atomic subtasks in `docs/tasks/backlog.md` before starting the first subtask.
-- Before starting work, confirm `docs/state/task-state.json` shows `active_task.status` is `idle` or matches your assigned task ID.
+## Loop
 
----
+Do these in order. Skip none of them.
 
-## Mandatory Execution Loop
-
-Every task MUST follow this loop in order. Do not skip steps.
-
-### 1. Read Current Task State
+### 1. Read state
 
 - `docs/state/task-state.json`
 - `docs/tasks/current-task.md`
 - `docs/state/repository-state.json`
 - `docs/state/architecture-state.json`
 
-### 2. Scope the Task
+### 2. Scope
 
-Document in `docs/tasks/current-task.md`:
+Fill in `docs/tasks/current-task.md`:
 
 | Field | Required |
 |-------|----------|
-| Task ID | Unique identifier (e.g. `TASK-001`) |
-| Objective | One sentence outcome |
-| Files touched | Explicit paths only |
-| Verification criteria | Commands and expected results |
+| Task ID | `TASK-001` style |
+| Objective | One sentence |
+| Files touched | Exact paths |
+| Verification | Commands and what pass looks like |
 
-### 3. Implement Minimal Solution
+### 3. Change as little as you can
 
-- Smallest diff that satisfies the objective.
-- Match existing conventions in touched modules.
-- **TUI layer must remain thin** — delegate to domain, adapters, and services.
-- Do not expand scope beyond the scoped files.
+Match the style of the files you touch. The TUI renders and calls
+services. It does not parse vendor formats. Stay inside the files you
+scoped.
 
 ### 4. Verify
-
-Run all applicable checks before marking complete:
 
 ```bash
 .venv/bin/ruff check .
@@ -56,91 +50,72 @@ Run all applicable checks before marking complete:
 .venv/bin/pytest
 ```
 
-Record results in the verification log section of `current-task.md`.
+Write the results into `current-task.md`.
 
-### 5. Update Docs + JSON State
+### 5. Update docs and JSON
 
-- Update affected documentation under `docs/`.
-- Update `docs/state/task-state.json`.
-- Update `docs/state/repository-state.json` (modules, features, test status).
-- Update `docs/state/architecture-state.json` if patterns or constraints change.
+- Docs under `docs/` that your change made wrong
+- `docs/state/task-state.json`
+- `docs/state/repository-state.json`
+- `docs/state/architecture-state.json` if layers or constraints changed
 
-### 6. Commit Exactly ONE Git Commit Per Task
+### 6. One commit
 
-- One atomic commit per completed task.
-- Commit message references task ID and objective.
-- Do not batch unrelated changes.
-- Do not amend unless pre-commit hook auto-fixed files (see project git rules).
+One commit per finished task. Mention the task ID in the message.
+Do not lump unrelated work. Do not amend unless a pre-commit hook
+rewrote files you then need to include.
 
----
+## Safety
 
-## Safety Rules (Non-Negotiable)
+| Rule | What I expect |
+|------|----------------|
+| Rekordbox files | Never write under `PIONEER/` |
+| Schema | Do not assume a vendor schema stays still |
+| Schema rebuild | Do not DROP or CREATE a vendor schema wholesale |
+| Unknown fields | Keep them. Do not drop them on rewrite. |
+| Recovery | Restore the Rekordbox USB. No host backup path. |
+| `location.sqlite` | UPDATE existing rows only. Never create the file. Never insert. |
 
-| Rule | Requirement |
-|------|-------------|
-| Rekordbox files | **Never** write under `PIONEER/` |
-| Schema stability | **Never** assume vendor schema is stable across versions |
-| Schema rebuild | **Never** rebuild or drop schemas wholesale |
-| Unknown fields | Preserve and track unknown fields; do not discard silently |
-| Recovery | Restore the Rekordbox USB; do not keep a host backup/rollback path |
-| `location.sqlite` | **Never** create the file or insert rows; UPDATE existing rows only |
+## Tasks
 
----
+A task should finish in one sitting with one commit. Split bigger work
+in `docs/tasks/backlog.md`. Blocked work goes in `blocked_tasks` with a
+reason. Finished IDs live in `task-state.json` only.
 
-## Task Discipline
+## State files
 
-- Tasks must be **atomic**: completable in one session with one commit.
-- Large features must be split in `docs/tasks/backlog.md` before execution.
-- Blocked tasks go to `blocked_tasks` in `task-state.json` with `blocked_reason`.
-- Completed tasks are recorded in `task-state.json` only.
+After every task, these three must match reality:
 
----
+| File | What it holds |
+|------|----------------|
+| `docs/state/task-state.json` | Active, pending, completed, blocked |
+| `docs/state/repository-state.json` | Modules, features, packaging, tests |
+| `docs/state/architecture-state.json` | Allowed and forbidden patterns |
 
-## State Management
+Readable copies: `docs/tasks/current-task.md`, `docs/tasks/backlog.md`.
 
-Agents **must** keep these files consistent after every task:
+## Leave these alone unless the task says otherwise
 
-| File | Purpose |
-|------|---------|
-| `docs/state/task-state.json` | Active, pending, completed, blocked tasks |
-| `docs/state/repository-state.json` | Modules, features, packaging, test status |
-| `docs/state/architecture-state.json` | Allowed/forbidden patterns and constraints |
-
-Human-readable mirrors:
-
-| File | Purpose |
-|------|---------|
-| `docs/tasks/current-task.md` | Active task detail and verification log |
-| `docs/tasks/backlog.md` | Queued work |
-
----
-
-## Forbidden Unless Explicitly Scoped
-
-- Writing under `PIONEER/` or regenerating a vendor index
+- Anything under `PIONEER/`
 - Creating or inserting into `location.sqlite`
-- Adding dependencies not justified in an ADR or task scope
+- New dependencies that no ADR or task asked for
 
----
+## Where to read more
 
-## Reference Documentation
-
-| Topic | Location |
-|-------|----------|
-| System architecture | `ARCHITECTURE.md`, `docs/architecture/` |
+| Topic | Path |
+|-------|------|
+| Architecture | `ARCHITECTURE.md`, `docs/architecture/` |
 | Adapters | `docs/adapters/` |
-| Storage / USB | `docs/storage/` |
+| USB | `docs/storage/` |
 | ADRs | `docs/decisions/` |
 | Workflows | `docs/workflows/` |
 | Schemas | `docs/schemas/` |
 
----
-
-## Completion Checklist (Per Task)
+## Done when
 
 - [ ] Scoped in `current-task.md`
-- [ ] Implementation minimal and within scope
-- [ ] `ruff` and `pytest` pass (or documented N/A)
-- [ ] JSON state files updated
-- [ ] Task marked complete in `task-state.json`
-- [ ] Exactly one git commit created
+- [ ] Diff is small and inside that scope
+- [ ] `ruff` and `pytest` pass, or you wrote why not
+- [ ] JSON state is updated
+- [ ] Task is marked complete in `task-state.json`
+- [ ] One git commit exists

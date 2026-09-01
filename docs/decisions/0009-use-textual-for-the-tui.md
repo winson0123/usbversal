@@ -1,4 +1,4 @@
-# ADR 0009: Use Textual for the interactive TUI
+# ADR 0009: Use Textual
 
 **Status:** accepted
 **Date:** 2026-08-27
@@ -6,41 +6,35 @@
 
 ## Context
 
-Usbversal ships as an interactive terminal UI: Home → Library →
-Progress → Done. The Library screen is a playlist folder tree with a
-red/yellow/green state per node. The Progress screen needs a bar and
-an ETA. Packaging is PyInstaller one-file on Windows, macOS, and Linux.
+Usbversal is a TUI: Home → Library → Progress → Done. Library is a
+playlist folder tree with a red / yellow / green state per node.
+Progress needs a bar and an ETA. Packaging is PyInstaller one-file on
+Windows, macOS, and Linux.
 
-| | Tree/list widget | Testing | Packaging weight | Maturity |
+| | Tree | Tests | Weight | Age |
 |---|---|---|---|---|
-| `textual` | `Tree`, `ProgressBar` built in | `Pilot` / `run_test()` in pytest | pulls in `rich`; needs `--collect-data` for `.tcss` | widely adopted |
-| `prompt_toolkit` | none — hand-built | no built-in app-testing harness | one dependency | stable since ~2015 |
-| `rich` + manual keys | none, and no input loop | none | clean, but no input handling | `rich` is mature |
-| `curses` | none | none | **not on Windows** without `windows-curses` | Windows gap is the blocker |
+| `textual` | `Tree`, `ProgressBar` | `Pilot` / `run_test()` | pulls in `rich`, needs `.tcss` collected | younger, widely used |
+| `prompt_toolkit` | none, we would draw it | no app test helper | one dependency | stable since about 2015 |
+| `rich` plus keys | no input loop | none | small, no input | `rich` is mature |
+| `curses` | none | none | missing on Windows without `windows-curses` | the Windows gap kills it |
 
 ## Decision
 
-**Use `textual`.**
+Use Textual.
 
-`Tree` draws guide lines, handles expand/collapse, and takes keyboard
-navigation. `Pilot` lets screens be tested with simulated keypresses.
+`Tree` draws guides, expands, and takes keys. `Pilot` lets me press
+keys in pytest. I will not hand-roll a tree widget for this.
 
-`app/tui/` depends on `services` and `core` only, never `storage` or
-`adapters` directly, enforced by `test_architecture.py`.
+`app/tui/` imports `services` and `core` only. Never `storage` or
+`adapters`. `test_architecture.py` enforces that.
 
 ## Consequences
 
-### Positive
+Library and Progress map onto widgets we already ship. Screens get the
+same pytest treatment as the rest of the code.
 
-- `Tree` and `ProgressBar` cover Library and Progress
-- TUI screens get the same pytest coverage as the rest of the codebase
+The Linux one-file binary is about 43 MB. `packaging/usbversal.spec`
+must collect `.tcss` and Textual's dynamic modules or a screen falls
+back to defaults.
 
-### Negative
-
-- Larger dependency: Linux one-file binary is about 43 MB
-- `.tcss` resources and dynamic submodules must be collected explicitly
-  in `packaging/usbversal.spec`
-
-### Neutral
-
-- The packaged binary launches the TUI. There is no argparse command list.
+The packaged binary launches the TUI. There is no command list.

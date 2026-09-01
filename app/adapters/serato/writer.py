@@ -29,7 +29,7 @@ def create_empty_database_v2(database_path: Path) -> None:
     """
     Write a fresh, empty, structurally valid database V2 file.
 
-    Just the ``vrsn`` header -- what a fresh Serato install has before
+    Just the ``vrsn`` header, what a fresh Serato install has before
     anything is imported or analysed. Never call this when a database V2
     already exists at the target path: **merge, never regenerate**
     (`merge_never_regenerate_vendor_index`) is a hard rule for a real

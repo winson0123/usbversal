@@ -1,10 +1,8 @@
-# Verification Workflow
+# Verification
 
-Commands to run before marking any task complete.
+Run these before you mark a task complete.
 
-## Standard Checks
-
-Run from repo root using **`.venv`** (create via `./scripts/setup-dev.sh`):
+From the repo root, using `.venv` from `./scripts/setup-dev.sh`:
 
 ```bash
 .venv/bin/ruff check .
@@ -12,7 +10,8 @@ Run from repo root using **`.venv`** (create via `./scripts/setup-dev.sh`):
 .venv/bin/pytest -v
 ```
 
-Or after `source .venv/bin/activate`, use `ruff`, `pytest`, and `python` directly.
+After `source .venv/bin/activate`, `ruff`, `pytest`, and `python` work
+without the prefix.
 
 ## TUI smoke
 
@@ -20,18 +19,13 @@ Or after `source .venv/bin/activate`, use `ruff`, `pytest`, and `python` directl
 .venv/bin/python -m app.tui
 ```
 
-## Integration (scoped tasks only)
+## Live USB
 
-Requires a live DJ USB on an auto-detected mount (or `USBVERSAL_MOUNT` as
-an escape hatch). Do not run in CI by default.
+Only when the task asks for a real stick. Auto-detect, or set
+`USBVERSAL_MOUNT`. Do not run this in CI.
 
-## Recording Results
+Paste command output into `docs/tasks/current-task.md`. Update
+`repository-state.json` `test_status`.
 
-Copy command outputs into `docs/tasks/current-task.md` verification log.
-
-Update `repository-state.json` `test_status`.
-
-## Related
-
-- [../../AGENT.md](../../AGENT.md)
-- [../../CONTRIBUTING.md](../../CONTRIBUTING.md)
+See [../../AGENT.md](../../AGENT.md) and
+[../../CONTRIBUTING.md](../../CONTRIBUTING.md).

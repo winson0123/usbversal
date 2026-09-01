@@ -16,7 +16,7 @@ sync at 04:21:53 followed by a 04:22:45 disconnect lost async writes,
 including boot-sector block 0. Windows Scan did not change the MP3 or crate
 hashes.
 
-The TUI does not unmount. After **Done**, unmount from Linux yourself
-before Windows. Flush makes the data durable; it does not clear the exFAT
-VolumeDirty flag. Linux sets that flag on the first write and only clears
-it on unmount.
+The TUI does not unmount. After Done, unmount from Linux yourself
+before Windows. Flush makes the data durable. It does not clear the
+exFAT VolumeDirty flag. Linux sets that flag on the first write and
+only clears it on unmount.

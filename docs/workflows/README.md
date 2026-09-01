@@ -2,8 +2,8 @@
 
 | Document | Purpose |
 |----------|---------|
-| [verification-workflow.md](verification-workflow.md) | ruff, pytest, smoke tests |
-| [release-workflow.md](release-workflow.md) | Tag `v*` → Windows, macOS, Linux GitHub Release |
+| [verification-workflow.md](verification-workflow.md) | ruff, pytest, smoke |
+| [release-workflow.md](release-workflow.md) | Tag `v*` builds Windows, macOS, Linux |
 | [audio-commit.md](audio-commit.md) | Tag rewrite and replace |
 | [m4a-markers.md](m4a-markers.md) | M4A / MP4 Serato markers |
 | [crate-slash.md](crate-slash.md) | Slash in crate names |

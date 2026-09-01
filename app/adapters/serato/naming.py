@@ -125,7 +125,7 @@ def crate_name_for(
 
     Serato's crate list is flat, so a nested Rekordbox folder is encoded into
     the filename: each ancestor folder's sanitized name, then the playlist's
-    own, joined with "%%" -- "Techno / Peak Time" becomes
+    own, joined with "%%". "Techno / Peak Time" becomes
     "Techno%%Peak Time.crate". A synced Rekordbox
     ``Gigs / Played / safety day`` playlist appears under Played under
     Gigs. Rekordbox folder ancestors do not get their own empty

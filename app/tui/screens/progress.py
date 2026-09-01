@@ -103,7 +103,7 @@ class ProgressScreen(Screen):
     async def _run(self) -> None:
         try:
             # sync_playlists reads through library.rekordbox, which must stay
-            # on the app's one dedicated thread -- see UsbversalApp.run_rekordbox.
+            # on the app's one dedicated thread. See UsbversalApp.run_rekordbox.
             report = await self.app.run_rekordbox(
                 sync_playlists,
                 self.library,
@@ -218,7 +218,7 @@ class DoneScreen(Screen):
 
     def _summary(self) -> Text:
         if self._error is not None:
-            # Text(), not markup -- self._error is an arbitrary exception
+            # Text(), not markup. self._error is an arbitrary exception
             # message and could itself contain "[...]", which markup
             # parsing would misread as a tag.
             return Text(f"Sync failed: {self._error}", style="red")

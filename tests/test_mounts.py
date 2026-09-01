@@ -107,7 +107,7 @@ def test_env_mount_scanner_reads_the_configured_variable(tmp_path: Path, monkeyp
 
 
 def test_env_mount_scanner_is_empty_when_unset(monkeypatch) -> None:
-    """No variable set is not an error -- just nothing to report."""
+    """No variable set is not an error, just nothing to report."""
     monkeypatch.delenv("USBVERSAL_MOUNT", raising=False)
 
     assert EnvMountScanner().list_mounts() == []

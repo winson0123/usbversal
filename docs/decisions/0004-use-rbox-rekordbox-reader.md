@@ -5,36 +5,29 @@
 
 ## Context
 
-USB Rekordbox exports use multiple on-disk formats:
+USB Rekordbox exports show up as two files:
 
-- `exportLibrary.db` — SQLCipher SQLite (“One Library” / Device Library Plus)
-- `export.pdb` — DeviceSQL binary format
+- `exportLibrary.db`, SQLCipher SQLite ("One Library" / Device Library Plus)
+- `export.pdb`, DeviceSQL
 
-Reverse-engineering SQLCipher keys and DeviceSQL page layouts in-house is
-high-risk and slow. PyPI packages already exist for Rekordbox 6/7 data access.
+Cracking SQLCipher keys and DeviceSQL pages ourselves is slow and easy
+to get wrong. PyPI already has Rekordbox 6/7 readers.
 
 ## Decision
 
-Use **`rbox`** (`OneLibrary`) as the read adapter for `exportLibrary.db`.
+Use `rbox` (`OneLibrary`) to read `exportLibrary.db`.
 
-- Wrap rbox behind `app/adapters/rekordbox/` and map to domain `Playlist` models.
-- Do **not** add a DeviceSQL parser; `export.pdb`-only mounts return
-  `UnsupportedDatabaseError`.
-- Never write under `PIONEER/`.
+Wrap it in `app/adapters/rekordbox/` and map rows to `Playlist`.
+Do not add a DeviceSQL parser. An `export.pdb`-only mount raises
+`UnsupportedDatabaseError`. Never write under `PIONEER/`.
 
 ## Consequences
 
-### Positive
+One Library exports decrypt and list playlists. Upstream can fix format
+changes.
 
-- Correct decryption and schema access for One Library exports
-- Maintained upstream fixes for Rekordbox format changes
+We depend on `rbox` and SQLCipher wheels. Classic `export.pdb` sticks
+stay unsupported.
 
-### Negative
-
-- Runtime dependency (`rbox`, SQLCipher wheels)
-- Classic `export.pdb`-only USB sticks remain unsupported
-
-### Neutral
-
-- Smart vs manual playlist type is not modeled for USB: the export
-  materializes tracks. Documented in schema notes.
+USB exports already freeze smart playlists into track lists, so we do
+not model smart vs manual. That lives in the schema notes.

@@ -277,8 +277,8 @@ def _log_line_styles(log: RichLog, index: int) -> tuple[str, list]:
 
 @pytest.mark.asyncio
 async def test_progress_log_shows_a_green_line_per_successful_track() -> None:
-    """Each track that analyses cleanly gets its own green log line -- the
-    user asked to actually see what's happening, not just a bare counter."""
+    """Each track that analyses cleanly gets its own green log line. The
+    user asked to actually see what's happening, not a bare counter."""
 
     def _slow_sync(library, playlist_ids, *, on_progress=None):
         time.sleep(1.0)

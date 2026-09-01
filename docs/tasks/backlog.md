@@ -1,5 +1,5 @@
-# Task Backlog
+# Task backlog
 
-Queued work. **Only one task may be active** — see [`AGENT.md`](../../AGENT.md).
+Queued work. Only one task may be active. See [`AGENT.md`](../../AGENT.md).
 
-Nothing is queued. Next task is `TASK-326` when work is assigned.
+Nothing is queued. Next id is `TASK-327`.

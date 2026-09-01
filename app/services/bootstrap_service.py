@@ -1,8 +1,8 @@
 """Bootstrapping an empty Serato library on a rekordbox-only stick.
 
 On a Rekordbox stick with no ``_Serato_``, sync has nowhere to write.
-This creates the minimum a fresh Serato install would have -- an empty
-index -- so the rest of the sync path can run.
+This creates the minimum a fresh Serato install would have, an empty
+index, so the rest of the sync path can run.
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ def bootstrap_serato_library(mount: str | Path) -> BootstrapResult:
     empty ``database V2`` (just the ``vrsn`` header), and an empty
     ``neworder.pref``. Nothing under ``PIONEER/`` or ``Contents/`` is ever
     touched. A mount that already has a Serato library is left completely
-    alone and reported as not created -- this only fills a gap, it never
+    alone and reported as not created. This only fills a gap. It never
     merges into or replaces something that exists. A zero-byte
     ``database V2`` is treated as missing.
 

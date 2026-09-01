@@ -44,7 +44,7 @@ def test_creates_an_empty_valid_serato_library(tmp_path: Path) -> None:
 
 
 def test_pioneer_files_are_byte_identical_after_bootstrap(tmp_path: Path) -> None:
-    """Bootstrap writes only inside _Serato_ -- PIONEER/ never changes."""
+    """Bootstrap writes only inside _Serato_. PIONEER/ never changes."""
     mount = _rekordbox_only_stick(tmp_path)
     db_path = mount / "PIONEER" / "rekordbox" / "exportLibrary.db"
     before = _hash(db_path)

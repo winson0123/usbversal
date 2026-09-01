@@ -76,7 +76,7 @@ def probe_mount(mount: str | Path) -> MountProbe | None:
         mount: Mount path to inspect.
 
     Returns:
-        MountProbe, or None when the path is absent or holds nothing -- an
+        MountProbe, or None when the path is absent or holds nothing. An
         unplugged stick leaves its mount point behind as an empty directory.
     """
     path = Path(mount).resolve()

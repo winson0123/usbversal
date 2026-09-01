@@ -28,7 +28,7 @@ class _FakeScanner(MountScanner):
 
 
 class _DummyLibraryScreen(Screen):
-    """Stands in for the real Library screen -- that screen's own behaviour
+    """Stands in for the real Library screen. That screen's own behaviour
     is covered by tests/test_tui_library.py; these tests only need proof that
     Home handed off to it with the right library."""
 
@@ -290,7 +290,7 @@ async def test_stops_polling_once_a_library_is_open(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_a_rekordbox_only_stick_gets_a_serato_library_bootstrapped(tmp_path: Path) -> None:
-    """A real, unpatched bootstrap runs -- the point of wiring it in here at all."""
+    """A real, unpatched bootstrap runs. That is the point of wiring it in here at all."""
     rb = tmp_path / "PIONEER" / "rekordbox"
     rb.mkdir(parents=True)
     (rb / "exportLibrary.db").write_bytes(b"stub")
@@ -337,7 +337,7 @@ def test_match_candidates_lists_directories_only(tmp_path: Path) -> None:
 
 def _force_error_state(home: HomeScreen) -> None:
     """Drive the screen into its failed/error state directly, the way a
-    real failed auto-scan or a failed manual open would -- which is the
+    real failed auto-scan or a failed manual open would, which is the
     only way the path input becomes visible and interactive at all."""
     home._enter(HomePhase.FAILED, "forced for test setup")
 
@@ -366,7 +366,7 @@ async def test_searching_shows_spinner_and_hides_the_path_input() -> None:
 @pytest.mark.asyncio
 async def test_tab_cycles_through_matching_directories(tmp_path: Path) -> None:
     """Tab on the path field steps through every matching directory one at
-    a time, wrapping back to the first -- not moving focus away, and not
+    a time, wrapping back to the first. Not moving focus away, and not
     just completing to a common prefix that's still ambiguous."""
     (tmp_path / "alpha").mkdir()
     (tmp_path / "beta").mkdir()
@@ -430,7 +430,7 @@ async def test_typing_after_a_tab_cycle_starts_a_fresh_one(tmp_path: Path) -> No
 
 @pytest.mark.asyncio
 async def test_enter_on_empty_input_visibly_resumes_scanning() -> None:
-    """Retrying must actually look like something happened -- not silently
+    """Retrying must actually look like something happened, not silently
     re-print the identical error, which is indistinguishable from Enter
     having done nothing at all."""
     watcher = MountWatcher(_FakeScanner([]))
@@ -453,7 +453,7 @@ async def test_enter_on_empty_input_visibly_resumes_scanning() -> None:
 @pytest.mark.asyncio
 async def test_enter_with_a_typed_path_opens_that_library(tmp_path: Path) -> None:
     """A manually typed path is opened directly, without waiting for the
-    watcher to notice it -- the "optionally enter the path" case."""
+    watcher to notice it. The "optionally enter the path" case."""
     watcher = MountWatcher(_FakeScanner([]))
     app = UsbversalApp(watcher)
 

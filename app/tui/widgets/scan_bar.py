@@ -1,7 +1,7 @@
 """Sweeping scan bar used on Home and the Library Tracks pane.
 
-A bright point sweeps left to right over a dotted bar -- e.g.
-``[·•●·]`` -- rather than a single pulsing glyph. The resting fill is
+A bright point sweeps left to right over a dotted bar, e.g.
+``[·•●·]``, rather than a single pulsing glyph. The resting fill is
 the same smallest dot the trail fades into, so the bar never looks
 like it has empty gaps.
 """

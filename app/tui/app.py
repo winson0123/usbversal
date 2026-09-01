@@ -80,8 +80,8 @@ class RekordboxThreadMixin:
     Gives an App the one dedicated thread all ``UsbLibrary.rekordbox`` access
     must stay pinned to.
 
-    rbox's ``PyOneLibrary`` is not ``Send`` -- pyo3 aborts the whole process
-    if it is ever touched from a thread other than the one that created it --
+    rbox's ``PyOneLibrary`` is not ``Send``. pyo3 aborts the whole process
+    if it is ever touched from a thread other than the one that created it,
     so every call that opens or reads through ``UsbLibrary.rekordbox`` must
     land on this one thread for the library's whole lifetime, never the
     shared default executor ``asyncio.to_thread`` uses, which does not
@@ -89,9 +89,9 @@ class RekordboxThreadMixin:
 
     A plain mixin, not a Screen/Widget subclass: Textual dispatches
     ``on_mount`` (and other lifecycle messages) to *every* class in the MRO
-    that defines one, not just the most-derived override, so a test harness
+    that defines one, including mixins and base classes, so a test app
     that needs this thread cannot simply subclass ``UsbversalApp`` and
-    override ``on_mount`` -- both versions would fire. Mixing this in
+    override ``on_mount``. Both versions would fire. Mixing this in
     alongside a bare ``App`` avoids that collision entirely.
     """
 
@@ -119,7 +119,7 @@ class RekordboxThreadMixin:
         Drop parked library handles on the rekordbox thread, then join it.
 
         Called from ``on_unmount``, after Textual has already left the
-        alternate screen -- the user sees the shell again while Drop
+        alternate screen. The user sees the shell again while Drop
         finishes, rather than staring at a frozen last frame.
         """
         try:

@@ -71,7 +71,7 @@ _TABLE_GUTTER = 8
 
 @dataclass(frozen=True)
 class _Row:
-    """Whatever one tree row needs to render and toggle -- a playlist or folder."""
+    """Whatever one tree row needs to render and toggle, a playlist or folder."""
 
     name: str
     state: SyncState
@@ -233,7 +233,7 @@ class LibraryScreen(Screen):
 
     Space is bound here as a **priority** binding, which is what lets it win
     over Tree's own default space-toggles-expand binding on the focused
-    widget -- space selects playlists to sync, and expand/collapse moves
+    widget. Space selects playlists to sync, and expand/collapse moves
     to "e" so both actions stay reachable.
     """
 
@@ -420,7 +420,7 @@ class LibraryScreen(Screen):
             None.
         """
         # playlist_tree_sync_states reads through library.rekordbox, which
-        # must stay on the app's one dedicated thread -- see
+        # must stay on the app's one dedicated thread. See
         # UsbversalApp.run_rekordbox.
         states = await self.app.run_rekordbox(
             playlist_tree_sync_states, self.library, check_analysis=check_analysis
@@ -493,7 +493,7 @@ class LibraryScreen(Screen):
     def _prefix_width(self, depth: int, is_folder: bool) -> int:
         """
         Cells Tree's own guide lines and expand icon consume before a label
-        at this depth -- matched empirically against Tree's rendering
+        at this depth, matched empirically against Tree's rendering
         (``guide_depth`` cells per nesting level, plus the icon+space width
         for an expandable node), so the columns after the name line up
         regardless of depth or folder-vs-leaf.
@@ -598,7 +598,7 @@ class LibraryScreen(Screen):
         count = len(self._selected)
         message = f"{count} playlist{'s' if count != 1 else ''} selected"
         if count:
-            message += " -- press enter to sync"
+            message += ", press enter to sync"
         self.query_one(f"#{_STATUS_ID}", Static).update(message)
 
     def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:

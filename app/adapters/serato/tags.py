@@ -302,7 +302,7 @@ def _audio_span(data: bytes) -> tuple[int, int]:
     MP3 carries audio as everything after the ID3 tag, or the whole file
     when the stream starts at an MPEG frame. WAV interleaves chunks, so
     the audio lives in its own `data` chunk rather than simply after the
-    tag -- hashing "everything but the tag" for a WAV would count other
+    tag. Hashing "everything but the tag" for a WAV would count other
     metadata chunks as audio and mask a real corruption. AIFF / AIFC
     store samples in ``SSND`` after an 8-byte offset/blockSize header.
 

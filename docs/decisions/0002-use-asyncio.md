@@ -1,38 +1,33 @@
-# ADR 0002: Use asyncio for the TUI, with a dedicated Rekordbox thread
+# ADR 0002: asyncio and a dedicated Rekordbox thread
 
 **Status:** accepted
 **Date:** 2026-05-22
 
 ## Context
 
-Opening a Rekordbox export and writing analysis tags are I/O-bound and
-long-running. The TUI must stay responsive for progress, cancel, and
-key handling. rbox / PyOneLibrary must stay on one thread for the
-lifetime of a session.
+Opening a Rekordbox export and writing analysis tags are slow I/O. The
+TUI still has to paint progress and take keys. rbox / PyOneLibrary
+dies if you hop threads mid-handle. I learned that on a real stick,
+not in a mock.
 
 ## Decision
 
-- Run the Textual app on **asyncio** (Textual's native loop).
-- Run Rekordbox open and `sync_playlists` on a **dedicated executor
-  thread**, not the default `asyncio.to_thread` pool.
-- Run analysis tag writes on a small worker pool so crate work can
-  continue on the Rekordbox thread.
+Textual already runs on asyncio, so the app loop stays there.
 
-There is no job registry, event bus, or persisted job record.
+Rekordbox open and `sync_playlists` run on one dedicated executor
+thread, not the default `asyncio.to_thread` pool.
+
+Analysis tag writes use a small worker pool so crate work can continue
+on the Rekordbox thread.
+
+There is no job registry, event bus, or job file on disk.
 
 ## Consequences
 
-### Positive
+One process, which PyInstaller likes. Library, Progress, and quit all
+talk to Rekordbox on the same thread. Progress is a normal callback.
 
-- Single-process model simplifies PyInstaller packaging
-- Rekordbox thread affinity stays correct across Library, Progress, and quit
-- Progress callbacks stay ordinary Python callables
+The sync/async boundary is easy to get wrong. Tests that open rbox
+must stay on that thread.
 
-### Negative
-
-- Care is required at the sync/async boundary
-- Tests that touch rbox must not hop threads mid-handle
-
-### Neutral
-
-- Analysis workers are capped so a USB stick is not flooded
+The analysis pool is capped so a USB stick is not flooded.

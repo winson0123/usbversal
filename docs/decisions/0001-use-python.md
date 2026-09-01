@@ -5,34 +5,25 @@
 
 ## Context
 
-Usbversal must manipulate DJ library metadata on USB drives across Windows,
-Linux, and macOS. The tool needs rapid iteration, strong ecosystem support
-for SQLite (Rekordbox), and straightforward packaging for non-developer DJs.
+Usbversal edits DJ library metadata on USB drives on Windows, Linux,
+and macOS. I want fast adapter work, stdlib SQLite for Rekordbox, and
+a one-file build DJs can run without installing Python.
 
-Alternatives considered: Rust (performance, single binary), Go (simple
-deployment), Node (ecosystem but weaker SQLite ergonomics).
+Rust would be a smaller binary. Go would deploy easily. Node's SQLite
+story is worse for this. None of those beat the iteration speed here.
 
 ## Decision
 
-Implement Usbversal as a **Python 3.11+ TUI** with an `app/` package layout,
-`pytest` for tests, and `ruff` for lint/format.
+Usbversal is a Python 3.11+ TUI in `app/`, tested with `pytest`,
+linted with `ruff`.
 
 ## Consequences
 
-### Positive
+Python lets me poke a schema and have a test in the same hour. `sqlite3`
+is in the stdlib. Agents already know this layout.
 
-- Fast development for adapter prototyping and schema exploration
-- Excellent SQLite support via stdlib `sqlite3`
-- Large ecosystem for TUI and packaging
-- Autonomous agents widely trained on Python project patterns
+The cost is PyInstaller (ADR 0003) and the GIL. Rekordbox work sits on
+one dedicated thread. Analysis writes use a small pool. Dependencies
+stay listed in `pyproject.toml`.
 
-### Negative
-
-- Requires PyInstaller (ADR 0003) for standalone binaries
-- GIL limits CPU parallelism; mitigated by a dedicated Rekordbox thread
-  and a small analysis worker pool
-- Runtime dependency management via `pyproject.toml` discipline
-
-### Neutral
-
-- Performance is sufficient for metadata-only operations (not audio processing)
+Metadata work does not need native speed. We are not processing audio.

@@ -39,7 +39,7 @@ class MountWatcher:
     Tracks which mount points are present, one cheap poll at a time.
 
     Each poll costs exactly one directory listing
-    (``MountScanner.list_mounts``) and nothing else -- no library detection,
+    (``MountScanner.list_mounts``) and nothing else. No library detection,
     no database opens. What a newly appeared mount actually is (a valid DJ
     USB or not) is for the caller to find out with ``services.library.probe_mount``,
     which is itself stat-only and cheap; this class only tracks presence.
