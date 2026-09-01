@@ -1,12 +1,12 @@
 # Current task
 
 **Status:** `complete`
-**Task ID:** `TASK-328`
+**Task ID:** `TASK-329`
 **Last updated:** 2026-09-01
 
 ## Objective
 
-Rewrite README.md as a short operator guide: what usbversal is, how to run a sync, and a plain overview of how Rekordbox data reaches Serato.
+Remove README claims that do not help an operator, starting with the unused network line.
 
 ## Files touched
 

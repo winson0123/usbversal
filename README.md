@@ -2,8 +2,7 @@
 
 Usbversal is a terminal app that copies Rekordbox playlists, beatgrids,
 and hot cues onto the Serato side of the same USB stick. The audio
-stays put. Rekordbox files under `PIONEER/` stay put. Nothing talks
-to the network.
+stays put. Rekordbox files under `PIONEER/` stay put.
 
 Export the library from Rekordbox onto the stick first. Then run
 usbversal, pick playlists, and sync. Unmount the stick on this machine
@@ -51,7 +50,7 @@ Library.
 4. Progress copies the selected playlists into Serato crates, writes
    beatgrids and cues onto the audio files, and updates Serato's
    library list where a row already exists.
-5. The mount is flushed. Unmount it yourself. The TUI does not eject.
+5. The mount is flushed. Unmount it yourself.
 
 A playlist becomes a crate named after the stick, then the Rekordbox
 folders: `WONSIN%%Gigs%%Played`. Serato shows that as a folder tree
@@ -60,23 +59,18 @@ crate title. It does not become another folder.
 
 Tracks are matched by their path on the stick. Rekordbox stores
 `/Contents/Artist/track.mp3`. Serato stores `Contents/Artist/track.mp3`.
-Same file, one leading slash stripped. The song is not copied.
+Same file, one leading slash stripped.
 
 Beatgrids and hot cues come from Rekordbox analysis next to the
 export. Those values are written into Serato's own tags on the file.
-Cue colour is the RGB Rekordbox already stored. If Serato already has
-the track in `location.sqlite`, the library-list BPM and key are
-updated to match. Usbversal never creates that database or inserts
-new rows. The first time Serato opens the stick, it builds that index
-itself from `database V2`.
+Cue colour is the RGB Rekordbox already stored. If Serato already
+knows the track, the library-list BPM and key update to match. The
+first time Serato opens the stick, it builds the rest of that index
+from `database V2`.
 
-Writes merge. Existing Serato records are updated, not rebuilt from
-scratch. A tag rewrite is checked against the audio hash and read back
-before the live file is replaced. If that swap fails, the original
-bytes go back.
-
-If a sync goes wrong, restore the Rekordbox USB. That is the recovery
-plan. There is no host rollback.
+A later sync updates existing Serato records. It does not rebuild the
+library from scratch. If a tag write fails, the original file is put
+back. If a sync goes wrong, restore the Rekordbox USB.
 
 ## Build
 
