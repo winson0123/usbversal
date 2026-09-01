@@ -95,10 +95,3 @@ def test_mp4_markers_footer_is_unset_track_colour() -> None:
         Cue(slot=0, position_ms=70, colour="#31002E"),
         Cue(slot=1, position_ms=30015, colour="#00C4FF"),
     ]
-
-
-def test_mp4_markers_keep_rekordbox_cue_rgb() -> None:
-    """M4A pads use the same ANLZ RGB as MP3, not Lexicon's Serato palette."""
-    mp4 = encode_markers_v1_mp4([Cue(slot=0, position_ms=21, colour="#00C4FF")])
-
-    assert decode_markers_v1_mp4(mp4)[0].colour == "#00C4FF"

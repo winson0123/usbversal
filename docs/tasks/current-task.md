@@ -1,22 +1,33 @@
 # Current Task
 
 **Status:** `complete`
-**Task ID:** `TASK-323`
+**Task ID:** `TASK-324`
 **Last updated:** 2026-09-01
 
 ---
 
 ## Objective
 
-Strip the tree to the TUI product as it ships: no unused jobs/events/CLI
-services, no journal docs, no dry-run or JSON leftover paths.
+Delete leftover tests and fold combinable cases so the suite matches the TUI product.
 
 ## Files touched
 
-- Dead modules under `app/jobs/`, `app/core/event_*.py`, unused services
-- Callers and tests of those modules
-- Production docs (`README.md`, `ARCHITECTURE.md`, `AGENT.md`, `docs/`)
-- State JSON slimmed to the current product
+- `tests/test_architecture.py`
+- `tests/test_packaging_smoke.py`
+- `tests/test_tui_app.py`
+- `tests/test_tui_home.py`
+- `tests/test_tui_library.py`
+- `tests/test_tui_progress.py`
+- `tests/test_progress_rate.py`
+- `tests/test_aiff_tags.py`
+- `tests/test_m4a_tags.py`
+- `tests/test_markers.py`
+- `tests/test_naming.py`
+- `tests/test_mounts.py`
+- `tests/test_sync_analysis.py`
+- `docs/workflows/release-workflow.md`
+- `docs/state/task-state.json`
+- `docs/state/repository-state.json`
 
 ## Verification
 
@@ -30,4 +41,4 @@ services, no journal docs, no dry-run or JSON leftover paths.
 |-------|--------|
 | ruff check | pass |
 | ruff format | pass |
-| pytest | 352 passed, 3 skipped |
+| pytest | 332 passed, 3 skipped |

@@ -3,6 +3,8 @@
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from app.core.domain import MountPoint
 from app.storage.mounts import (
     ChildDirectoryScanner,
@@ -67,36 +69,30 @@ def test_composite_scanner_merges_all_sub_scanners() -> None:
     assert scanner.list_mounts() == [a, b]
 
 
-def test_get_mount_scanner_returns_a_composite_on_linux() -> None:
-    """get_mount_scanner checks /media/$USER and the env override on Linux."""
-    with patch("app.storage.mounts.platform.system", return_value="Linux"):
+@pytest.mark.parametrize(
+    ("system", "child_source", "windows"),
+    [
+        ("Linux", "linux_media", False),
+        ("Darwin", "macos_volumes", False),
+        ("Windows", None, True),
+    ],
+)
+def test_get_mount_scanner_matches_the_platform(
+    system: str, child_source: str | None, windows: bool
+) -> None:
+    """Each OS combines its removable-media roots with the env override."""
+    with patch("app.storage.mounts.platform.system", return_value=system):
         scanner = get_mount_scanner()
     assert isinstance(scanner, _CompositeScanner)
-    kinds = {type(s) for s in scanner._scanners}
+    kinds = {type(item) for item in scanner._scanners}
+    if windows:
+        assert kinds == {WindowsMountScanner, EnvMountScanner}
+        return
     assert kinds == {ChildDirectoryScanner, EnvMountScanner}
-    child = next(s for s in scanner._scanners if isinstance(s, ChildDirectoryScanner))
-    assert child._source == "linux_media"
-
-
-def test_get_mount_scanner_returns_a_composite_on_macos() -> None:
-    """get_mount_scanner checks /Volumes and the env override on macOS."""
-    with patch("app.storage.mounts.platform.system", return_value="Darwin"):
-        scanner = get_mount_scanner()
-    assert isinstance(scanner, _CompositeScanner)
-    kinds = {type(s) for s in scanner._scanners}
-    assert kinds == {ChildDirectoryScanner, EnvMountScanner}
-    child = next(s for s in scanner._scanners if isinstance(s, ChildDirectoryScanner))
-    assert child._source == "macos_volumes"
-    assert "Macintosh HD" in child._exclude
-
-
-def test_get_mount_scanner_returns_a_composite_on_windows() -> None:
-    """get_mount_scanner checks drive letters and the env override on Windows."""
-    with patch("app.storage.mounts.platform.system", return_value="Windows"):
-        scanner = get_mount_scanner()
-    assert isinstance(scanner, _CompositeScanner)
-    kinds = {type(s) for s in scanner._scanners}
-    assert kinds == {WindowsMountScanner, EnvMountScanner}
+    child = next(item for item in scanner._scanners if isinstance(item, ChildDirectoryScanner))
+    assert child._source == child_source
+    if system == "Darwin":
+        assert "Macintosh HD" in child._exclude
 
 
 def test_env_mount_scanner_reads_the_configured_variable(tmp_path: Path, monkeypatch) -> None:

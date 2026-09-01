@@ -321,28 +321,16 @@ async def test_a_rekordbox_only_stick_gets_a_serato_library_bootstrapped(tmp_pat
     assert (tmp_path / "_Serato_" / "Subcrates").is_dir()
 
 
-def test_match_candidates_lists_every_matching_directory(tmp_path: Path) -> None:
-    """All directories sharing the prefix come back, sorted, not just the
-    one nearest the front -- this is what Tab cycles through."""
+def test_match_candidates_lists_directories_only(tmp_path: Path) -> None:
+    """Tab cycles sorted directories; files and missing prefixes are omitted."""
     (tmp_path / "usbstick2").mkdir()
     (tmp_path / "usbstick1").mkdir()
-
-    matches = match_candidates(f"{tmp_path}/us")
-
-    assert matches == [f"{tmp_path}/usbstick1/", f"{tmp_path}/usbstick2/"]
-
-
-def test_match_candidates_excludes_files(tmp_path: Path) -> None:
-    """A file can never be a mount root, so it's never offered."""
-    (tmp_path / "usbstick").mkdir()
     (tmp_path / "usbstick.txt").write_text("not a directory")
 
-    assert match_candidates(f"{tmp_path}/usbstick") == [f"{tmp_path}/usbstick/"]
-
-
-def test_match_candidates_is_empty_when_nothing_matches(tmp_path: Path) -> None:
-    """No matching directory, or an unreadable parent, is an empty list,
-    not an error."""
+    assert match_candidates(f"{tmp_path}/us") == [
+        f"{tmp_path}/usbstick1/",
+        f"{tmp_path}/usbstick2/",
+    ]
     assert match_candidates(f"{tmp_path}/nope") == []
     assert match_candidates(f"{tmp_path}/nope/deeper") == []
 

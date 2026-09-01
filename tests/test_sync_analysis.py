@@ -22,20 +22,14 @@ def _run_jobs(jobs, on_progress=None):
         session.close()
 
 
-def test_analysis_worker_count_defaults_to_at_most_four() -> None:
-    """The default pool is small so a USB stick is not flooded."""
+def test_analysis_worker_count(monkeypatch) -> None:
+    """The pool stays small by default, follows the env, and ignores a bad override."""
     assert 1 <= analysis_worker_count(100) <= 4
 
-
-def test_analysis_worker_count_follows_the_env(monkeypatch) -> None:
-    """USBVERSAL_SYNC_WORKERS sets the pool size, capped by the job count."""
     monkeypatch.setenv("USBVERSAL_SYNC_WORKERS", "8")
     assert analysis_worker_count(3) == 3
     assert analysis_worker_count(20) == 8
 
-
-def test_analysis_worker_count_rejects_a_bad_env(monkeypatch) -> None:
-    """A non-integer override falls back to the default cap."""
     monkeypatch.setenv("USBVERSAL_SYNC_WORKERS", "nope")
     assert 1 <= analysis_worker_count(10) <= 4
 

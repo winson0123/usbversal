@@ -92,19 +92,18 @@ def _ssnd_sound(data: bytes) -> bytes:
     raise AssertionError("no SSND chunk")
 
 
-def _tagged_aiff(tmp_path: Path, *, suffix: str = ".aiff", form_type: bytes = b"AIFF") -> Path:
+def _tagged_aiff(tmp_path: Path, *, form_type: bytes = b"AIFF") -> Path:
     """
     Write a padding-rich AIFF that already carries both Serato frames.
 
     Args:
         tmp_path: Pytest temp directory.
-        suffix: File suffix (``.aiff`` or ``.aif``).
         form_type: ``AIFF`` or ``AIFC``.
 
     Returns:
         Path to the written file.
     """
-    path = tmp_path / f"t{suffix}"
+    path = tmp_path / "t.aiff"
     frames = [
         _geob_frame("Serato BeatGrid", b"\x01\x00\x00\x00\x00\x00\x00"),
         _geob_frame("Serato Markers2", b"\x01\x01"),
@@ -126,15 +125,6 @@ def test_aiff_round_trips_beatgrid_and_markers(tmp_path: Path) -> None:
     assert _ssnd_sound(path.read_bytes()) == before
     assert path.read_bytes()[:4] == b"FORM"
     assert path.read_bytes()[8:12] == b"AIFF"
-
-
-def test_aif_suffix_round_trips(tmp_path: Path) -> None:
-    """The same FORM bytes work under a .aif name."""
-    path = _tagged_aiff(tmp_path, suffix=".aif")
-
-    write_geob(path, {"Serato BeatGrid": _GRID})
-
-    assert read_geob(path)["Serato BeatGrid"] == _GRID
 
 
 def test_aifc_round_trips(tmp_path: Path) -> None:

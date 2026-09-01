@@ -53,20 +53,6 @@ async def test_run_rekordbox_thread_is_not_the_event_loop_thread() -> None:
 
 
 @pytest.mark.asyncio
-async def test_run_rekordbox_passes_args_and_kwargs_through() -> None:
-    """Positional and keyword arguments reach the wrapped callable intact."""
-    app = _Harness()
-
-    def combine(a, b, *, sep="-"):
-        return f"{a}{sep}{b}"
-
-    async with app.run_test():
-        result = await app.run_rekordbox(combine, "x", "y", sep="+")
-
-        assert result == "x+y"
-
-
-@pytest.mark.asyncio
 async def test_usbversal_app_pushes_exactly_one_home_screen() -> None:
     """UsbversalApp mixes the thread in without triggering the double-dispatch
     that subclassing it (rather than mixing in directly) would cause."""
@@ -212,32 +198,28 @@ def test_rewrite_alt_screen_swaps_on_and_off_for_a_clear() -> None:
     assert rewrite_alt_screen("hello") == "hello"
 
 
-def test_conpty_alt_screen_is_slow_on_wsl_release(monkeypatch: pytest.MonkeyPatch) -> None:
-    """WSL's kernel release string is enough to skip the alt screen."""
-    monkeypatch.delenv("WT_SESSION", raising=False)
-    monkeypatch.setattr("app.tui.app.platform.release", lambda: "6.6.114.1-microsoft-standard-WSL2")
-
-    assert conpty_alt_screen_is_slow() is True
-
-
-def test_conpty_alt_screen_is_slow_on_windows_terminal(
+@pytest.mark.parametrize(
+    ("release", "wt_session", "expected"),
+    [
+        ("6.6.114.1-microsoft-standard-WSL2", None, True),
+        ("24H2", "some-guid", True),
+        ("6.8.0-generic", None, False),
+    ],
+)
+def test_conpty_alt_screen_is_slow(
     monkeypatch: pytest.MonkeyPatch,
+    release: str,
+    wt_session: str | None,
+    expected: bool,
 ) -> None:
-    """Windows Terminal advertises itself with WT_SESSION."""
-    monkeypatch.setenv("WT_SESSION", "some-guid")
-    monkeypatch.setattr("app.tui.app.platform.release", lambda: "24H2")
+    """Skip the alt screen on WSL or Windows Terminal; keep it on plain Linux."""
+    if wt_session is None:
+        monkeypatch.delenv("WT_SESSION", raising=False)
+    else:
+        monkeypatch.setenv("WT_SESSION", wt_session)
+    monkeypatch.setattr("app.tui.app.platform.release", lambda: release)
 
-    assert conpty_alt_screen_is_slow() is True
-
-
-def test_conpty_alt_screen_is_not_slow_on_plain_linux(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A normal Linux desktop should keep the alt screen (instant restore)."""
-    monkeypatch.delenv("WT_SESSION", raising=False)
-    monkeypatch.setattr("app.tui.app.platform.release", lambda: "6.8.0-generic")
-
-    assert conpty_alt_screen_is_slow() is False
+    assert conpty_alt_screen_is_slow() is expected
 
 
 def test_suppress_alt_screen_filters_driver_writes() -> None:

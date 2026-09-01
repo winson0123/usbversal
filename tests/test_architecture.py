@@ -68,9 +68,3 @@ def test_layers_only_import_allowed_layers() -> None:
             if target not in permitted:
                 offenders.append(f"{path.relative_to(APP_ROOT.parent)} ({layer}) imports {module}")
     assert not offenders, "layer violations:\n  " + "\n  ".join(offenders)
-
-
-def test_no_app_imports_removed_cli() -> None:
-    """The argparse CLI is gone; nothing under app/ may import app.cli."""
-    for path in _source_files():
-        assert not any(m.startswith("app.cli") for m in _imported_modules(path)), path

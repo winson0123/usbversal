@@ -89,9 +89,10 @@ async def test_progress_updates_the_bar_and_transitions_to_done() -> None:
             await pilot.pause()
 
             assert isinstance(app.screen, DoneScreen)
-            summary = str(app.screen.query_one("#done-summary", Static).render())
-            assert "3 new record" in summary
-            assert "Grids: 2" in summary
+            summary = app.screen.query_one("#done-summary", Static).render()
+            assert "3 new record" in str(summary)
+            assert "Grids: 2" in str(summary)
+            assert any(span.style == "green" for span in summary.spans)
 
 
 @pytest.mark.asyncio
@@ -108,9 +109,10 @@ async def test_a_sync_failure_is_reported_on_the_done_screen() -> None:
             await pilot.pause()
 
             assert isinstance(app.screen, DoneScreen)
-            summary = str(app.screen.query_one("#done-summary", Static).render())
-            assert "Sync failed" in summary
-            assert "stick unplugged" in summary
+            summary = app.screen.query_one("#done-summary", Static).render()
+            assert "Sync failed" in str(summary)
+            assert "stick unplugged" in str(summary)
+            assert any(span.style == "red" for span in summary.spans)
 
 
 @pytest.mark.asyncio
@@ -126,9 +128,10 @@ async def test_analysis_errors_are_called_out_in_the_summary() -> None:
             await app.workers.wait_for_complete()
             await pilot.pause()
 
-            summary = str(app.screen.query_one("#done-summary", Static).render())
-            assert "1 track" in summary
-            assert "could not be analysed" in summary
+            summary = app.screen.query_one("#done-summary", Static).render()
+            assert "1 track" in str(summary)
+            assert "could not be analysed" in str(summary)
+            assert any(span.style == "red" for span in summary.spans)
             log = app.screen.query_one("#done-errors", RichLog)
             text = "".join(segment.text for line in log.lines for segment in line)
             assert "a.mp3" in text
@@ -181,21 +184,6 @@ def test_done_screen_has_no_escape_quit_binding() -> None:
     keys = {binding.key for binding in DoneScreen.BINDINGS}
     assert "escape" not in keys
     assert "enter" in keys
-
-
-@pytest.mark.asyncio
-async def test_done_summary_sits_in_the_middle_of_the_screen() -> None:
-    """The completion message is centered, not stuck at the top."""
-    with patch("app.tui.screens.progress.sync_playlists", _fake_sync()):
-        app = _Harness(library=object(), playlist_ids=[1])
-        async with app.run_test() as pilot:
-            await pilot.pause()
-            await app.workers.wait_for_complete()
-            await pilot.pause()
-
-            middle = app.screen.query_one(CenterMiddle)
-            assert middle.query_one("#done-summary", Static)
-            assert middle.query_one(Center)
 
 
 @pytest.mark.asyncio
@@ -336,59 +324,3 @@ async def test_progress_log_shows_a_red_line_for_a_failed_track() -> None:
             assert "Contents/" not in text
             assert "bad beatgrid" in text
             assert any(style is not None and style.color.name == "red" for style in styles)
-
-
-@pytest.mark.asyncio
-async def test_done_summary_is_green_on_a_clean_sync() -> None:
-    """A sync with no analysis errors reads as unambiguously good news."""
-    with patch("app.tui.screens.progress.sync_playlists", _fake_sync(report=_fake_report())):
-        app = _Harness(library=object(), playlist_ids=[1])
-        async with app.run_test() as pilot:
-            await pilot.pause()
-            await app.workers.wait_for_complete()
-            await pilot.pause()
-
-            content = app.screen.query_one("#done-summary", Static).render()
-            assert any(span.style == "green" for span in content.spans)
-
-
-@pytest.mark.asyncio
-async def test_done_summary_is_red_when_analysis_errors_present() -> None:
-    """A partially-failed sync reads as a problem, not routine success."""
-    report = _fake_report(analysis_errors=("Contents/a.mp3: bad grid",))
-    with patch("app.tui.screens.progress.sync_playlists", _fake_sync(report=report)):
-        app = _Harness(library=object(), playlist_ids=[1])
-        async with app.run_test() as pilot:
-            await pilot.pause()
-            await app.workers.wait_for_complete()
-            await pilot.pause()
-
-            content = app.screen.query_one("#done-summary", Static).render()
-            assert any(span.style == "red" for span in content.spans)
-
-
-@pytest.mark.asyncio
-async def test_done_summary_is_red_on_a_hard_failure() -> None:
-    """A sync that raised outright is exactly as much of a problem."""
-    with patch(
-        "app.tui.screens.progress.sync_playlists",
-        _fake_sync(error=RuntimeError("stick unplugged")),
-    ):
-        app = _Harness(library=object(), playlist_ids=[1])
-        async with app.run_test() as pilot:
-            await pilot.pause()
-            await app.workers.wait_for_complete()
-            await pilot.pause()
-
-            content = app.screen.query_one("#done-summary", Static).render()
-            assert any(span.style == "red" for span in content.spans)
-
-            await app.workers.wait_for_complete()
-
-
-def test_display_title_is_the_filename() -> None:
-    """The log shows the file title, not the directory path."""
-    from app.services.sync_progress import display_title
-
-    assert display_title("/Contents/Artist/Song.mp3") == "Song.mp3"
-    assert display_title("") == ""

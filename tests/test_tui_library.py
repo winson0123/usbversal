@@ -304,60 +304,37 @@ async def test_returning_to_the_screen_reflects_a_sync_that_just_happened(
 
 
 @pytest.mark.asyncio
-async def test_a_selects_every_playlist(tmp_path: Path) -> None:
-    """Select-all is ^a, not a parent row that indents the tree."""
+async def test_a_toggles_select_all(tmp_path: Path) -> None:
+    """^a selects every playlist, then clears the selection."""
     library = _library_with_two_playlists(tmp_path)
     app = _Harness(library)
     async with app.run_test() as pilot:
         await _wait_library(app, pilot)
         await pilot.press("ctrl+a")
         await pilot.pause()
-
         status = str(app.screen.query_one("#selection-status", Static).render())
         assert "2 playlists selected" in status
 
-
-@pytest.mark.asyncio
-async def test_a_again_clears_the_selection(tmp_path: Path) -> None:
-    """Pressing ^a when everything is selected returns to nothing selected."""
-    library = _library_with_two_playlists(tmp_path)
-    app = _Harness(library)
-    async with app.run_test() as pilot:
-        await _wait_library(app, pilot)
-        await pilot.press("ctrl+a")
         await pilot.press("ctrl+a")
         await pilot.pause()
-
         status = str(app.screen.query_one("#selection-status", Static).render())
         assert "0 playlists selected" in status
 
 
 @pytest.mark.asyncio
-async def test_space_selects_the_highlighted_playlist(tmp_path: Path) -> None:
-    """Pressing space on a leaf toggles just that one."""
+async def test_space_toggles_the_highlighted_playlist(tmp_path: Path) -> None:
+    """Space selects the cursor leaf, then deselects it."""
     library = _library_with_two_playlists(tmp_path)
     app = _Harness(library)
     async with app.run_test() as pilot:
         await _wait_library(app, pilot)
         await pilot.press("space")
         await pilot.pause()
-
         status = str(app.screen.query_one("#selection-status", Static).render())
         assert "1 playlist selected" in status
 
-
-@pytest.mark.asyncio
-async def test_space_again_deselects(tmp_path: Path) -> None:
-    """Toggling the same node twice returns to nothing selected."""
-    library = _library_with_two_playlists(tmp_path)
-    app = _Harness(library)
-    async with app.run_test() as pilot:
-        await _wait_library(app, pilot)
-        await pilot.press("down")
-        await pilot.press("space")
         await pilot.press("space")
         await pilot.pause()
-
         status = str(app.screen.query_one("#selection-status", Static).render())
         assert "0 playlists selected" in status
 

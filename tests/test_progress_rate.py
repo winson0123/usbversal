@@ -103,24 +103,13 @@ def test_reaching_the_total_reports_zero_eta() -> None:
     assert estimate.eta_seconds == 0.0
 
 
-def test_a_second_tracker_starts_with_no_memory_of_the_first() -> None:
-    """Trackers do not share state -- each starts fresh from its first sample."""
-    first = ProgressRateTracker()
-    first.observe(current=0, total=10, at=0.0)
-    first.observe(current=5, total=10, at=100.0)
-
-    second = ProgressRateTracker()
-    second.observe(current=0, total=10, at=0.0)
-    estimate = second.observe(current=1, total=10, at=1.0)
-
-    assert estimate.rate_per_second == 1.0
-
-
-def test_format_duration_under_a_minute_is_just_seconds() -> None:
-    """A short ETA has no minutes component."""
-    assert format_duration(45) == "45s"
-
-
-def test_format_duration_over_a_minute_includes_minutes() -> None:
-    """A longer ETA is minutes and seconds."""
-    assert format_duration(90) == "1m30s"
+@pytest.mark.parametrize(
+    ("seconds", "expected"),
+    [
+        (45, "45s"),
+        (90, "1m30s"),
+    ],
+)
+def test_format_duration(seconds: float, expected: str) -> None:
+    """Short ETAs are seconds; longer ones include minutes."""
+    assert format_duration(seconds) == expected

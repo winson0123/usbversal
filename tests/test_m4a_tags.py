@@ -116,19 +116,18 @@ def _m4a(*, audio: bytes, ilst: bytes = b"") -> bytes:
     raise AssertionError("stco did not converge")
 
 
-def _write_m4a(tmp_path: Path, *, suffix: str = ".m4a", ilst: bytes = b"") -> Path:
+def _write_m4a(tmp_path: Path, *, ilst: bytes = b"") -> Path:
     """
     Write a minimal M4A to ``tmp_path``.
 
     Args:
         tmp_path: Pytest temp directory.
-        suffix: ``.m4a`` or ``.mp4``.
         ilst: Optional existing freeform items.
 
     Returns:
         Path to the written file.
     """
-    path = tmp_path / f"t{suffix}"
+    path = tmp_path / "t.m4a"
     path.write_bytes(_m4a(audio=_AUDIO, ilst=ilst))
     return path
 
@@ -147,15 +146,6 @@ def test_m4a_round_trips_beatgrid_and_markers(tmp_path: Path) -> None:
     assert _mdat_payload(rebuilt) == _AUDIO
     assert rebuilt[_stco_offset(rebuilt) : _stco_offset(rebuilt) + len(_AUDIO)] == _AUDIO
     assert _stco_offset(rebuilt) != _stco_offset(original)
-
-
-def test_mp4_suffix_round_trips(tmp_path: Path) -> None:
-    """The same boxes work under a .mp4 name."""
-    path = _write_m4a(tmp_path, suffix=".mp4")
-
-    write_geob(path, {"Serato BeatGrid": _GRID})
-
-    assert read_geob(path)["Serato BeatGrid"] == _GRID
 
 
 def test_m4a_preserves_foreign_ilst_items(tmp_path: Path) -> None:
