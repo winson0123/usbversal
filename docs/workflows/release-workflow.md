@@ -1,40 +1,65 @@
 # Release Workflow
 
-**Status:** Linux one-file build via PyInstaller. Windows / macOS artifacts
-are not built yet.
+Tag `v*` on `main` is the release. GitHub Actions builds a native
+PyInstaller binary on Windows, macOS, and Linux and attaches them to a
+GitHub Release. PyInstaller cannot cross-compile; each artifact is built
+on that OS.
 
-## Steps
+There is no remote yet. Add one before the first tag:
 
-1. Bump version in `pyproject.toml` if needed
-2. Run verification (`pytest`, `ruff`)
-3. Build: `./scripts/build-release.sh`
-4. Smoke test: `./dist/usbversal` launches the TUI
-5. Update `repository-state.json` `packaging.readiness`
+```bash
+git remote add origin git@github.com:<org>/usbversal.git
+git push -u origin main
+```
 
-## Build
+## Cut v1.0.0
+
+`main` must be clean and at the commit you want to ship.
+
+1. Set `version = "1.0.0"` in `pyproject.toml`.
+2. Commit that bump on `main` (`[TASK-…] Release 1.0.0.`).
+3. Tag and push:
+
+```bash
+git tag -a v1.0.0 -m "Usbversal 1.0.0"
+git push origin main
+git push origin v1.0.0
+```
+
+4. The [Release](../../.github/workflows/release.yml) workflow runs:
+   - `ruff` + `pytest` on Ubuntu
+   - PyInstaller on `ubuntu-latest`, `windows-latest`, `macos-latest`
+   - `gh release create v1.0.0` with the three artifacts
+5. Confirm the GitHub Release has:
+
+| Artifact | Built on |
+|----------|----------|
+| `usbversal-linux-x86_64` | Ubuntu x86_64 |
+| `usbversal-windows-x86_64.exe` | Windows x86_64 |
+| `usbversal-macos-arm64` | macOS Apple Silicon |
+
+Do not move a tag to a later commit. If the build fails, delete the
+GitHub Release (not the tag history rewrite), fix on `main`, and tag
+`v1.0.1`.
+
+## Local build (one OS)
 
 ```bash
 ./scripts/setup-dev.sh
 ./scripts/build-release.sh
 ```
 
-Produces a one-file executable at `dist/usbversal` (about 43 MB on Linux).
+Writes `dist/usbversal` (Linux / macOS) or `dist/usbversal.exe` (Windows).
+Smoke: launch the binary; it should open the TUI.
 
-Spec: [packaging/usbversal.spec](../../packaging/usbversal.spec)
+Opt-in in CI or locally: `USBVERSAL_PACKAGING_BUILD=1 pytest tests/test_packaging_smoke.py`.
 
-## Automated smoke tests
+## Later versions
 
-| Test | When it runs |
-|------|----------------|
-| `test_pyinstaller_build` | When `USBVERSAL_PACKAGING_BUILD=1` |
-
-## Pre-release gates
-
-- [x] `ruff` and `pytest` pass
-- [x] Linux one-file binary launches the TUI
-- [ ] Windows artifact built and smoke-tested
-- [ ] macOS artifact built and smoke-tested
+Same steps: bump `pyproject.toml`, commit, tag `vX.Y.Z`, push the tag.
+Keep `main` the only release line. Do not release from a feature branch.
 
 ## Related
 
-- [../decisions/0003-use-pyinstaller.md](../decisions/0003-use-pyinstaller.md)
+- [0003-use-pyinstaller.md](../decisions/0003-use-pyinstaller.md)
+- [verification-workflow.md](verification-workflow.md)

@@ -35,10 +35,11 @@ The TUI auto-detects a DJ USB, opens the library, and runs the sync.
 
 ## Packaging
 
-Standalone executables via **PyInstaller**:
+Standalone executables via **PyInstaller**. A `v*` tag on `main` builds
+Windows, macOS, and Linux artifacts and publishes a GitHub Release.
 
 ```bash
-./scripts/build-release.sh   # → dist/usbversal
+./scripts/build-release.sh   # this OS only → dist/usbversal[.exe]
 ```
 
 See [docs/workflows/release-workflow.md](docs/workflows/release-workflow.md) and [docs/decisions/0003-use-pyinstaller.md](docs/decisions/0003-use-pyinstaller.md).

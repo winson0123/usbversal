@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-09-01T01:30:00Z",
+  "updated_at": "2026-09-01T01:40:00Z",
   "project": "usbversal",
   "language": "python",
   "python_version": "3.11+",
@@ -29,15 +29,19 @@
   },
   "packaging": {
     "pyinstaller": true,
-    "readiness": "linux_onefile_smoke_ok",
-    "artifact_path": "dist/usbversal",
-    "artifact_size_mb_approx": 43
+    "readiness": "tag_v_builds_windows_macos_linux",
+    "workflow": ".github/workflows/release.yml",
+    "artifacts": [
+      "usbversal-linux-x86_64",
+      "usbversal-windows-x86_64.exe",
+      "usbversal-macos-arm64"
+    ]
   },
   "test_status": {
     "ruff": "pass",
     "ruff_format": "pass",
     "pytest": "pass",
-    "last_run": "2026-09-01T01:30:00Z",
+    "last_run": "2026-09-01T01:40:00Z",
     "tests_passed": 332,
     "tests_skipped": 3,
     "tests_failed": 0
@@ -61,7 +65,7 @@
   },
   "known_gaps": [
     "Settings extra columns are unscoped.",
-    "Windows and macOS PyInstaller artifacts are not built.",
+    "No git remote yet; the first v* tag cannot publish until origin exists.",
     "MP3 / AIFF / M4A tag I/O is unit-tested; live Serato confirmation is incomplete for some containers."
   ]
 }

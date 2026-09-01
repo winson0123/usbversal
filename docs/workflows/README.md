@@ -3,7 +3,7 @@
 | Document | Purpose |
 |----------|---------|
 | [verification-workflow.md](verification-workflow.md) | ruff, pytest, smoke tests |
-| [release-workflow.md](release-workflow.md) | PyInstaller release |
+| [release-workflow.md](release-workflow.md) | Tag `v*` → Windows, macOS, Linux GitHub Release |
 | [audio-commit.md](audio-commit.md) | Tag rewrite and replace |
 | [m4a-markers.md](m4a-markers.md) | M4A / MP4 Serato markers |
 | [crate-slash.md](crate-slash.md) | Slash in crate names |
