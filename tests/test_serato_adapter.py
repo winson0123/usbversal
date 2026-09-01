@@ -1,4 +1,4 @@
-"""Tests for Serato adapter and crate service."""
+"""Tests for the Serato read adapter."""
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -13,7 +13,6 @@ from app.adapters.serato.reader import (
     read_crate_track_paths,
 )
 from app.core.domain import SeratoLibrary
-from app.services.crate_service import list_serato_crates
 from tests.conftest import integration_mount
 
 
@@ -90,7 +89,8 @@ def test_list_serato_crates_integration() -> None:
     if not (mount / "_Serato_/database V2").is_file():
         pytest.skip(f"{mount}/_Serato_ not available")
 
-    result = list_serato_crates(mount)
-    assert result.library.database_track_count > 0
-    assert len(result.crates) >= 1
-    assert all(crate.track_count > 0 for crate in result.crates)
+    adapter = open_serato_library(mount)
+    crates = adapter.list_crates()
+    assert adapter.library.database_track_count > 0
+    assert len(crates) >= 1
+    assert all(crate.track_count > 0 for crate in crates)

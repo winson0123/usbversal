@@ -1,17 +1,15 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-30T06:20:00Z",
+  "updated_at": "2026-09-01T01:20:00Z",
   "allowed_patterns": [
     "adapter_per_vendor",
     "tui_thin_presentation",
-    "asyncio_job_runner",
-    "event_bus_in_process",
     "domain_models_in_core",
     "storage_own_mount",
     "unknown_field_preservation",
     "single_active_task_per_agent",
     "merge_never_regenerate_vendor_index",
-    "audio_file_writes_require_explicit_optin",
+    "location_sqlite_update_existing_rows_only",
     "vendor_imports_confined_to_adapters",
     "verify_rewrite_before_disk_commit",
     "restore_original_on_failed_audio_replace",
@@ -36,41 +34,19 @@
     "min_python": "3.11",
     "lint": "ruff",
     "test": "pytest",
-    "async": "asyncio",
+    "async": "textual_asyncio_plus_rekordbox_thread",
     "packaging": "pyinstaller",
     "primary_test_mount": "USBVERSAL_TEST_MOUNT",
-    "vendors": [
-      "rekordbox",
-      "serato"
-    ],
+    "vendors": ["rekordbox", "serato"],
     "metadata_only": true,
     "no_audio_processing": true,
-    "audio_tag_writes": "stage_2_only_explicit_optin"
+    "audio_tag_writes": true
   },
   "layer_dependencies": {
-    "tui": [
-      "jobs",
-      "services",
-      "core"
-    ],
-    "jobs": [
-      "services",
-      "core",
-      "storage",
-      "adapters"
-    ],
-    "services": [
-      "core",
-      "adapters",
-      "storage"
-    ],
-    "adapters": [
-      "core",
-      "storage"
-    ],
-    "storage": [
-      "core"
-    ],
+    "tui": ["services", "core"],
+    "services": ["core", "adapters", "storage"],
+    "adapters": ["core", "storage"],
+    "storage": ["core"],
     "core": []
   },
   "known_layer_violations": []

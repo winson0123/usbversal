@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Protocol
 
-TrackRecord = list[tuple[str, Any]]
+TrackField = str | int | bool
+TrackRecord = list[tuple[str, TrackField]]
 
 # Serato's own names for container formats; other extensions are used verbatim.
 _TYPE_BY_SUFFIX = {
@@ -17,6 +20,52 @@ _TYPE_BY_SUFFIX = {
     "mov": "quicktime",
     "mp4": "quicktime",
 }
+
+
+class RekordboxNamedRow(Protocol):
+    """A Rekordbox lookup row with an id and a name."""
+
+    id: int
+    name: str
+
+
+class RekordboxContent(Protocol):
+    """The Rekordbox content fields this package reads."""
+
+    path: str
+    title: str | None
+    artist_id: int | None
+    album_id: int | None
+    genre_id: int | None
+    key_id: int | None
+    length: int | None
+    file_size: int | None
+    bitrate: int | None
+    sampling_rate: int | None
+    bpmx100: int | None
+    release_date: str | None
+    release_year: int | None
+    date_added: datetime | None
+    analysis_data_file_path: str | None
+
+
+class RekordboxDatabase(Protocol):
+    """The Rekordbox database methods this package calls."""
+
+    def get_contents(self) -> Iterable[RekordboxContent]:
+        """Return every content row."""
+
+    def get_artists(self) -> Iterable[RekordboxNamedRow]:
+        """Return artist id/name rows."""
+
+    def get_albums(self) -> Iterable[RekordboxNamedRow]:
+        """Return album id/name rows."""
+
+    def get_genres(self) -> Iterable[RekordboxNamedRow]:
+        """Return genre id/name rows."""
+
+    def get_keys(self) -> Iterable[RekordboxNamedRow]:
+        """Return key id/name rows."""
 
 
 @dataclass(frozen=True)
@@ -37,7 +86,7 @@ class RekordboxLookups:
     keys: dict[int, str]
 
 
-def load_lookups(database: Any) -> RekordboxLookups:
+def load_lookups(database: RekordboxDatabase) -> RekordboxLookups:
     """
     Load Rekordbox id-to-name tables once for reuse across tracks.
 
@@ -48,7 +97,8 @@ def load_lookups(database: Any) -> RekordboxLookups:
         Populated RekordboxLookups.
     """
 
-    def table(rows: Any) -> dict[int, str]:
+    def table(rows: Iterable[RekordboxNamedRow]) -> dict[int, str]:
+        """Map id to name, skipping rows with no name."""
         return {row.id: row.name for row in rows if getattr(row, "name", None)}
 
     return RekordboxLookups(
@@ -79,12 +129,12 @@ def _duration(seconds: int | None) -> str | None:
     return f"{seconds // 60:02d}:{seconds % 60:02d}.00"
 
 
-def _release_year(content: Any) -> str | None:
+def _release_year(content: RekordboxContent) -> str | None:
     """
     Prefer Rekordbox's date string, else the year alone.
 
     Args:
-        content: rbox content row.
+        content: Rekordbox content row.
 
     Returns:
         A year/date string, or None when Rekordbox has neither.
@@ -96,39 +146,39 @@ def _release_year(content: Any) -> str | None:
     return None
 
 
-def _optional_track_fields(content: Any, lookups: RekordboxLookups) -> TrackRecord:
+def _optional_track_fields(content: RekordboxContent, lookups: RekordboxLookups) -> TrackRecord:
     """
     Text fields that are omitted when Rekordbox has no value.
 
     Args:
-        content: rbox content row.
+        content: Rekordbox content row.
         lookups: Id-to-name tables from the same library.
 
     Returns:
         ``(tag, value)`` pairs that should appear on the record.
     """
-    optional: list[tuple[str, Any]] = [
+    optional: list[tuple[str, TrackField | None]] = [
         ("tsng", content.title),
-        ("tart", lookups.artists.get(content.artist_id)),
-        ("talb", lookups.albums.get(content.album_id)),
-        ("tgen", lookups.genres.get(content.genre_id)),
+        ("tart", lookups.artists.get(content.artist_id) if content.artist_id is not None else None),
+        ("talb", lookups.albums.get(content.album_id) if content.album_id is not None else None),
+        ("tgen", lookups.genres.get(content.genre_id) if content.genre_id is not None else None),
         ("tlen", _duration(content.length)),
         ("tsiz", f"{content.file_size / 1048576:.1f}MB" if content.file_size else None),
         ("tbit", f"{content.bitrate}.0kbps" if content.bitrate else None),
         ("tsmp", f"{content.sampling_rate / 1000:.1f}k" if content.sampling_rate else None),
         ("tbpm", f"{content.bpmx100 / 100:.2f}" if content.bpmx100 else None),
-        ("tkey", lookups.keys.get(content.key_id)),
+        ("tkey", lookups.keys.get(content.key_id) if content.key_id is not None else None),
         ("ttyr", _release_year(content)),
     ]
     return [(tag, value) for tag, value in optional if value]
 
 
-def _size_and_added_fields(content: Any) -> TrackRecord:
+def _size_and_added_fields(content: RekordboxContent) -> TrackRecord:
     """
     Numeric file-size and date-added fields, when present.
 
     Args:
-        content: rbox content row.
+        content: Rekordbox content row.
 
     Returns:
         ``ufsb`` / ``tadd`` / ``uadd`` pairs, or an empty list.
@@ -143,7 +193,7 @@ def _size_and_added_fields(content: Any) -> TrackRecord:
     return fields
 
 
-def build_track_record(content: Any, lookups: RekordboxLookups) -> TrackRecord:
+def build_track_record(content: RekordboxContent, lookups: RekordboxLookups) -> TrackRecord:
     """
     Build the Serato database fields for one Rekordbox track.
 
@@ -151,7 +201,7 @@ def build_track_record(content: Any, lookups: RekordboxLookups) -> TrackRecord:
     matching how real records on a Serato stick are shaped.
 
     Args:
-        content: rbox content row for the track.
+        content: Rekordbox content row for the track.
         lookups: Id-to-name tables from the same library.
 
     Returns:
@@ -165,7 +215,6 @@ def build_track_record(content: Any, lookups: RekordboxLookups) -> TrackRecord:
     ]
     fields.extend(_optional_track_fields(content, lookups))
     fields.extend(_size_and_added_fields(content))
-    # Serato has not analysed these files, so neither flag is set.
     fields.append(("bbgl", False))
     fields.append(("bovc", False))
     return fields

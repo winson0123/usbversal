@@ -1,7 +1,7 @@
 # Volume flush after sync
 
-`sync_playlists` calls `flush_mount` after every real write (not a dry run),
-including when a later step failed. There is no extra PyPI package for this.
+`sync_playlists` calls `flush_mount` after every write, including when a
+later step failed. There is no extra PyPI package for this.
 Each OS already has a volume flush:
 
 | OS | Call |

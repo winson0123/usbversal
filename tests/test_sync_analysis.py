@@ -9,9 +9,17 @@ from app.services.sync_analysis import (
     analysis_worker_count,
     begin_analysis_jobs,
     process_analysis_track,
-    run_analysis_jobs,
 )
 from app.services.sync_progress import SyncProgress
+
+
+def _run_jobs(jobs, on_progress=None):
+    """Run analysis jobs to completion."""
+    session = begin_analysis_jobs(jobs, on_progress)
+    try:
+        return session.wait()
+    finally:
+        session.close()
 
 
 def test_analysis_worker_count_defaults_to_at_most_four() -> None:
@@ -49,7 +57,7 @@ def test_run_analysis_jobs_uses_more_than_one_thread(monkeypatch) -> None:
         AnalysisJob(raw=f"t{index}", audio_path=Path("/missing"), dat_path=None, key=None)
         for index in range(4)
     ]
-    results = run_analysis_jobs(jobs)
+    results = _run_jobs(jobs)
     assert len(results) == 4
     assert len(seen) > 1
 
@@ -123,7 +131,7 @@ def test_run_analysis_jobs_emits_progress_for_each_completion(monkeypatch) -> No
         AnalysisJob(raw="b", audio_path=Path("/missing"), dat_path=None, key=None),
     ]
     calls: list[SyncProgress] = []
-    run_analysis_jobs(jobs, on_progress=calls.append)
+    _run_jobs(jobs, on_progress=calls.append)
     assert {sample.item for sample in calls} == {"a", "b"}
     assert {sample.done for sample in calls} == {1, 2}
     assert all(sample.total == 2 for sample in calls)

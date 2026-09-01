@@ -41,6 +41,9 @@ excludes = [
     "scipy",
     "sklearn",
     "matplotlib",
+    "numpy",
+    "PIL",
+    "Pillow",
     "pytest",
     "IPython",
 ]

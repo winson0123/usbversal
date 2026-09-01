@@ -22,26 +22,16 @@ Or after `source .venv/bin/activate`, use `ruff`, `pytest`, and `python` directl
 
 ## Integration (scoped tasks only)
 
-Requires a live DJ USB on an auto-detected mount (or `USBVERSAL_MOUNT` as an
-escape hatch). Do not run in CI by default.
-
-Full checklist and recorded results: [usb-integration-validation.md](usb-integration-validation.md).
+Requires a live DJ USB on an auto-detected mount (or `USBVERSAL_MOUNT` as
+an escape hatch). Do not run in CI by default.
 
 ## Recording Results
 
-Copy command outputs into `docs/tasks/current-task.md` verification log table.
+Copy command outputs into `docs/tasks/current-task.md` verification log.
 
-Update `repository-state.json`:
-
-```json
-"test_status": {
-  "ruff": "pass",
-  "pytest": "pass",
-  "last_run": "<iso-timestamp>"
-}
-```
+Update `repository-state.json` `test_status`.
 
 ## Related
 
-- [agent-task-workflow.md](agent-task-workflow.md)
+- [../../AGENT.md](../../AGENT.md)
 - [../../CONTRIBUTING.md](../../CONTRIBUTING.md)

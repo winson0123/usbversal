@@ -12,10 +12,9 @@ Invalid base64-encoded string: number of data characters (69)
 cannot be 1 more than a multiple of 4
 ```
 
-This is not the backup path. `_write_track_tags` reads the existing
-`Serato Markers2` GEOB so `COLOR` / `BPMLOCK` can be kept while cues are
-replaced from Rekordbox. Python 3.11+ `base64.b64decode` rejects a data
-length of `4n+1`.
+`_write_track_tags` reads the existing `Serato Markers2` GEOB so
+`COLOR` / `BPMLOCK` can be kept while cues are replaced from Rekordbox.
+Python 3.11+ `base64.b64decode` rejects a data length of `4n+1`.
 
 A Contents-crate scan found **23 MP3s** with that leftover. The exact
 69-character body that matched the error (Thank u, next):
@@ -35,8 +34,8 @@ AQFDT0xPUgAAAAAEAP///0NVRQAAAAAOAAAAAABCAMwAAAAAOABCUE1MT0NLAAAAAAEAA
 - The leftover sat in the GEOB's base64 text, after a finished tag and
   before Serato's `NUL` padding. The same files also carry Serato's own
   analysis set (`Analysis`, `Autotags`, `BeatGrid`, `Markers_`,
-  `Offsets_`, `Overview`). Rekordbox ANLZ and the host backup were not
-  the source. Sync died on read, so Usbversal did not write the leftover.
+  `Offsets_`, `Overview`). Rekordbox ANLZ was not the source. Sync died
+  on read, so Usbversal did not write the leftover.
 - Pool-distributed tracks (e.g. BPM Supreme edits) often arrive with
   these frames already on the file.
 

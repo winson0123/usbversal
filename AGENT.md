@@ -11,7 +11,7 @@ Usbversal is a **Python TUI** for safe, metadata-only Rekordbox → Serato libra
 ## Single Task Rule
 
 - **Only ONE task may be active at any time.**
-- **No parallel implementation work** across modules, adapters, or CLI commands.
+- **No parallel implementation work** across modules, adapters, or screens.
 - If a task is too large, **decompose it** into atomic subtasks in `docs/tasks/backlog.md` before starting the first subtask.
 - Before starting work, confirm `docs/state/task-state.json` shows `active_task.status` is `idle` or matches your assigned task ID.
 
@@ -43,7 +43,7 @@ Document in `docs/tasks/current-task.md`:
 
 - Smallest diff that satisfies the objective.
 - Match existing conventions in touched modules.
-- **TUI layer must remain thin** — delegate to domain, adapters, and jobs.
+- **TUI layer must remain thin** — delegate to domain, adapters, and services.
 - Do not expand scope beyond the scoped files.
 
 ### 4. Verify
@@ -83,6 +83,7 @@ Record results in the verification log section of `current-task.md`.
 | Schema rebuild | **Never** rebuild or drop schemas wholesale |
 | Unknown fields | Preserve and track unknown fields; do not discard silently |
 | Recovery | Restore the Rekordbox USB; do not keep a host backup/rollback path |
+| `location.sqlite` | **Never** create the file or insert rows; UPDATE existing rows only |
 
 ---
 
@@ -91,7 +92,7 @@ Record results in the verification log section of `current-task.md`.
 - Tasks must be **atomic**: completable in one session with one commit.
 - Large features must be split in `docs/tasks/backlog.md` before execution.
 - Blocked tasks go to `blocked_tasks` in `task-state.json` with `blocked_reason`.
-- Completed tasks move to `docs/tasks/completed-tasks.md` and task history in JSON.
+- Completed tasks are recorded in `task-state.json` only.
 
 ---
 
@@ -111,15 +112,13 @@ Human-readable mirrors:
 |------|---------|
 | `docs/tasks/current-task.md` | Active task detail and verification log |
 | `docs/tasks/backlog.md` | Queued work |
-| `docs/tasks/completed-tasks.md` | Historical record |
 
 ---
 
-## Forbidden During Scaffolding / Unless Explicitly Scoped
+## Forbidden Unless Explicitly Scoped
 
-- Implementing Rekordbox/Serato parsing beyond documented placeholders
-- Implementing job runner business logic without a scoped task
 - Writing under `PIONEER/` or regenerating a vendor index
+- Creating or inserting into `location.sqlite`
 - Adding dependencies not justified in an ADR or task scope
 
 ---
@@ -130,7 +129,6 @@ Human-readable mirrors:
 |-------|----------|
 | System architecture | `ARCHITECTURE.md`, `docs/architecture/` |
 | Adapters | `docs/adapters/` |
-| Jobs | `docs/jobs/` |
 | Storage / USB | `docs/storage/` |
 | ADRs | `docs/decisions/` |
 | Workflows | `docs/workflows/` |
@@ -144,5 +142,5 @@ Human-readable mirrors:
 - [ ] Implementation minimal and within scope
 - [ ] `ruff` and `pytest` pass (or documented N/A)
 - [ ] JSON state files updated
-- [ ] Task moved to completed in JSON + markdown
+- [ ] Task marked complete in `task-state.json`
 - [ ] Exactly one git commit created

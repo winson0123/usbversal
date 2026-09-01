@@ -303,28 +303,3 @@ def begin_analysis_jobs(
     session = AnalysisSession(jobs, on_progress)
     session.start()
     return session
-
-
-def run_analysis_jobs(
-    jobs: Sequence[AnalysisJob],
-    on_progress: SyncProgressCallback | None = None,
-) -> list[AnalysisTrackResult]:
-    """
-    Process analysis jobs, several tracks at a time.
-
-    Progress is emitted on this thread as each job finishes, so the TUI
-    callback stays single-threaded. Completion order follows the workers,
-    not playlist order.
-
-    Args:
-        jobs: Tracks to process, in playlist order.
-        on_progress: Optional callback after each track finishes.
-
-    Returns:
-        One result per job, in completion order.
-    """
-    session = begin_analysis_jobs(jobs, on_progress)
-    try:
-        return session.wait()
-    finally:
-        session.close()

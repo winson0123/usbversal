@@ -1,8 +1,8 @@
-"""Tests for job progress rate and ETA estimation."""
+"""Tests for sync progress rate and ETA estimation."""
 
 import pytest
 
-from app.jobs.progress_rate import ProgressRateTracker, format_duration
+from app.tui.progress_rate import ProgressRateTracker, format_duration
 
 
 def test_a_single_sample_yields_no_estimate() -> None:

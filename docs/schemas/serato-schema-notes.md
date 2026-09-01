@@ -162,7 +162,7 @@ One row per track, 797 on the test stick. Columns that matter:
 | `bpm`, `key` | what the library list displays |
 | `revision` | per-row counter; `space.revision` follows the maximum |
 | `is_stale` | set when Serato should re-read the file |
-| `analysis_flags` | bitmap; 31 on analysed tracks |
+| `analysis_flags` | bitmap; Serato writes 24 after it analyses a track |
 | `file_size`, `time_modified` | how Serato decides a file changed |
 | `type_specific_data` | **empty** — the beatgrid is not stored here |
 
@@ -211,11 +211,12 @@ get an `otrk` in `database V2`. Serato stores that file's size and MD5 in
 `last_seen_dbv2_library` and creates `asset` / `space_asset` rows on import.
 We only UPDATE `bpm`, `key`, and `analysis_flags` on rows whose
 `portable_id` already exists, because size-preserving tag writes do not
-make Serato re-read the file. `analysis_flags` is set to 31 (analysed)
-so the library list drops the unanalyzed count. If the file is absent,
-skip it. First-open list BPM comes from `database V2` `tbpm` and the
-BeatGrid tag; the analysed mark is not available until Serato has
-created this file.
+make Serato re-read the file. `analysis_flags` is set to 24 (the value
+Serato writes after it analyses a track) so the library list drops the
+unanalyzed count. Rows that already have a non-zero flag are left
+alone. If the file is absent, skip it. First-open list BPM comes from
+`database V2` `tbpm` and the BeatGrid tag; the analysed mark is not
+available until Serato has created this file.
 
 ## `database V2` [verified]
 

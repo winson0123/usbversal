@@ -85,7 +85,7 @@ def test_omitted_fields_are_left_alone(database: Path) -> None:
 def test_unchanged_values_are_not_rewritten(database: Path) -> None:
     """Writing the values already present, on an analysed row, updates nothing."""
     con = sqlite3.connect(database)
-    con.execute("update asset set analysis_flags = 31 where portable_id = 'Contents/a.mp3'")
+    con.execute("update asset set analysis_flags = 24 where portable_id = 'Contents/a.mp3'")
     con.commit()
     con.close()
     assert (
@@ -103,7 +103,7 @@ def test_marks_existing_row_analyzed(database: Path) -> None:
     ).fetchone()[0]
     con.close()
     assert changed == 1
-    assert flags == 31
+    assert flags == 24
 
 
 def test_unknown_tracks_are_ignored(database: Path) -> None:

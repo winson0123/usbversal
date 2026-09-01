@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import structlog
 
@@ -64,26 +63,6 @@ class MountProbe:
     def has_serato(self) -> bool:
         """Whether a Serato library already exists on the mount."""
         return self.serato_database is not None
-
-    def to_dict(self) -> dict[str, Any]:
-        """
-        Serialize the probe for JSON output.
-
-        Returns:
-            JSON-friendly dict describing the mount.
-        """
-        return {
-            "mount": str(self.mount),
-            "is_dj_usb": self.is_dj_usb,
-            "is_supported": self.is_supported,
-            "has_serato": self.has_serato,
-            "rekordbox_database": (
-                str(self.rekordbox_database) if self.rekordbox_database else None
-            ),
-            "rekordbox_format": (self.rekordbox_format.value if self.rekordbox_format else None),
-            "serato_root": str(self.serato_root) if self.serato_root else None,
-            "serato_database": str(self.serato_database) if self.serato_database else None,
-        }
 
 
 def probe_mount(mount: str | Path) -> MountProbe | None:
@@ -183,8 +162,7 @@ def prepare_library(mount: str | Path) -> UsbLibrary:
     This is the TUI session-open path: a rekordbox-only stick must get an
     empty Serato library before sync can write anywhere, and a database that
     opens but cannot list playlists must fail here rather than after the
-    Library screen has already taken over. CLI callers that only need a
-    read stay on ``open_library`` -- they must not create ``_Serato_``.
+    Library screen has already taken over.
 
     Args:
         mount: Mount path containing a Rekordbox export.

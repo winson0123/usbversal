@@ -1,8 +1,6 @@
 """Domain models and shared types."""
 
 from app.core.domain import (
-    LibraryLocation,
-    LibraryType,
     MountPoint,
     Playlist,
     RekordboxDbFormat,
@@ -12,8 +10,6 @@ from app.core.domain import (
 )
 
 __all__ = [
-    "LibraryLocation",
-    "LibraryType",
     "MountPoint",
     "Playlist",
     "RekordboxDbFormat",

@@ -1,4 +1,4 @@
-"""Deriving a rate and ETA from a job's progress events over time."""
+"""Deriving a rate and ETA from sync progress samples over time."""
 
 from __future__ import annotations
 
@@ -8,13 +8,13 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class ProgressEstimate:
     """
-    Rate and time-to-completion derived from a job's progress so far.
+    Rate and time-to-completion derived from progress so far.
 
     Attributes:
         rate_per_second: Units completed per second since this tracker started.
             None until progress has actually advanced.
         eta_seconds: Estimated seconds remaining at that rate. None when the
-            total is unknown, or the run has not advanced yet.
+            total is not yet known, or the run has not advanced yet.
     """
 
     rate_per_second: float | None
@@ -45,7 +45,7 @@ class ProgressRateTracker:
 
         Args:
             current: Units completed so far.
-            total: Units the job expects to complete, when known.
+            total: Units the sync expects to complete, when known.
             at: Monotonic timestamp of this sample, in seconds.
 
         Returns:
@@ -74,7 +74,7 @@ def format_duration(seconds: float) -> str:
     """
     Format a duration in seconds as ``Xs`` or ``XmYYs``.
 
-    Shared by the TUI progress screen so an ETA reads as a short countdown.
+    Shared by the Progress screen so an ETA reads as a short countdown.
 
     Args:
         seconds: Duration to format.

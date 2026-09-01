@@ -1,10 +1,11 @@
 # Workflows
 
-Operational procedures for agents and maintainers.
-
 | Document | Purpose |
 |----------|---------|
-| [agent-task-workflow.md](agent-task-workflow.md) | Single-task execution loop |
 | [verification-workflow.md](verification-workflow.md) | ruff, pytest, smoke tests |
-| [usb-integration-validation.md](usb-integration-validation.md) | Historical 2026-05/06 live-stick migrate + Serato analyze checklist |
-| [release-workflow.md](release-workflow.md) | PyInstaller release process |
+| [release-workflow.md](release-workflow.md) | PyInstaller release |
+| [audio-commit.md](audio-commit.md) | Tag rewrite and replace |
+| [m4a-markers.md](m4a-markers.md) | M4A / MP4 Serato markers |
+| [crate-slash.md](crate-slash.md) | Slash in crate names |
+| [volume-crate.md](volume-crate.md) | Volume-label parent crate |
+| [volume-flush.md](volume-flush.md) | Flush the mount after writes |

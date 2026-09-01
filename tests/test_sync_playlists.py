@@ -18,9 +18,9 @@ from app.adapters.serato.library_db import library_db_path, read_track_analysis
 from app.adapters.serato.neworder import read_crate_order, write_crate_order
 from app.adapters.serato.tags import read_geob
 from app.core.domain import Playlist
-from app.services.migration_service import PlaylistNotFoundError, SeratoLibraryRequiredError
+from app.services.errors import PlaylistNotFoundError
 from app.services.sync_progress import SyncProgress
-from app.services.sync_service import correct_index_bpm, sync_playlists
+from app.services.sync_service import sync_playlists
 from tests.conftest import EMPTY_DATABASE_V2, make_library
 
 TRACKS = ["/Contents/a.mp3", "/Contents/b.mp3"]
@@ -168,34 +168,6 @@ def _content(
         date_added=None,
         analysis_data_file_path=analysis_data_file_path,
     )
-
-
-def test_dry_run_writes_nothing(tmp_path: Path) -> None:
-    """A dry run reports the plan and leaves the stick untouched."""
-    mount = _stick(tmp_path, indexed=[])
-    before = (mount / "_Serato_" / "database V2").read_bytes()
-    playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
-    library = _library(mount, [playlist], {1: TRACKS})
-
-    report = sync_playlists(library, [1], dry_run=True)
-
-    assert report.dry_run is True
-    assert report.records_added == 2
-    assert (mount / "_Serato_" / "database V2").read_bytes() == before
-    assert not list((mount / "_Serato_" / "Subcrates").glob("*.crate"))
-
-
-def test_dry_run_does_not_flush_the_mount(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A dry run must not syncfs the stick."""
-    flushed: list[Path] = []
-    monkeypatch.setattr("app.services.sync_service.flush_mount", flushed.append)
-    mount = _stick(tmp_path, indexed=[])
-    playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
-    library = _library(mount, [playlist], {1: TRACKS})
-
-    sync_playlists(library, [1], dry_run=True)
-
-    assert flushed == []
 
 
 def test_sync_flushes_the_mount(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -410,7 +382,7 @@ def test_analysis_writes_beatgrid_cues_and_index(tmp_path: Path) -> None:
         .execute("select analysis_flags from asset where portable_id = 'Contents/track.wav'")
         .fetchone()[0]
     )
-    assert flags == 31
+    assert flags == 24
 
 
 def test_resync_does_not_recount_matching_tags(tmp_path: Path) -> None:
@@ -488,95 +460,6 @@ def test_malformed_analysis_is_skipped_not_fatal(tmp_path: Path) -> None:
     assert report.grids_written == 0
     assert len(report.analysis_errors) == 1
     assert report.crates_written == 1
-
-
-def test_correct_index_bpm_fixes_a_wrong_row(tmp_path: Path) -> None:
-    """A row that disagrees with the first beat's tempo is corrected."""
-    mount = _stick(
-        tmp_path,
-        indexed=["Contents/track.wav"],
-        asset_rows={"Contents/track.wav": (106.0, "")},
-    )
-    dat = mount / "PIONEER" / "USBANLZ" / "P001" / "ANLZ0000.DAT"
-    _write_analysis(dat, beats=[(1, 126.0, 0), (2, 126.0, 476)], cues=[])
-    content = _content(
-        "/Contents/track.wav", analysis_data_file_path="/PIONEER/USBANLZ/P001/ANLZ0000.DAT"
-    )
-    library = _library(mount, [], {}, [content])
-
-    result = correct_index_bpm(library)
-
-    assert result.candidates == 1
-    assert result.rows_updated == 1
-    analysis = read_track_analysis(library_db_path(mount / "_Serato_"))["Contents/track.wav"]
-    assert analysis.bpm == 126.0
-
-
-def test_correct_index_bpm_leaves_matching_rows_alone(tmp_path: Path) -> None:
-    """A row that already agrees with the grid is not rewritten."""
-    mount = _stick(
-        tmp_path,
-        indexed=["Contents/track.wav"],
-        asset_rows={"Contents/track.wav": (128.0, "")},
-    )
-    dat = mount / "PIONEER" / "USBANLZ" / "P001" / "ANLZ0000.DAT"
-    _write_analysis(dat, beats=[(1, 128.0, 0)], cues=[])
-    content = _content(
-        "/Contents/track.wav", analysis_data_file_path="/PIONEER/USBANLZ/P001/ANLZ0000.DAT"
-    )
-    library = _library(mount, [], {}, [content])
-
-    result = correct_index_bpm(library)
-
-    assert result.candidates == 1
-    assert result.rows_updated == 0
-
-
-def test_correct_index_bpm_dry_run_writes_nothing(tmp_path: Path) -> None:
-    """A dry run previews the count and leaves the index untouched."""
-    mount = _stick(
-        tmp_path,
-        indexed=["Contents/track.wav"],
-        asset_rows={"Contents/track.wav": (106.0, "")},
-    )
-    index_path = library_db_path(mount / "_Serato_")
-    before = index_path.read_bytes()
-    dat = mount / "PIONEER" / "USBANLZ" / "P001" / "ANLZ0000.DAT"
-    _write_analysis(dat, beats=[(1, 126.0, 0)], cues=[])
-    content = _content(
-        "/Contents/track.wav", analysis_data_file_path="/PIONEER/USBANLZ/P001/ANLZ0000.DAT"
-    )
-    library = _library(mount, [], {}, [content])
-
-    result = correct_index_bpm(library, dry_run=True)
-
-    assert result.rows_updated == 1
-    assert index_path.read_bytes() == before
-
-
-def test_correct_index_bpm_skips_tracks_serato_does_not_know(tmp_path: Path) -> None:
-    """A track with no existing index row is never inserted."""
-    mount = _stick(tmp_path, indexed=[], asset_rows={})
-    dat = mount / "PIONEER" / "USBANLZ" / "P001" / "ANLZ0000.DAT"
-    _write_analysis(dat, beats=[(1, 126.0, 0)], cues=[])
-    content = _content(
-        "/Contents/track.wav", analysis_data_file_path="/PIONEER/USBANLZ/P001/ANLZ0000.DAT"
-    )
-    library = _library(mount, [], {}, [content])
-
-    result = correct_index_bpm(library)
-
-    assert result.candidates == 0
-    assert result.rows_updated == 0
-
-
-def test_correct_index_bpm_requires_an_index_file(tmp_path: Path) -> None:
-    """A Serato library with no location.sqlite yet cannot be corrected."""
-    mount = _stick(tmp_path, indexed=[])
-    library = _library(mount, [], {}, [])
-
-    with pytest.raises(SeratoLibraryRequiredError):
-        correct_index_bpm(library)
 
 
 def test_on_progress_reports_each_analysis_track(tmp_path: Path) -> None:

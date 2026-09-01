@@ -1,34 +1,33 @@
 # Current Task
 
-**Status:** `idle`
-**Task ID:** none
-**Last updated:** 2026-08-30
+**Status:** `complete`
+**Task ID:** `TASK-323`
+**Last updated:** 2026-09-01
 
 ---
 
-## Last Completed
+## Objective
 
-| Field | Value |
-|-------|-------|
-| Task ID | `TASK-322` |
-| Objective | Fix over-truncated titles and scan bar on crate switch |
-| Completed | 2026-08-30 |
+Strip the tree to the TUI product as it ships: no unused jobs/events/CLI
+services, no journal docs, no dry-run or JSON leftover paths.
 
-### Scope
+## Files touched
 
-- Title column width uses the Tracks pane when the table is hidden.
-- A cancelled preview does not hide the scan bar for the next crate.
+- Dead modules under `app/jobs/`, `app/core/event_*.py`, unused services
+- Callers and tests of those modules
+- Production docs (`README.md`, `ARCHITECTURE.md`, `AGENT.md`, `docs/`)
+- State JSON slimmed to the current product
 
-### Verification log
+## Verification
+
+```bash
+.venv/bin/ruff check .
+.venv/bin/ruff format --check .
+.venv/bin/pytest
+```
 
 | Check | Result |
 |-------|--------|
-| `.venv/bin/ruff check .` | pass |
-| `.venv/bin/ruff format --check .` | pass |
-| `.venv/bin/pytest` | 379 passed, 4 skipped |
-
-## Next
-
-Ask the user. Re-sync after Serato has created `location.sqlite` to
-flip the library-list blues. Live Serato on this stick uses
-`analysis_flags = 24` for loaded tracks, not 31.
+| ruff check | pass |
+| ruff format | pass |
+| pytest | 352 passed, 3 skipped |

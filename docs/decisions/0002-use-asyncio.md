@@ -1,36 +1,38 @@
-# ADR 0002: Use asyncio for Jobs
+# ADR 0002: Use asyncio for the TUI, with a dedicated Rekordbox thread
 
-**Status:** accepted  
+**Status:** accepted
 **Date:** 2026-05-22
 
 ## Context
 
-Operations such as full USB scans and multi-file backups are I/O-bound and long-running. The CLI must remain responsive for progress output, cancellation, and future GUI attachment.
-
-Alternatives: threaded pool only, synchronous blocking CLI, external worker process (Celery-style — overkill).
+Opening a Rekordbox export and writing analysis tags are I/O-bound and
+long-running. The TUI must stay responsive for progress, cancel, and
+key handling. rbox / PyOneLibrary must stay on one thread for the
+lifetime of a session.
 
 ## Decision
 
-Use **`asyncio`** as the job orchestration runtime:
+- Run the Textual app on **asyncio** (Textual's native loop).
+- Run Rekordbox open and `sync_playlists` on a **dedicated executor
+  thread**, not the default `asyncio.to_thread` pool.
+- Run analysis tag writes on a small worker pool so crate work can
+  continue on the Rekordbox thread.
 
-- `JobRunner` schedules coroutine-based jobs
-- Blocking adapter/storage I/O runs in `asyncio.to_thread`
-- Progress via in-process event bus
+There is no job registry, event bus, or persisted job record.
 
 ## Consequences
 
 ### Positive
 
 - Single-process model simplifies PyInstaller packaging
-- Native async/await fits progress and cancel checkpoints
-- No extra broker infrastructure
+- Rekordbox thread affinity stays correct across Library, Progress, and quit
+- Progress callbacks stay ordinary Python callables
 
 ### Negative
 
-- Care required at sync/async boundaries
-- SQLite async requires thread pool or dedicated async driver
-- Testing async code needs `pytest-asyncio`
+- Care is required at the sync/async boundary
+- Tests that touch rbox must not hop threads mid-handle
 
 ### Neutral
 
-- Job state persisted to JSON files on disk, not in-memory only
+- Analysis workers are capped so a USB stick is not flooded

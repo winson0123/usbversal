@@ -5,11 +5,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import structlog
 
-from app.adapters.rekordbox.anlz import read_beats
 from app.adapters.serato import (
     crate_name_for,
     drop_legacy_slash_names,
@@ -20,7 +18,6 @@ from app.adapters.serato import (
 from app.adapters.serato.library_db import (
     TrackAnalysis,
     library_db_path,
-    read_track_analysis,
     update_track_analysis,
 )
 from app.adapters.serato.neworder import (
@@ -39,8 +36,8 @@ from app.adapters.serato.writer import (
 from app.core.domain import Playlist, PlaylistSyncState, SyncState
 from app.core.playlist_tree import PlaylistNode, build_playlist_tree
 from app.core.track_paths import normalize_track_path
+from app.services.errors import PlaylistNotFoundError, SeratoLibraryRequiredError
 from app.services.library import UsbLibrary
-from app.services.migration_service import PlaylistNotFoundError, SeratoLibraryRequiredError
 from app.services.sync_analysis import AnalysisJob, AnalysisTrackResult, begin_analysis_jobs
 from app.services.sync_progress import (
     SyncProgressCallback,
@@ -50,12 +47,13 @@ from app.services.sync_progress import (
     rebase_progress,
 )
 from app.services.track_records import (
+    RekordboxContent,
     RekordboxLookups,
     build_track_record,
     load_lookups,
     serato_path,
 )
-from app.services.track_sync import analysis_is_ported, contents_by_path
+from app.services.track_sync import analysis_dat_path, analysis_is_ported, contents_by_path
 from app.storage.mounts import flush_mount
 
 logger = structlog.get_logger(__name__)
@@ -155,7 +153,7 @@ def _playlist_track_counts(
     playlist_id: int,
     crate_paths: set[str],
     indexed: set[str],
-    contents: dict[str, Any],
+    contents: dict[str, RekordboxContent],
     cache: dict[str, bool],
     *,
     check_analysis: bool,
@@ -327,7 +325,7 @@ def find_crate_name_collisions(playlists: tuple[Playlist, ...]) -> dict[str, lis
     still can: two playlists in the *same* folder, or two whose names differ
     only in characters ``sanitize_crate_name`` turns into ``_``
     (``"Trance:2024"`` and ``"Trance?2024"`` both become ``"Trance_2024"``).
-    A ``/`` is kept as a fullwidth solidus and does not collide with those.
+    A ``/`` is escaped the way Serato writes it and does not collide with those.
 
     Args:
         playlists: Playlist nodes to check.
@@ -342,39 +340,6 @@ def find_crate_name_collisions(playlists: tuple[Playlist, ...]) -> dict[str, lis
             continue
         by_name.setdefault(crate_name_for(playlist, by_id), []).append(playlist.name)
     return {name: owners for name, owners in by_name.items() if len(owners) > 1}
-
-
-def sync_states_to_dict(states: tuple[PlaylistSyncState, ...]) -> dict[str, Any]:
-    """
-    Serialize sync states for machine-readable output.
-
-    Args:
-        states: Computed playlist sync states.
-
-    Returns:
-        JSON-friendly dict with per-playlist entries and a state summary.
-    """
-    summary: dict[str, int] = {}
-    for state in states:
-        summary[state.state.value] = summary.get(state.state.value, 0) + 1
-    return {
-        "playlists": [
-            {
-                "playlist_id": s.playlist_id,
-                "playlist_name": s.playlist_name,
-                "crate_name": s.crate_name,
-                "total": s.total,
-                "in_crate": s.in_crate,
-                "complete": s.complete,
-                "syncable": s.syncable,
-                "blocked": s.blocked,
-                "state": s.state.value,
-            }
-            for s in states
-        ],
-        "summary": summary,
-        "count": len(states),
-    }
 
 
 @dataclass(frozen=True)
@@ -422,7 +387,6 @@ class SyncReport:
 
     Attributes:
         mount: Mount that was synced.
-        dry_run: True when nothing was written.
         records_added: Track records added to the Serato database.
         results: Per-playlist outcomes in selection order.
         grids_written: Tracks that received a Serato BeatGrid tag.
@@ -432,7 +396,6 @@ class SyncReport:
     """
 
     mount: Path
-    dry_run: bool
     records_added: int
     results: tuple[PlaylistSyncResult, ...]
     grids_written: int = 0
@@ -445,55 +408,10 @@ class SyncReport:
         """Number of playlists that reached a crate."""
         return sum(1 for r in self.results if r.error is None)
 
-    def to_dict(self) -> dict[str, Any]:
-        """
-        Serialize the report for machine-readable output.
-
-        Returns:
-            JSON-friendly dict describing the run.
-        """
-        return {
-            "mount": str(self.mount),
-            "dry_run": self.dry_run,
-            "records_added": self.records_added,
-            "crates_written": self.crates_written,
-            "grids_written": self.grids_written,
-            "cues_written": self.cues_written,
-            "index_rows_updated": self.index_rows_updated,
-            "analysis_errors": list(self.analysis_errors),
-            "playlists": [
-                {
-                    "playlist_id": r.playlist_id,
-                    "playlist_name": r.playlist_name,
-                    "crate_name": r.crate_name,
-                    "tracks": r.tracks,
-                    "error": r.error,
-                }
-                for r in self.results
-            ],
-        }
-
-
-def _analysis_dat_path(mount: Path, content: Any) -> Path | None:
-    """
-    Resolve a Rekordbox track's ANLZ .DAT path on the mount.
-
-    Args:
-        mount: Mount root.
-        content: rbox content row for the track.
-
-    Returns:
-        Path to the .DAT file, or None when Rekordbox has not analysed it.
-    """
-    raw = getattr(content, "analysis_data_file_path", None)
-    if not raw:
-        return None
-    return mount / serato_path(raw)
-
 
 def _analysis_jobs(
     mount: Path,
-    contents: dict[str, Any],
+    contents: dict[str, RekordboxContent],
     paths: Sequence[str],
     lookups: RekordboxLookups,
 ) -> list[AnalysisJob]:
@@ -514,7 +432,7 @@ def _analysis_jobs(
     jobs: list[AnalysisJob] = []
     for raw in paths:
         content = contents.get(raw)
-        dat_path = _analysis_dat_path(mount, content) if content is not None else None
+        dat_path = analysis_dat_path(mount, content)
         key = lookups.keys.get(content.key_id) if content is not None else None
         jobs.append(
             AnalysisJob(
@@ -642,40 +560,9 @@ def _unindexed_tracks(
     return missing, all_paths
 
 
-def _dry_run_report(
-    library: UsbLibrary,
-    selected: Sequence[Playlist],
-    by_id: dict[int, Playlist],
-    tracks_by_playlist: dict[int, Sequence[str]],
-    missing: Sequence[str],
-) -> SyncReport:
-    """
-    Build the dry-run SyncReport -- nothing is written.
-
-    Args:
-        library: Opened session handle.
-        selected: Leaf playlists in selection order.
-        by_id: Every playlist on the stick, for crate-name ancestry.
-        tracks_by_playlist: Rekordbox paths per playlist id.
-        missing: Tracks Serato has not indexed yet.
-    """
-    return SyncReport(
-        mount=library.mount,
-        dry_run=True,
-        records_added=len(missing),
-        results=tuple(
-            PlaylistSyncResult(
-                playlist_id=p.id,
-                playlist_name=p.name,
-                crate_name=crate_name_for(p, by_id, volume=volume_label_for(library.mount)),
-                tracks=len(tracks_by_playlist[p.id]),
-            )
-            for p in selected
-        ),
-    )
-
-
-def _tracks_with_analysis(mount: Path, all_paths: set[str], by_path: dict[str, Any]) -> set[str]:
+def _tracks_with_analysis(
+    mount: Path, all_paths: set[str], by_path: dict[str, RekordboxContent]
+) -> set[str]:
     """
     Return selected paths that have a Rekordbox ``.DAT`` file.
 
@@ -684,13 +571,13 @@ def _tracks_with_analysis(mount: Path, all_paths: set[str], by_path: dict[str, A
         all_paths: Rekordbox track paths in the selection.
         by_path: Content row per Rekordbox path.
     """
-    return {raw for raw in all_paths if _analysis_dat_path(mount, by_path.get(raw)) is not None}
+    return {raw for raw in all_paths if analysis_dat_path(mount, by_path.get(raw)) is not None}
 
 
 def _index_missing_tracks(
     database_path: Path,
     missing: Sequence[str],
-    by_path: dict[str, Any],
+    by_path: dict[str, RekordboxContent],
     lookups: RekordboxLookups,
     on_progress: SyncProgressCallback | None = None,
 ) -> int:
@@ -849,7 +736,6 @@ def sync_playlists(
     library: UsbLibrary,
     playlist_ids: Sequence[int],
     *,
-    dry_run: bool = False,
     on_progress: SyncProgressCallback | None = None,
 ) -> SyncReport:
     """
@@ -864,10 +750,9 @@ def sync_playlists(
     Args:
         library: Opened session handle.
         playlist_ids: Rekordbox playlist ids to sync, in selection order.
-        dry_run: Plan only; write nothing.
         on_progress: Optional callback for each index, analysis, and crate
-            step. ``error`` is that item's failure message, or None. Not
-            called for a dry run. A phase with nothing to do emits nothing.
+            step. ``error`` is that item's failure message, or None.
+            A phase with nothing to do emits nothing.
 
     Returns:
         SyncReport describing what was written.
@@ -880,8 +765,6 @@ def sync_playlists(
     by_id, selected = _leaf_playlists(library, playlist_ids)
     tracks_by_playlist = {p.id: library.rekordbox.get_playlist_track_paths(p.id) for p in selected}
     missing, all_paths = _unindexed_tracks(tracks_by_playlist, _database_index(database_path))
-    if dry_run:
-        return _dry_run_report(library, selected, by_id, tracks_by_playlist, missing)
 
     try:
         lookups = load_lookups(library.rekordbox.database)
@@ -928,7 +811,6 @@ def sync_playlists(
         )
         return SyncReport(
             mount=library.mount,
-            dry_run=False,
             records_added=records_added,
             results=tuple(results),
             grids_written=analysis.grids_written,
@@ -938,89 +820,3 @@ def sync_playlists(
         )
     finally:
         flush_mount(library.mount)
-
-
-@dataclass(frozen=True)
-class IndexCorrectionResult:
-    """
-    Outcome of correcting BPM values already wrong in the Serato library index.
-
-    Attributes:
-        candidates: Tracks with both a Rekordbox beatgrid and an existing
-            index row, i.e. tracks this pass could judge.
-        rows_updated: Rows whose stored BPM did not match the first beat's
-            tempo and were corrected. Zero on a dry run.
-    """
-
-    candidates: int
-    rows_updated: int
-
-
-def correct_index_bpm(
-    library: UsbLibrary,
-    *,
-    dry_run: bool = False,
-) -> IndexCorrectionResult:
-    """
-    Correct Serato library index rows whose BPM disagrees with Rekordbox's grid.
-
-    Applies the same rule ``sync_playlists`` uses when it writes a fresh grid:
-    the index BPM is the track's first beat's tempo, not Rekordbox's headline
-    average and not whatever Serato originally analysed. Unlike
-    ``sync_playlists``, this looks at every track in the library with
-    Rekordbox analysis data and an existing index row, not only tracks in a
-    playlist being synced -- it is how the rows a partial sync never reached
-    get fixed: constant-tempo tracks sitting at half or double tempo, and any
-    variable-tempo track Serato anchored on the wrong section.
-
-    Never writes to the audio files themselves, and never inserts a row --
-    only tracks Serato has already indexed are eligible, matching
-    ``update_track_analysis``'s own behaviour.
-
-    Args:
-        library: Opened session handle.
-        dry_run: Plan only; write nothing.
-
-    Returns:
-        IndexCorrectionResult describing what would be, or was, corrected.
-
-    Raises:
-        SeratoLibraryRequiredError: The mount has no Serato library, or no
-            ``location.sqlite`` index yet.
-    """
-    serato_root = library.serato_root
-    if serato_root is None:
-        raise SeratoLibraryRequiredError(f"No Serato library under {library.mount}")
-    index_path = library_db_path(serato_root)
-    if not index_path.is_file():
-        raise SeratoLibraryRequiredError(f"No location.sqlite under {serato_root}")
-
-    indexed = read_track_analysis(index_path)
-    updates: dict[str, TrackAnalysis] = {}
-    candidates = 0
-    for content in library.rekordbox.database.get_contents():
-        dat_path = _analysis_dat_path(library.mount, content)
-        if dat_path is None:
-            continue
-        path = serato_path(content.path)
-        stored = indexed.get(path)
-        if stored is None:
-            continue
-        beats = read_beats(dat_path)
-        if not beats:
-            continue
-        candidates += 1
-        if stored.bpm != beats[0].bpm:
-            updates[path] = TrackAnalysis(bpm=beats[0].bpm)
-
-    if dry_run or not updates:
-        return IndexCorrectionResult(candidates=candidates, rows_updated=len(updates))
-
-    rows_updated = update_track_analysis(index_path, updates)
-
-    logger.info(
-        "index_bpm_corrected",
-        candidates=candidates,
-        rows_updated=rows_updated,
-    )
-    return IndexCorrectionResult(candidates=candidates, rows_updated=rows_updated)

@@ -14,11 +14,11 @@ _MAGIC = b"PMAI"
 _EXTENDED_CUES = "PCO2"
 _HOT_CUE_LIST = 1
 # Real Rekordbox .EXT PCP2 bodies are 72 bytes when the cue comment is
-# empty: a 00 at offset 28, then RGB at 29. TASK-253 used 28 and picked
-# up that leading 00, so colours shifted (WONSIN Young Wild and Free,
-# 2026-08-30). An 88-byte entry stores a length-prefixed UTF-16 comment
-# at offset 24; RGB moves with it. Shorter test bodies still keep RGB
-# at 28 when the comment length is missing.
+# empty: a 00 at offset 28, then RGB at 29. Reading RGB at 28 picks up
+# that leading 00 and shifts the colour. An 88-byte entry stores a
+# length-prefixed UTF-16 comment at offset 24; RGB moves with it.
+# Shorter test bodies still keep RGB at 28 when the comment length is
+# missing.
 _CUE_RGB_OFFSET = 29
 _CUE_RGB_OFFSET_SHORT = 28
 _COMMENT_LEN_OFFSET = 24

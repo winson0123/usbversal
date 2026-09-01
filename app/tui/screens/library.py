@@ -233,9 +233,8 @@ class LibraryScreen(Screen):
 
     Space is bound here as a **priority** binding, which is what lets it win
     over Tree's own default space-toggles-expand binding on the focused
-    widget -- space is for selecting playlists to sync per the target flow
-    (docs/planning/interactive-tui.md), and expand/collapse moves to "e"
-    instead so both actions stay reachable.
+    widget -- space selects playlists to sync, and expand/collapse moves
+    to "e" so both actions stay reachable.
     """
 
     BINDINGS = [

@@ -35,10 +35,27 @@ class RekordboxReadAdapter(ABC):
             Flat list of Playlist entries with parent_id linkage.
         """
 
+    @abstractmethod
+    def get_playlist_track_paths(self, playlist_id: int) -> list[str]:
+        """
+        Return ordered Rekordbox content paths for a playlist.
+
+        Args:
+            playlist_id: Rekordbox playlist id (a leaf, not a folder).
+
+        Returns:
+            Content paths in playlist order.
+        """
+
     @property
     @abstractmethod
     def library(self) -> RekordboxLibrary:
         """Return metadata about the opened library."""
+
+    @property
+    @abstractmethod
+    def database(self):
+        """Return the opened Rekordbox database handle."""
 
 
 class SeratoReadAdapter(ABC):

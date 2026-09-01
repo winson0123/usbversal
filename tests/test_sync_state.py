@@ -11,7 +11,6 @@ from app.services.sync_service import (
     find_crate_name_collisions,
     playlist_sync_states,
     playlist_tree_sync_states,
-    sync_states_to_dict,
 )
 from tests.conftest import EMPTY_DATABASE_V2, make_library
 
@@ -522,7 +521,7 @@ def test_summary_counts_states(tmp_path: Path) -> None:
         mount, _adapter(playlists, {1: ["/Contents/a.mp3"], 2: ["/Contents/b.mp3"]})
     )
 
-    payload = sync_states_to_dict(playlist_sync_states(library))
+    states = playlist_sync_states(library)
 
-    assert payload["summary"] == {"synced": 1, "not_synced": 1}
-    assert payload["count"] == 2
+    assert [state.state for state in states] == [SyncState.SYNCED, SyncState.NOT_SYNCED]
+    assert len(states) == 2

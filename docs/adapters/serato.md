@@ -1,91 +1,48 @@
 # Serato Adapter
 
-**Status:** read-only listing + crate write implemented. Index authoring planned (Stage 1, TASK-071…076); analysis tags planned (Stage 2, TASK-080…085).
+**Status:** crate write, `database V2` append, `location.sqlite` UPDATE, and
+analysis tag writes are implemented.
 
 ## Overview
 
-Serato uses **proprietary on-disk formats** under `_Serato_` directories. This adapter is the only module allowed to interpret Serato binary/text database files.
+Serato uses proprietary on-disk formats under `_Serato_`. This adapter is
+the only module allowed to interpret those files.
 
-## Schema Status
+## What we write
 
-As of 2026-08-21 the write formats are **decoded from a byte-exact before/after
-fixture pair**, not inferred. Full layouts live in
-[../schemas/serato-schema-notes.md](../schemas/serato-schema-notes.md);
-fixtures in [`tests/fixtures/serato/`](../../tests/fixtures/serato/).
+| Artifact | Action |
+|----------|--------|
+| `Subcrates/*.crate` | Write / replace from a Rekordbox playlist |
+| `database V2` | Append `otrk` for tracks Serato does not already index |
+| `neworder.pref` | Merge crate display order |
+| Volume-label parent crate | Empty folder node so Serato shows the tree |
+| Audio GEOB tags | `Serato BeatGrid`, `Serato Markers2` (and v1 markers) |
+| `_Serato_/Library/location.sqlite` | UPDATE `bpm`, `key`, `analysis_flags` (24) on existing rows only |
 
-| Artifact | Confidence |
-|----------|------------|
-| TLV container (tag / u32 BE length / payload, type from tag prefix) | verified |
-| `.crate` structure (`vrsn`, `osrt`, `ovct`, ordered `otrk`) | verified |
-| `database V2` `otrk` minimal field set | verified |
-| `neworder.pref` (UTF-16BE `[crate]<name>` records) | verified |
-| `Serato Markers2` `CUE` layout | verified |
-| `Serato BeatGrid` / `Autotags` layout | verified format; no reference writer |
-| Path convention (drive-relative, no leading slash) | verified |
-| `%%` nested-crate naming | confirmed in Serato (`Gigs%%Played%%safety day`, 2026-08-27) |
-| MP3 ID3 container path | unit-tested (v2.2 / v2.3 / v2.4); not yet confirmed live in Serato |
-| AIFF / AIFC `ID3 ` chunk | unit-tested (TASK-263); not yet confirmed live in Serato |
-| M4A / MP4 `----:com.serato.dj` | unit-tested (TASK-263); `markers` uses the MP4 row layout (TASK-294); track-colour footer is unset (TASK-299); cue RGB is Rekordbox's (TASK-300) |
+## What we never do
 
-Vendor formats still change without notice; treat versions defensively.
+- Write under `PIONEER/`
+- Create `location.sqlite` or insert rows into it
+- Regenerate `database V2` from scratch
+- Discard unrecognized TLV tags on rewrite
 
-## Unknown Fields Tracking
+## Naming
 
-- Parse defensively; store unmapped binary sections or key-value pairs as opaque blobs.
-- Never discard unrecognized records when rewriting.
-- Document discoveries in `docs/schemas/serato-schema-notes.md`.
+Nested Rekordbox folders become `Parent%%Child.crate`. A slash in a
+playlist name is Serato's crate-name escape, not a folder. Leftover
+fullwidth-slash crate files from an earlier spelling are deleted on write.
 
-## Safety Constraints
+## Tag rewrite
 
-| Constraint | Enforcement |
-|------------|-------------|
-| Rekordbox files | Never write under `PIONEER/` |
-| Tag rewrite | Tag-only skip; verify; same-size patch; WAV tail rewrite after `data`; else `.tmp` |
-| Crate / database / neworder | `replace_flushed`; a zero-byte `database V2` is not a library |
-| Read-only if parse confidence low | Adapter returns error, does not guess |
-| No schema rebuild | Never regenerate entire database from scratch |
+Tag-only skip when the payload already matches; verify hash and
+read-back; same-size patch when possible; WAV tail rewrite after `data`;
+else `.tmp` then replace. Restore the original file if replace fails.
 
 ## Recommended library: `serato-tools`
 
 | Component | API |
 |-----------|-----|
-| Library index | `DatabaseV2(file=".../database V2")` → `get_track_paths()` |
-| Playlist (= crate) | `Crate(".../Subcrates/Name.crate")` → `get_track_paths()` |
+| Library index | `DatabaseV2` → `get_track_paths()` |
+| Crate | `Crate` → `get_track_paths()` |
 
-See [../schemas/serato-schema-notes.md](../schemas/serato-schema-notes.md) and [../planning/rekordbox-to-serato-playlist-migration.md](../planning/rekordbox-to-serato-playlist-migration.md).
-
-## Read Operations
-
-| Operation | Status | CLI |
-|-----------|--------|-----|
-| Resolve `_Serato_` | implemented | |
-| List crates + track counts | implemented | |
-| List database track index size | implemented | included in `list-crates` output |
-| Write crate from Rekordbox playlist | implemented | `migrate-playlist --mount …` |
-
-## Write Operations
-
-| Operation | Status | Task |
-|-----------|--------|------|
-| Write `.crate` from a Rekordbox playlist | implemented | TASK-033 |
-| Back up `neworder.pref` with the rest of `_Serato_` | **gap** | TASK-071 |
-| `database V2` append `otrk` | implemented | TASK-112 |
-| `neworder.pref` merge / write | planned | TASK-074 |
-| `Parent%%Child` nested crate naming | confirmed in Serato | TASK-075 / TASK-245 |
-| Volume-label parent crate | implemented | TASK-255 / TASK-282 |
-| Bootstrap `_Serato_` on a rekordbox-only stick | planned | TASK-076 |
-| `Serato Markers2` hot cues | planned | TASK-082 |
-| `Serato BeatGrid` / `Autotags` | planned | TASK-083 |
-
-Rules: merge existing records, never regenerate; preserve unrecognized TLV tags
-verbatim; prefer append or field-level edits over full rewrite.
-
-**Do not use `serato_tools.usb_export.copy_crates_to_usb`** — it `rmtree`s the
-destination `_Serato_` directory.
-
-## Related
-
-- [../schemas/serato-schema-notes.md](../schemas/serato-schema-notes.md)
-- [../planning/serato-index-bootstrap.md](../planning/serato-index-bootstrap.md)
-- [../decisions/0007-revive-analysis-sync-on-verified-formats.md](../decisions/0007-revive-analysis-sync-on-verified-formats.md)
-- [../decisions/0001-use-python-cli.md](../decisions/0001-use-python-cli.md)
+Layouts: [../schemas/serato-schema-notes.md](../schemas/serato-schema-notes.md).

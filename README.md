@@ -8,27 +8,20 @@ sync on USB-mounted media. No audio processing. No cloud dependency.
 | **Platforms** | Windows, Linux, macOS |
 | **DJ systems** | Rekordbox (One Library), Serato |
 | **Mounts** | Auto-detect (`/media/$USER`, `/Volumes`, drive letters). `USBVERSAL_MOUNT` is a silent escape hatch. |
-| **Status** | TUI Waiting → Detect → Library → Progress → Done is wired end to end — see [docs/state/repository-state.json](docs/state/repository-state.json) |
+| **Status** | TUI Home → Library → Progress → Done |
 
 ## Purpose
 
-Usbversal helps DJs copy Rekordbox playlists, beatgrids, and hot cues onto a
-Serato USB without corrupting Rekordbox files. Writes go immediately;
-recovery is restoring the Rekordbox USB.
-
-## Goals
-
-- Detect USB-mounted DJ libraries (Rekordbox, Serato)
-- Sync selected playlists into Serato crates with analysis tags
-- Apply writes immediately; restore the Rekordbox USB if needed
-- Ship as **PyInstaller executables** for Windows, Linux, and macOS
+Usbversal copies Rekordbox playlists, beatgrids, and hot cues onto a Serato
+USB without touching Rekordbox files. Writes go immediately; recovery is
+restoring the Rekordbox USB.
 
 ## Safety guarantees
 
 1. Never write under `PIONEER/`. Recovery is restoring the Rekordbox USB.
 2. Tag writes verify audio hash and frame read-back before the new file replaces the old one.
 3. Failed sync items are listed on Done and written to host `error.log` (`~/.local/share/usbversal/<volume>/`).
-4. Never regenerate a vendor index; merge only.
+4. Never regenerate a vendor index; merge only. Do not create or insert into `location.sqlite`.
 
 ## Usage
 
@@ -38,12 +31,11 @@ usbversal
 python -m app.tui
 ```
 
-The TUI auto-detects a DJ USB, opens the library, and runs the sync. There is
-no argparse command list.
+The TUI auto-detects a DJ USB, opens the library, and runs the sync.
 
-## Packaging intent
+## Packaging
 
-Distribution target is standalone executables via **PyInstaller**:
+Standalone executables via **PyInstaller**:
 
 ```bash
 ./scripts/build-release.sh   # → dist/usbversal
@@ -55,11 +47,10 @@ See [docs/workflows/release-workflow.md](docs/workflows/release-workflow.md) and
 
 | Path | Role |
 |------|------|
-| `app/` | Python package root |
-| `app/tui/` | The shipped product: interactive terminal UI (`python -m app.tui`) |
-| `app/core/` | Domain models and events |
+| `app/tui/` | The shipped product (`python -m app.tui`) |
+| `app/core/` | Domain models |
 | `app/adapters/` | Rekordbox / Serato adapters |
-| `app/services/` | Scan, playlist/crate orchestration |
+| `app/services/` | Scan, sync, analysis, crate writes |
 | `app/storage/` | Mount detection, host data paths |
 | `tests/` | Unit and integration tests |
 | `docs/` | Architecture, ADRs, tasks, machine state |
@@ -75,8 +66,6 @@ See [docs/workflows/release-workflow.md](docs/workflows/release-workflow.md) and
 
 ## Development
 
-Use the project virtual environment (required):
-
 ```bash
 ./scripts/setup-dev.sh
 source .venv/bin/activate
@@ -90,7 +79,3 @@ source .venv/bin/activate
 ## Autonomous agents
 
 Read [`AGENT.md`](AGENT.md) before any work. Update [`docs/state/`](docs/state/) after every task.
-
-## License
-
-TBD

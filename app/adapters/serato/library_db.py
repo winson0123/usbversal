@@ -16,8 +16,8 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 FILENAME = "location.sqlite"
-# Bitmap Serato stores on tracks it has analysed. Confirmed on WONSIN.
-_ANALYZED_FLAGS = 31
+# Value Serato writes after it analyses a track (WONSIN 2026-08-30).
+_ANALYZED_FLAGS = 24
 
 
 def library_db_path(serato_root: Path) -> Path:
@@ -100,7 +100,7 @@ def update_track_analysis(
                 continue
             bpm = row["bpm"] if wanted.bpm is None else wanted.bpm
             key = row["key"] if wanted.key is None else wanted.key
-            already_analyzed = row["analysis_flags"] == _ANALYZED_FLAGS
+            already_analyzed = row["analysis_flags"] != 0
             if bpm == row["bpm"] and key == row["key"] and already_analyzed:
                 continue
             revision += 1

@@ -100,15 +100,3 @@ def test_prepare_library_bootstraps_then_opens(
 
     assert result is opened
     assert (mount / "_Serato_" / "Subcrates").is_dir()
-
-
-def test_probe_serialises_for_json_output(tmp_path: Path) -> None:
-    """to_dict exposes the verdict for machine-readable output."""
-    probe = probe_mount(_rekordbox_stick(tmp_path))
-    assert probe is not None
-
-    payload = probe.to_dict()
-
-    assert payload["is_dj_usb"] is True
-    assert payload["has_serato"] is False
-    assert payload["rekordbox_format"] == "exportLibrary.db"

@@ -1,10 +1,8 @@
 """Bootstrapping an empty Serato library on a rekordbox-only stick.
 
-Closes the gap `docs/planning/serato-index-bootstrap.md` names: on a plain
-Rekordbox stick with no `_Serato_` at all, `sync_playlists` and friends raise
-`SeratoLibraryRequiredError` and can do nothing. This creates the minimum a
-fresh Serato install would have -- an empty index -- so the rest of the sync
-path has somewhere to write.
+On a Rekordbox stick with no ``_Serato_``, sync has nowhere to write.
+This creates the minimum a fresh Serato install would have -- an empty
+index -- so the rest of the sync path can run.
 """
 
 from __future__ import annotations

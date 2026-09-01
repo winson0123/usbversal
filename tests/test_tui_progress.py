@@ -21,7 +21,6 @@ from app.tui.screens.progress import DoneScreen, ProgressScreen
 def _fake_report(**overrides) -> SyncReport:
     fields = {
         "mount": Path("/mnt/usb"),
-        "dry_run": False,
         "records_added": 1,
         "results": (),
         "grids_written": 2,
@@ -45,7 +44,7 @@ def _fake_sync(
 ):
     """Build a stand-in for sync_playlists that drives on_progress synchronously."""
 
-    def _sync(library, playlist_ids, *, dry_run=False, on_progress=None):
+    def _sync(library, playlist_ids, *, on_progress=None):
         if on_progress is not None:
             for sample in calls:
                 if delay_s:
@@ -209,7 +208,7 @@ async def test_progress_bar_reflects_the_last_sample() -> None:
 
     hold = threading.Event()
 
-    def _held_sync(library, playlist_ids, *, dry_run=False, on_progress=None):
+    def _held_sync(library, playlist_ids, *, on_progress=None):
         hold.wait(timeout=5)
         return _fake_report()
 
@@ -237,7 +236,7 @@ async def test_progress_shows_the_playlist_and_centers_the_bar() -> None:
 
     hold = threading.Event()
 
-    def _held_sync(library, playlist_ids, *, dry_run=False, on_progress=None):
+    def _held_sync(library, playlist_ids, *, on_progress=None):
         hold.wait(timeout=5)
         return _fake_report()
 
@@ -293,7 +292,7 @@ async def test_progress_log_shows_a_green_line_per_successful_track() -> None:
     """Each track that analyses cleanly gets its own green log line -- the
     user asked to actually see what's happening, not just a bare counter."""
 
-    def _slow_sync(library, playlist_ids, *, dry_run=False, on_progress=None):
+    def _slow_sync(library, playlist_ids, *, on_progress=None):
         time.sleep(1.0)
         return _fake_report()
 
@@ -317,7 +316,7 @@ async def test_progress_log_shows_a_red_line_for_a_failed_track() -> None:
     """A track whose analysis failed gets a red line naming the error,
     instead of silently vanishing into the done/total counter."""
 
-    def _slow_sync(library, playlist_ids, *, dry_run=False, on_progress=None):
+    def _slow_sync(library, playlist_ids, *, on_progress=None):
         time.sleep(1.0)
         return _fake_report()
 

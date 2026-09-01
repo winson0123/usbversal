@@ -1,32 +1,37 @@
 # ADR 0003: Use PyInstaller for Packaging
 
-**Status:** accepted  
+**Status:** accepted
 **Date:** 2026-05-22
 
 ## Context
 
-End users (DJs) may not have Python installed. Distribution targets Windows and Linux with a single executable per platform.
+End users (DJs) may not have Python installed. Distribution targets
+Windows, Linux, and macOS with a single executable per platform.
 
-Alternatives: `pip install` only, Nuitka, cx_Freeze, Rust rewrite for binary size.
+Alternatives: `pip install` only, Nuitka, cx_Freeze, Rust rewrite for
+binary size.
 
 ## Decision
 
-Package the CLI using **PyInstaller** to produce platform-specific executables named `usbversal`.
+Package the TUI using **PyInstaller** to produce platform-specific
+executables named `usbversal`. The binary launches the TUI; there is
+no argparse command list.
 
 ## Consequences
 
 ### Positive
 
-- Familiar path for Python CLI tools
-- One-file or one-folder bundles supported
-- Aligns with Python CLI decision (ADR 0001)
+- One-file bundles for DJs who do not have Python
+- Aligns with the Python TUI decision (ADR 0001)
 
 ### Negative
 
-- Larger binary size than native Rust
-- Hidden import discovery can be fragile — requires CI smoke on built artifacts
-- Build matrix needed (Windows + Linux)
+- Larger binary size than native Rust (~43 MB on Linux with Textual)
+- Hidden import discovery can be fragile — requires a smoke test on
+  the built artifact
+- Build matrix needed (Windows, Linux, macOS)
 
 ### Neutral
 
-- Development still uses editable install (`pip install -e .`); PyInstaller only for release builds
+- Development still uses the project venv (`python -m app.tui`);
+  PyInstaller is for release builds

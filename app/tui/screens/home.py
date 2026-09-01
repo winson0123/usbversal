@@ -1,8 +1,6 @@
-"""Home screen: steps 1 (Waiting) and 2 (Detect) of the target flow.
+"""Home screen: wait for a DJ USB, then open it.
 
-Watches for a mount appearing and checks whatever appears for Rekordbox
-export validity, entirely through the cheap primitives TASK-202/203 built --
-no ``LibraryDiscovery`` walk runs on this screen.
+Watches for a mount and checks it for a readable Rekordbox export.
 """
 
 from __future__ import annotations

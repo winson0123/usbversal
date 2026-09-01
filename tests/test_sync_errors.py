@@ -16,7 +16,6 @@ def _report(**overrides) -> SyncReport:
     """Build a SyncReport with defaults a test can override."""
     fields = {
         "mount": Path("/mnt/usb"),
-        "dry_run": False,
         "records_added": 0,
         "results": (),
         "analysis_errors": (),

@@ -10,8 +10,7 @@ VENDOR_MODULES = {"rbox", "serato_tools"}
 
 # Layer -> packages it is allowed to import from (plus itself and stdlib/3rd-party).
 ALLOWED_LAYER_IMPORTS = {
-    "tui": {"jobs", "services", "core"},
-    "jobs": {"services", "core", "storage", "adapters"},
+    "tui": {"services", "core"},
     "services": {"core", "adapters", "storage"},
     "adapters": {"core", "storage"},
     "storage": {"core"},

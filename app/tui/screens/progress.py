@@ -1,8 +1,7 @@
-"""Progress and Done screens: steps 4-5 of the target flow.
+"""Progress and Done screens.
 
 Progress runs ``sync_playlists`` as a background worker and renders its
-per-track progress; Done shows what happened. This is the first place
-``sync_playlists`` becomes reachable from the TUI at all.
+per-track progress; Done shows what happened.
 """
 
 from __future__ import annotations
@@ -17,7 +16,6 @@ from textual.containers import Center, CenterMiddle
 from textual.screen import Screen
 from textual.widgets import Footer, ProgressBar, RichLog, Static
 
-from app.jobs.progress_rate import ProgressRateTracker, format_duration
 from app.services.library import UsbLibrary
 from app.services.sync_errors import (
     failures_from_report,
@@ -26,6 +24,7 @@ from app.services.sync_errors import (
 )
 from app.services.sync_progress import SyncProgress, display_title
 from app.services.sync_service import SyncReport, sync_playlists
+from app.tui.progress_rate import ProgressRateTracker, format_duration
 
 _PHASE_STATUS = {
     "index": "Indexing tracks",

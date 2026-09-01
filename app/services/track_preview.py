@@ -4,14 +4,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from app.adapters.serato import crate_name_for, read_crate_track_paths, volume_label_for
 from app.adapters.serato.paths import list_crate_files
 from app.core.domain import SyncState
 from app.core.track_paths import normalize_track_path
 from app.services.library import UsbLibrary
-from app.services.track_records import RekordboxLookups, load_lookups, serato_path
+from app.services.track_records import (
+    RekordboxContent,
+    RekordboxLookups,
+    load_lookups,
+    serato_path,
+)
 from app.services.track_sync import contents_by_path, track_sync_state
 
 
@@ -50,7 +54,7 @@ def preview_playlist_tracks(library: UsbLibrary, playlist_id: int) -> list[Track
         playlist_id: Rekordbox playlist id (a leaf, not a folder).
 
     Returns:
-        One row per path in the playlist. Unknown metadata stays blank.
+        One row per path in the playlist. Missing metadata stays blank.
     """
     playlists = library.rekordbox.list_playlists()
     by_id = {playlist.id: playlist for playlist in playlists}
@@ -114,7 +118,7 @@ def _safe_lookups(library: UsbLibrary) -> RekordboxLookups:
 
 def _row_from_content(
     path: str,
-    content: Any | None,
+    content: RekordboxContent | None,
     lookups: RekordboxLookups,
     state: SyncState,
 ) -> TrackPreview:

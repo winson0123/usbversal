@@ -1,7 +1,4 @@
-"""Error taxonomy for frontends.
-
-Job lifecycle errors live in ``app.jobs.exceptions``.
-"""
+"""Errors raised on the TUI sync path."""
 
 from app.adapters.base import (
     AdapterError,
@@ -10,19 +7,26 @@ from app.adapters.base import (
     UnsupportedDatabaseError,
 )
 from app.adapters.serato.writer import CrateExistsError
-from app.services.migration_service import (
-    MigrationError,
-    PlaylistNotFoundError,
-    SeratoLibraryRequiredError,
-)
 
 __all__ = [
     "AdapterError",
     "CrateExistsError",
     "DatabaseNotFoundError",
-    "MigrationError",
     "PlaylistNotFoundError",
     "SeratoLibraryNotFoundError",
     "SeratoLibraryRequiredError",
+    "SyncError",
     "UnsupportedDatabaseError",
 ]
+
+
+class SyncError(Exception):
+    """Base error for playlist sync."""
+
+
+class PlaylistNotFoundError(SyncError):
+    """The selected playlist id is missing or is a folder."""
+
+
+class SeratoLibraryRequiredError(SyncError):
+    """The mount has no Serato library to write into."""

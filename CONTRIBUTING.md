@@ -34,7 +34,7 @@ Thank you for contributing. This project uses a **single-task execution model** 
 Read state → Scope task → Minimal implement → Verify → Update docs/state → One commit
 ```
 
-Parallel feature work across adapters, TUI, and jobs is **not allowed**.
+Parallel feature work across adapters and TUI is **not allowed**.
 
 ## Testing Requirements
 
@@ -62,14 +62,15 @@ The TUI (`app/tui/`) must:
 - Dispatch to services — **no business logic in TUI modules**
 - Stay off vendor parsers
 
-Parsing, schema mapping, and job orchestration belong in `app/core/`, `app/adapters/`, `app/services/`, and `app/storage/`.
+Parsing and schema mapping belong in `app/core/`, `app/adapters/`, `app/services/`, and `app/storage/`.
 
 ## Safety Requirements for Database Work
 
 - Never write under `PIONEER/`. Recovery is restoring the Rekordbox USB.
 - Never assume Rekordbox/Serato schema stability.
+- Never create or insert into `location.sqlite`.
 - Track unknown fields (see adapter docs).
-- Add integration tests with fixture DBs before enabling write commands.
+- Add integration tests with fixture DBs before enabling new write paths.
 
 ## Documentation Updates
 

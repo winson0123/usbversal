@@ -150,9 +150,7 @@ class UsbversalApp(RekordboxThreadMixin, App):
     """
     Top-level Textual application shell.
 
-    All five target-flow screens exist: Home (steps 1-2), Library (step 3),
-    Progress and Done (steps 4-5, TASK-208) -- the full Waiting -> Detect ->
-    Library -> Progress -> Done flow is reachable end to end.
+    Screens: Home (wait / detect) → Library → Progress → Done.
     """
 
     TITLE = "usbversal"
@@ -222,10 +220,10 @@ class UsbversalApp(RekordboxThreadMixin, App):
         """
         Build Textual's driver, skipping the alt screen on ConPTY.
 
-        ``CSI ? 1049 l`` is the one-second pause still visible after
-        TASK-232: Windows Terminal waits to sync the cursor across
-        buffers. Drawing on the main buffer and clearing on exit avoids
-        that swap. Headless and inline runs are left alone.
+        ``CSI ? 1049 l`` pauses for about a second on Windows Terminal
+        while it syncs the cursor across buffers. Drawing on the main
+        buffer and clearing on exit avoids that swap. Headless and
+        inline runs are left alone.
 
         Args:
             headless: No terminal I/O (tests).

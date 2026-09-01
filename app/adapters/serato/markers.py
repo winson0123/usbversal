@@ -17,8 +17,8 @@ _MP4_EMPTY_CUE = _MP4_UNSET + _MP4_UNSET + b"\x00" + _MP4_UNSET + b"\x00\x00\x00
 _MP4_EMPTY_LOOP = _MP4_UNSET + _MP4_UNSET + b"\x00" + _MP4_UNSET + b"\x00\x00\x00\x00\x03\x00"
 _MP4_ROW = 19
 # Mixxx / Serato: one 00, then RGB. #FFFFFF means no track colour.
-# TASK-294 copied a 7-byte leftover (00 00 FF FF FF 00 00); Serato reads
-# that as #00FFFF and paints the jog cyan.
+# A 7-byte leftover (00 00 FF FF FF 00 00) is read as #00FFFF and
+# paints the jog cyan.
 _MP4_FOOTER = b"\x00\xff\xff\xff"
 _MP4_LOOP_ROWS = 9
 _MP4_HEADER_LEN = 6

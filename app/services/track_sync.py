@@ -3,16 +3,15 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 from app.adapters.rekordbox.anlz import AnlzError, extended_path, read_beats, read_hot_cues
 from app.adapters.serato.tags import TagFormatError, read_geob
 from app.core.domain import SyncState
 from app.core.track_paths import normalize_track_path
-from app.services.track_records import serato_path
+from app.services.track_records import RekordboxContent, RekordboxDatabase, serato_path
 
 
-def contents_by_path(database: Any) -> dict[str, Any]:
+def contents_by_path(database: RekordboxDatabase) -> dict[str, RekordboxContent]:
     """
     Map normalized and drive-relative paths to Rekordbox content rows.
 
@@ -34,7 +33,7 @@ def contents_by_path(database: Any) -> dict[str, Any]:
         return {}
     if not isinstance(rows, (list, tuple)):
         return {}
-    by_path: dict[str, Any] = {}
+    by_path: dict[str, RekordboxContent] = {}
     for content in rows:
         raw = getattr(content, "path", None)
         if not raw:
@@ -44,7 +43,7 @@ def contents_by_path(database: Any) -> dict[str, Any]:
     return by_path
 
 
-def analysis_dat_path(mount: Path, content: Any | None) -> Path | None:
+def analysis_dat_path(mount: Path, content: RekordboxContent | None) -> Path | None:
     """
     Resolve a Rekordbox track's ANLZ ``.DAT`` path on the mount.
 
@@ -66,7 +65,7 @@ def analysis_dat_path(mount: Path, content: Any | None) -> Path | None:
 def analysis_is_ported(
     mount: Path,
     raw: str,
-    content: Any | None,
+    content: RekordboxContent | None,
     cache: dict[str, bool],
 ) -> bool:
     """
@@ -101,7 +100,7 @@ def track_sync_state(
     in_crate: bool,
     mount: Path,
     raw: str,
-    content: Any | None,
+    content: RekordboxContent | None,
     cache: dict[str, bool],
 ) -> SyncState:
     """
