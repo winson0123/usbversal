@@ -15,7 +15,7 @@ from app.adapters.serato.tags import TagFormatError, read_geob, write_geob
 
 _GEOB_MIME = b"application/octet-stream"
 
-# Mixed In Key's own frame names, per docs/HANDOFF.md. Sound Forge's exact
+# Mixed In Key's own frame names. Sound Forge's exact
 # frame name is not documented anywhere in this repo, so "Unknown Vendor Tag"
 # stands in for it. The guarantee has to hold for any frame we don't own,
 # not just the ones we happen to have a name for.

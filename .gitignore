@@ -11,6 +11,4 @@ build/
 venv/
 /jobs/
 .env
-
-# Legacy / accidental Rust build artifacts
 /target/

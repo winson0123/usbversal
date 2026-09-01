@@ -54,9 +54,7 @@ Python 3.11 or newer. Task rules and review notes live in
 
 ## Screens
 
-Home looks for a Rekordbox USB. A valid stick has
-`PIONEER/rekordbox/exportLibrary.db`. Older DeviceSQL-only sticks
-(`export.pdb` alone) are rejected. If nothing shows up, press Enter to
+Home looks for a Rekordbox USB. If nothing shows up, press Enter to
 scan again, or type a path. Tab cycles matching folders.
 
 Library is the playlist tree. Each row is red, yellow, or green:
@@ -64,7 +62,7 @@ nothing synced, some tracks synced, all tracks synced. Space selects a
 playlist. `Ctrl+A` selects every playlist. `e` expands or collapses a
 folder. Enter starts the sync.
 
-Progress writes crates, then tags, then the Serato index. Done shows
+Progress copies the playlists and writes grids and cues. Done shows
 counts. Failed tracks stay on that screen and also land in
 `~/.local/share/usbversal/<volume>/error.log`. Enter goes back to
 Library.
