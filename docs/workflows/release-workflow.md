@@ -5,32 +5,32 @@ PyInstaller binary on Windows, macOS, and Linux and attaches them to a
 GitHub Release. PyInstaller cannot cross-compile, so each artifact is
 built on that OS.
 
-There is no remote yet. Add one before the first tag.
+`v1.0.0` is tagged on `main` locally. There is no `origin` yet, so
+GitHub Actions has not built the three binaries. Add a remote, then
+push `main` and the tag.
 
 ```bash
 git remote add origin git@github.com:<org>/usbversal.git
 git push -u origin main
+git push origin v1.0.0
 ```
 
 ## Cut v1.0.0
 
-`main` must be clean and at the commit you want to ship.
+Already done on this machine. The tag points at the 1.0.0 version
+commit. Do not move it.
 
-1. Set `version = "1.0.0"` in `pyproject.toml`.
-2. Commit that bump on `main`. `[TASK-…] Release 1.0.0.`
-3. Tag and push:
+To publish after origin exists:
 
 ```bash
-git tag -a v1.0.0 -m "Usbversal 1.0.0"
 git push origin main
 git push origin v1.0.0
 ```
 
-4. The [Release](../../.github/workflows/release.yml) workflow runs
-   `ruff` and `pytest` on Ubuntu, then PyInstaller on
-   `ubuntu-latest`, `windows-latest`, and `macos-latest`, then
-   `gh release create v1.0.0`.
-5. The GitHub Release should have:
+The [Release](../../.github/workflows/release.yml) workflow then runs
+`ruff` and `pytest` on Ubuntu, PyInstaller on `ubuntu-latest`,
+`windows-latest`, and `macos-latest`, then `gh release create v1.0.0`.
+The GitHub Release should have:
 
 | Artifact | Built on |
 |----------|----------|

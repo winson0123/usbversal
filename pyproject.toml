@@ -1,6 +1,6 @@
 [project]
 name = "usbversal"
-version = "0.1.0"
+version = "1.0.0"
 description = "TUI that copies Rekordbox playlists, beatgrids, and hot cues onto Serato on a USB stick"
 readme = "README.md"
 requires-python = ">=3.11"
