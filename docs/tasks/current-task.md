@@ -1,12 +1,12 @@
 # Current task
 
 **Status:** `complete`
-**Task ID:** `TASK-331`
+**Task ID:** `TASK-332`
 **Last updated:** 2026-09-01
 
 ## Objective
 
-Show the Serato crate layout in the README as a tree, and drop the slash-in-playlist-name note.
+Add from-source development steps to the README so running the Python checkout is documented, not only the release binary.
 
 ## Files touched
 

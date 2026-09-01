@@ -10,10 +10,10 @@ before Serato or Windows opens it.
 
 ## Use it
 
+A built release is a single file. Launch it:
+
 ```bash
 usbversal
-# or, from a checkout
-python -m app.tui
 ```
 
 Windows, Linux, and macOS. The TUI watches the usual removable-media
@@ -22,6 +22,35 @@ misses the stick, type the mount path, or set `USBVERSAL_MOUNT` before
 launch.
 
 Quit with `Ctrl+Q`.
+
+## Run from source
+
+From a checkout, use the Python package. No release binary required.
+
+```bash
+./scripts/setup-dev.sh
+source .venv/bin/activate
+
+python -m app.tui
+```
+
+`setup-dev.sh` creates `.venv` and installs the package with the dev
+extras. After that, `python`, `ruff`, and `pytest` are on `PATH` while
+the venv is active.
+
+```bash
+ruff check .
+ruff format --check .
+pytest
+```
+
+Or call them as `.venv/bin/ruff` and `.venv/bin/pytest` without
+activating. Same TUI, same screens, same `USBVERSAL_MOUNT` override.
+
+Python 3.11 or newer. Task rules and review notes live in
+[`CONTRIBUTING.md`](CONTRIBUTING.md). Agents start at
+[`AGENT.md`](AGENT.md). Layout and internals live in
+[`ARCHITECTURE.md`](ARCHITECTURE.md) and [`docs/`](docs/).
 
 ## Screens
 
@@ -82,9 +111,3 @@ this machine:
 
 That writes `dist/usbversal` or `dist/usbversal.exe`. See
 [docs/workflows/release-workflow.md](docs/workflows/release-workflow.md).
-
-## Contribute
-
-Agents start at [`AGENT.md`](AGENT.md). People changing code start at
-[`CONTRIBUTING.md`](CONTRIBUTING.md). Layout and internals live in
-[`ARCHITECTURE.md`](ARCHITECTURE.md) and [`docs/`](docs/).
