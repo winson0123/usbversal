@@ -1,6 +1,6 @@
 # Agent rules
 
-Read this before you touch code. I mean the whole thing.
+Read this before you touch code. The whole thing.
 
 Usbversal is a Python TUI that copies Rekordbox metadata onto Serato on
 a USB stick. Stay inside the layers in `ARCHITECTURE.md`. Keep
@@ -67,7 +67,7 @@ rewrote files you then need to include.
 
 ## Safety
 
-| Rule | What I expect |
+| Rule | Meaning |
 |------|----------------|
 | Rekordbox files | Never write under `PIONEER/` |
 | Schema | Do not assume a vendor schema stays still |

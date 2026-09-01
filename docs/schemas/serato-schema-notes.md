@@ -1,8 +1,8 @@
 # Serato schema notes
 
-On-disk layouts the Serato adapter has to keep. I decoded the verified
-rows from a Lexicon before/after pair on 2026-08-21, then checked them
-on a real stick.
+On-disk layouts the Serato adapter has to keep. The verified rows come
+from a Lexicon before/after pair on 2026-08-21, then a check on a real
+stick.
 
 ## Status legend
 
@@ -117,7 +117,7 @@ the crate sat under Played under Gigs. Empty parent crate files are
 not required. `Gigs%%Played%%safety day.crate` alone is enough. The
 parent names (`Gigs`, `Gigs%%Played`) must still appear in
 `neworder.pref`. A live WONSIN `neworder.pref` listed those folder
-stems with no matching `.crate`. After a fresh export we only listed
+stems with no matching `.crate`. After a fresh export the writer only listed
 the volume and the leaves, so Serato had nothing to hang
 `WONSIN%%Gigs%%pocket …` on.
 
@@ -163,7 +163,7 @@ One row per track, 797 on the test stick. Columns that matter:
 Global counters live in `serato.revision` and `master.revision`, both
 above the per-row maximum. There are no triggers on `asset`.
 
-### Why our writes go unnoticed
+### Why tag writes go unnoticed
 
 Tag writes keep the same file size, because moving the audio stream
 invalidates `Serato Offsets_` and the waveform preview renders wrong.
@@ -201,10 +201,10 @@ Creating the file would invent that schema, the migrations, and the
 import hashes. A wrong MD5 or `dbv2_status` can make Serato re-import
 and overwrite list BPM, or refuse the library.
 
-Insert is not needed after Serato creates the file. New tracks we
+Insert is not needed after Serato creates the file. New tracks that
 sync already get an `otrk` in `database V2`. Serato stores that
 file's size and MD5 in `last_seen_dbv2_library` and creates `asset` /
-`space_asset` rows on import. We only UPDATE `bpm`, `key`, and
+`space_asset` rows on import. Sync only UPDATEs `bpm`, `key`, and
 `analysis_flags` on rows whose `portable_id` already exists, because
 size-preserving tag writes do not make Serato re-read the file.
 `analysis_flags` is set to 24, the value Serato writes after it

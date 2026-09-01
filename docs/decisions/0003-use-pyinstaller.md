@@ -5,10 +5,10 @@
 
 ## Context
 
-DJs will not install Python. I need one executable per OS: Windows,
-Linux, macOS.
+DJs will not install Python. The release is one executable per OS:
+Windows, Linux, macOS.
 
-`pip install` is for us. Nuitka and cx_Freeze were options. A Rust
+`pip install` is for development. Nuitka and cx_Freeze were options. A Rust
 rewrite would shrink the binary and blow the schedule.
 
 ## Decision
@@ -24,5 +24,5 @@ fat next to a native binary, but it works.
 Hidden imports are flaky. Smoke-test the built file. You still need a
 build on each OS.
 
-Day to day I run `python -m app.tui` from the venv. PyInstaller is
+Day to day, run `python -m app.tui` from the venv. PyInstaller is
 for tags.

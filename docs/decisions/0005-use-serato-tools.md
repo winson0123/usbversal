@@ -14,7 +14,7 @@ reads and writes both.
 Use serato-tools (`DatabaseV2`, `Crate`) behind `app/adapters/serato/`
 for crate listing, crate writes, and `database V2` appends.
 
-`location.sqlite` and audio tags are our code, not serato-tools.
+`location.sqlite` and audio tags are usbversal code, not serato-tools.
 
 ## Consequences
 
@@ -23,4 +23,4 @@ vendor library behind a thin adapter.
 
 The extra dependency wants Python 3.12+.
 
-`.smartcrate` stays out of scope until I see one on a USB export.
+`.smartcrate` stays out of scope until one shows up on a USB export.

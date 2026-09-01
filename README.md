@@ -4,7 +4,7 @@ A terminal UI that copies Rekordbox playlists, beatgrids, and hot cues onto
 the Serato side of a USB stick. It does not touch audio. It does not talk
 to the network.
 
-I do not write under `PIONEER/`. If a sync goes wrong, restore the
+Usbversal does not write under `PIONEER/`. If a sync goes wrong, restore the
 Rekordbox USB. That is the recovery plan. There is no host rollback.
 
 | | |

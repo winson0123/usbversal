@@ -14,7 +14,7 @@ Windows, macOS, and Linux.
 | | Tree | Tests | Weight | Age |
 |---|---|---|---|---|
 | `textual` | `Tree`, `ProgressBar` | `Pilot` / `run_test()` | pulls in `rich`, needs `.tcss` collected | younger, widely used |
-| `prompt_toolkit` | none, we would draw it | no app test helper | one dependency | stable since about 2015 |
+| `prompt_toolkit` | none, usbversal would draw it | no app test helper | one dependency | stable since about 2015 |
 | `rich` plus keys | no input loop | none | small, no input | `rich` is mature |
 | `curses` | none | none | missing on Windows without `windows-curses` | the Windows gap kills it |
 
@@ -22,15 +22,15 @@ Windows, macOS, and Linux.
 
 Use Textual.
 
-`Tree` draws guides, expands, and takes keys. `Pilot` lets me press
-keys in pytest. I will not hand-roll a tree widget for this.
+`Tree` draws guides, expands, and takes keys. `Pilot` presses keys
+in pytest. Do not hand-roll a tree widget for this.
 
 `app/tui/` imports `services` and `core` only. Never `storage` or
 `adapters`. `test_architecture.py` enforces that.
 
 ## Consequences
 
-Library and Progress map onto widgets we already ship. Screens get the
+Library and Progress map onto widgets Textual already ships. Screens get the
 same pytest treatment as the rest of the code.
 
 The Linux one-file binary is about 43 MB. `packaging/usbversal.spec`

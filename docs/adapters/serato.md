@@ -2,7 +2,7 @@
 
 This package is the only place that may read or write `_Serato_` files.
 
-We write crates, append `database V2`, UPDATE existing `location.sqlite`
+The adapter writes crates, appends `database V2`, UPDATEs existing `location.sqlite`
 rows, and write analysis tags.
 
 ## Writes

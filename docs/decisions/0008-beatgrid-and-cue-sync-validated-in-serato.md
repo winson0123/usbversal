@@ -20,8 +20,8 @@ Still unwritten: `Autotags`, `Overview`, `Analysis`, `Offsets_`, and
 `Markers_`. Nothing in Rekordbox maps to them.
 
 `location.sqlite` is updated on existing rows (`bpm`, `key`,
-`analysis_flags = 24`) so the library list matches the file. We never
-create that file or insert into it.
+`analysis_flags = 24`) so the library list matches the file. Usbversal
+never creates that file or inserts into it.
 
 ## Consequences
 
@@ -30,5 +30,5 @@ needs no mapping table. Rekordbox stores RGB and Serato shows it.
 Most tracks are constant tempo, so most grids are one marker.
 
 Variable-tempo grids follow multi-marker ANLZ. Odd grids are
-Rekordbox analysis, not our encoder. Tag writes must keep the same
+Rekordbox analysis, not the usbversal encoder. Tag writes must keep the same
 file size or `Serato Offsets_` go stale.

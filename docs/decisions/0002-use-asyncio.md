@@ -7,7 +7,7 @@
 
 Opening a Rekordbox export and writing analysis tags are slow I/O. The
 TUI still has to paint progress and take keys. rbox / PyOneLibrary
-dies if you hop threads mid-handle. I learned that on a real stick,
+dies if you hop threads mid-handle. That showed up on a real stick,
 not in a mock.
 
 ## Decision

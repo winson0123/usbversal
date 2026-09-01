@@ -25,7 +25,7 @@ AQFDT0xPUgAAAAAEAP///0NVRQAAAAAOAAAAAABCAMwAAAAAOABCUE1MT0NLAAAAAAEAA
 
 ## Findings
 
-69 is 17 times 4, plus 1. We drop that one character (69 → 68). A cut
+69 is 17 times 4, plus 1. The decoder drops that one character (69 → 68). A cut
 at 64 would truncate `BPMLOCK`.
 
 After the drop the decode is complete: `COLOR`, one `CUE`, `BPMLOCK`.
@@ -35,7 +35,7 @@ That needs two characters. Dropping it removes no field.
 The leftover sat in the GEOB's base64 text, after a finished tag and
 before Serato's `NUL` padding. Those files also carry Serato's own
 analysis set. Rekordbox ANLZ was not the source. Sync died on read, so
-we did not write the leftover.
+usbversal did not write the leftover.
 
 Pool tracks (BPM Supreme edits and the like) often arrive with these
 frames already on the file.
@@ -50,5 +50,5 @@ cues from Rekordbox and keeps whatever `COLOR` / `BPMLOCK` decoded.
 ## Consequences
 
 A track with this leftover still syncs. Its Serato colour and BPM-lock
-survive. Cue bodies that were already complete stay readable until we
-overwrite them from Rekordbox.
+survive. Cue bodies that were already complete stay readable until
+sync overwrites them from Rekordbox.

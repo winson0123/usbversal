@@ -10,7 +10,7 @@ USB Rekordbox exports show up as two files:
 - `exportLibrary.db`, SQLCipher SQLite ("One Library" / Device Library Plus)
 - `export.pdb`, DeviceSQL
 
-Cracking SQLCipher keys and DeviceSQL pages ourselves is slow and easy
+Cracking SQLCipher keys and DeviceSQL pages by hand is slow and easy
 to get wrong. PyPI already has Rekordbox 6/7 readers.
 
 ## Decision
@@ -26,8 +26,8 @@ Do not add a DeviceSQL parser. An `export.pdb`-only mount raises
 One Library exports decrypt and list playlists. Upstream can fix format
 changes.
 
-We depend on `rbox` and SQLCipher wheels. Classic `export.pdb` sticks
-stay unsupported.
+Usbversal depends on `rbox` and SQLCipher wheels. Classic `export.pdb`
+sticks stay unsupported.
 
-USB exports already freeze smart playlists into track lists, so we do
-not model smart vs manual. That lives in the schema notes.
+USB exports already freeze smart playlists into track lists, so the
+adapter does not model smart vs manual. That lives in the schema notes.

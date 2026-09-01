@@ -8,14 +8,14 @@ grid showed in Serato, slightly late. Pads 1-5 did not.
 Serato only honours the first five M4A cues when they are also in the
 `markers` atom, in the MP4 row layout: raw big-endian milliseconds,
 `0xFFFFFFFF` unset, raw RGB. ID3 Markers_ (serato32 times, `0x7f` unset,
-22-byte rows) is ignored. A leftover Serato `markers` atom that we
-overwrite with the ID3 shape still hides Markers2.
+22-byte rows) is ignored. A leftover Serato `markers` atom overwritten
+with the ID3 shape still hides Markers2.
 
 Live check 2026-08-30, `otonoke_bootleg_lufs-10.m4a`: Serato-written
 `markers` is 279 bytes. Cue 0 at 1456 ms is `00 00 05 b0` plus
-`ffffffff` unused fields and `#CC0044`. Our write was 318-byte ID3.
+`ffffffff` unused fields and `#CC0044`. The usbversal write was 318-byte ID3.
 
-We now write the MP4 row layout. `read_geob` still returns the ID3
+Sync now writes the MP4 row layout. `read_geob` still returns the ID3
 shape so skip-checks stay one codec.
 
 ## Track colour footer
@@ -29,7 +29,7 @@ An earlier write copied the 7-byte tail from the otonoke leftover
 `#00FFFF` and fills the jog cyan. That leftover colour showed up on
 `Rock That Body (Lumarii Remix)`.
 
-We now write Mixxx's 4-byte unset footer `00 FF FF FF` (276-byte
+Sync now writes Mixxx's 4-byte unset footer `00 FF FF FF` (276-byte
 payload). Markers2 always gets a `COLOR` of `00 FF FF FF` so a leftover
 Serato colour cannot hide the footer.
 

@@ -34,7 +34,7 @@ On exFAT that replace is not atomic. The destination can be truncated
 before the new bytes land. A re-sync once left every track in
 `WONSIN%%Gigs%%pocket 29aug2026` at 0 bytes.
 
-Before a swap we now:
+Before a swap the writer now:
 
 - Refuse an empty source file.
 - Refuse a rebuilt file that is empty or less than half the original size.
@@ -46,7 +46,7 @@ Before a swap we now:
   the `.tmp` before the next write.
 
 Recovery of a wiped song is still restoring the Rekordbox USB. This
-path only keeps a failed swap from destroying the file we just read.
+path only keeps a failed swap from destroying the file just read.
 
 ## Crate, database V2, neworder
 

@@ -19,15 +19,16 @@ never writes under `PIONEER/`.
 | Playlist track paths | Ordered Rekordbox content paths |
 | Content and lookup tables | Sync builds Serato records from these |
 
-Rekordbox rebuilds "CUE Analysis Playlist" on every export. We omit it.
+Rekordbox rebuilds "CUE Analysis Playlist" on every export. The adapter
+omits it.
 
-USB One Library already freezes smart playlists into track lists. We do
-not classify smart vs manual. See
+USB One Library already freezes smart playlists into track lists. The
+adapter does not classify smart vs manual. See
 [../schemas/rekordbox-schema-notes.md](../schemas/rekordbox-schema-notes.md).
 
 ## Safety
 
-| Rule | What we do |
+| Rule | Action |
 |------|------------|
 | Rekordbox files | Never write under `PIONEER/` |
 | Schema rebuild | Never `DROP` or `CREATE` wholesale |

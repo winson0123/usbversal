@@ -67,7 +67,7 @@ sync requested
 
 Writes land immediately. Recovery is restoring the Rekordbox USB.
 Nothing under `PIONEER/` is written. `location.sqlite` is updated in
-place on rows Serato already has. We never create that file or insert
+place on rows Serato already has. Usbversal never creates that file or inserts
 into it.
 
 ## Decisions

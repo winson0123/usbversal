@@ -107,8 +107,8 @@ Sourced from public format documentation, Deep Symmetry's
 `crate-digger` and the `rekordbox_pdb.ksy` Kaitai Struct spec, not
 from a real file on `/mnt/usb`. usbversal rejects this format with
 `UnsupportedDatabaseError` and requires One Library instead. A
-DeviceSQL reader for older sticks was dropped. We are not maintaining
-a second Rekordbox parser.
+DeviceSQL reader for older sticks was dropped. Usbversal does not
+maintain a second Rekordbox parser.
 
 File header: `u32 0`, `u32 page_size` (usually 4096), `u32 num_tables`,
 `u32 next_unused_page`, `u32 unknown`, `u32 sequence`, `u32 gap`. Then
