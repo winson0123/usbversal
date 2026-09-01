@@ -1,12 +1,12 @@
 # Current task
 
 **Status:** `complete`
-**Task ID:** `TASK-330`
+**Task ID:** `TASK-331`
 **Last updated:** 2026-09-01
 
 ## Objective
 
-Rewrite the README sync section in operator language and replace WONSIN with a placeholder volume name.
+Show the Serato crate layout in the README as a tree, and drop the slash-in-playlist-name note.
 
 ## Files touched
 

@@ -49,9 +49,15 @@ already on the Serato side.
 
 Progress takes the playlists you selected and writes them as Serato
 crates. Folders stay folders, nested under the stick name. A Rekordbox
-tree like `Gigs / Played` on a volume called `MYUSB` shows in Serato
-as MYUSB → Gigs → Played. A slash in a playlist name stays part of
-the title. It does not become another folder.
+library on a volume called `MYUSB` shows in Serato like this:
+
+```text
+MYUSB
+├── Gigs
+│   └── Played
+└── Genres
+    └── Techno
+```
 
 The songs themselves are the same files already on the stick. Usbversal
 matches each track by that path, then writes the Rekordbox beatgrid,
