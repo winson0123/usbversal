@@ -1,12 +1,12 @@
 # Current task
 
 **Status:** `complete`
-**Task ID:** `TASK-329`
+**Task ID:** `TASK-330`
 **Last updated:** 2026-09-01
 
 ## Objective
 
-Remove README claims that do not help an operator, starting with the unused network line.
+Rewrite the README sync section in operator language and replace WONSIN with a placeholder volume name.
 
 ## Files touched
 

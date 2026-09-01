@@ -42,35 +42,28 @@ Library.
 
 ## How a sync works
 
-1. Home finds the stick and opens the Rekordbox export read-only.
-2. If the stick has no Serato library yet, usbversal creates an empty
-   `_Serato_` folder so there is somewhere to write.
-3. Library compares each Rekordbox playlist to crates already on the
-   stick.
-4. Progress copies the selected playlists into Serato crates, writes
-   beatgrids and cues onto the audio files, and updates Serato's
-   library list where a row already exists.
-5. The mount is flushed. Unmount it yourself.
+Home finds the stick and reads the Rekordbox playlists. If Serato has
+never seen this stick, usbversal sets up an empty Serato library next
+to the songs. Library then colours each playlist by how much of it is
+already on the Serato side.
 
-A playlist becomes a crate named after the stick, then the Rekordbox
-folders: `WONSIN%%Gigs%%Played`. Serato shows that as a folder tree
-under the volume name. A slash in a playlist name stays a slash in the
-crate title. It does not become another folder.
+Progress takes the playlists you selected and writes them as Serato
+crates. Folders stay folders, nested under the stick name. A Rekordbox
+tree like `Gigs / Played` on a volume called `MYUSB` shows in Serato
+as MYUSB → Gigs → Played. A slash in a playlist name stays part of
+the title. It does not become another folder.
 
-Tracks are matched by their path on the stick. Rekordbox stores
-`/Contents/Artist/track.mp3`. Serato stores `Contents/Artist/track.mp3`.
-Same file, one leading slash stripped.
+The songs themselves are the same files already on the stick. Usbversal
+matches each track by that path, then writes the Rekordbox beatgrid,
+hot cues, and cue colours onto the file. BPM and key in Serato's
+library list update for tracks Serato already knows. The first time
+you open the stick in Serato, Serato finishes building its own list.
 
-Beatgrids and hot cues come from Rekordbox analysis next to the
-export. Those values are written into Serato's own tags on the file.
-Cue colour is the RGB Rekordbox already stored. If Serato already
-knows the track, the library-list BPM and key update to match. The
-first time Serato opens the stick, it builds the rest of that index
-from `database V2`.
-
-A later sync updates existing Serato records. It does not rebuild the
-library from scratch. If a tag write fails, the original file is put
+A later sync updates what is already there. It does not wipe the
+Serato library. If writing a file fails, the original song is put
 back. If a sync goes wrong, restore the Rekordbox USB.
+
+Unmount the stick yourself when Done appears.
 
 ## Build
 
