@@ -83,10 +83,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" \
-            --repo "${{ github.repository }}" \
-            --title "${{ github.ref_name }}" \
-            --generate-notes \
-            artifacts/usbversal-linux-x86_64 \
-            artifacts/usbversal-windows-x86_64.exe \
-            artifacts/usbversal-macos-arm64
+          if gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "${{ github.ref_name }}" \
+              --repo "${{ github.repository }}" \
+              --clobber \
+              artifacts/usbversal-linux-x86_64 \
+              artifacts/usbversal-windows-x86_64.exe \
+              artifacts/usbversal-macos-arm64
+          else
+            gh release create "${{ github.ref_name }}" \
+              --repo "${{ github.repository }}" \
+              --title "${{ github.ref_name }}" \
+              --generate-notes \
+              artifacts/usbversal-linux-x86_64 \
+              artifacts/usbversal-windows-x86_64.exe \
+              artifacts/usbversal-macos-arm64
+          fi
