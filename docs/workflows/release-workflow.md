@@ -36,7 +36,8 @@ git push origin vX.Y.Z
 
 4. The Release workflow runs `ruff` and `pytest` on Ubuntu, then
    PyInstaller on `ubuntu-latest`, `windows-latest`, and
-   `macos-latest`, then `gh release create vX.Y.Z`.
+   `macos-latest`, then creates `vX.Y.Z` (or updates its assets if it
+   already exists).
 5. The GitHub Release should have:
 
 | Artifact | Built on |
@@ -45,9 +46,8 @@ git push origin vX.Y.Z
 | `usbversal-windows-x86_64.exe` | Windows x86_64 |
 | `usbversal-macos-arm64` | macOS Apple Silicon |
 
-Do not move a tag onto a later commit. If the build fails, delete the
-GitHub Release, fix on `main`, and tag the next patch. Leave the old
-tag alone.
+Do not move a tag onto a later commit. If the build fails, fix on
+`main` and tag the next patch. Leave old tags alone.
 
 Release from `main` only.
 
