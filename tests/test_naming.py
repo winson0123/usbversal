@@ -64,9 +64,9 @@ def test_a_slash_in_the_name_uses_serato_escape() -> None:
 
 def test_slash_aliases_include_older_stand_ins() -> None:
     """A re-sync deletes leftover fullwidth and division-slash crate names."""
-    current = "WONSIN%%Afro \u241b\u241b2f Afro House"
-    fullwidth = "WONSIN%%Afro \uff0f Afro House"
-    division = "WONSIN%%Afro \u2215 Afro House"
+    current = "MY_USB%%Afro \u241b\u241b2f Afro House"
+    fullwidth = "MY_USB%%Afro \uff0f Afro House"
+    division = "MY_USB%%Afro \u2215 Afro House"
     assert crate_name_slash_aliases(current) == (current, fullwidth, division)
     assert drop_legacy_slash_names([fullwidth, division, current, "Pocket"], [current]) == [
         current,
@@ -93,17 +93,41 @@ def test_a_parent_cycle_does_not_infinite_loop() -> None:
 
 def test_volume_label_is_the_mount_folder_name(tmp_path: Path) -> None:
     """A labelled mount folder becomes the parent crate name."""
-    mount = tmp_path / "WONSIN"
+    mount = tmp_path / "MY_USB"
     mount.mkdir()
-    assert volume_label_for(mount) == "WONSIN"
+    assert volume_label_for(mount) == "MY_USB"
 
 
 def test_volume_label_falls_back_when_the_folder_has_no_name(tmp_path: Path) -> None:
-    """A path whose name is empty cannot be a crate parent."""
+    """A path whose name is empty and has no platform label becomes USB."""
     assert volume_label_for(Path("/")) == "USB"
+
+
+def test_volume_label_uses_the_windows_filesystem_label(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A bare drive letter reads the stick's Windows volume label."""
+    monkeypatch.setattr("app.storage.mounts.platform.system", lambda: "Windows")
+    monkeypatch.setattr(
+        "app.storage.mounts._windows_mount_label",
+        lambda mount: "MY_USB",
+    )
+
+    assert volume_label_for(Path("E:/")) == "MY_USB"
+
+
+def test_volume_label_uses_the_drive_letter_when_windows_label_is_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unlabeled Windows stick still gets a stable parent name."""
+    monkeypatch.setattr("app.storage.mounts.platform.system", lambda: "Windows")
+    monkeypatch.setattr(
+        "app.storage.mounts._windows_mount_label",
+        lambda mount: "E",
+    )
+
+    assert volume_label_for(Path("E:/")) == "E"
 
 
 def test_crate_name_prefixes_the_volume() -> None:
     """Every synced crate sits under the thumbdrive name."""
     playlist = Playlist(id=1, name="Contents", parent_id=None, is_folder=False)
-    assert crate_name_for(playlist, {1: playlist}, volume="WONSIN") == "WONSIN%%Contents"
+    assert crate_name_for(playlist, {1: playlist}, volume="MY_USB") == "MY_USB%%Contents"

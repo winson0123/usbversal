@@ -5,10 +5,10 @@ cannot keep a real slash. Rekordbox playlists such as `Afro / Afro House`
 must still show as a slash in Serato.
 
 Use Serato's own escape. After renaming `Dance-pop / Dancehall` in
-Serato on WONSIN, the file was:
+Serato on MY_USB, the file was:
 
 ```text
-WONSIN%%Genres%%Dance-pop ␛␛2f Dancehall.crate
+MY_USB%%Genres%%Dance-pop ␛␛2f Dancehall.crate
 ```
 
 That is U+241B (SYMBOL FOR ESCAPE) twice, then ASCII `2f` (hex for `/`).

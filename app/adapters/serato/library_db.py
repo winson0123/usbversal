@@ -16,7 +16,7 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 FILENAME = "location.sqlite"
-# Value Serato writes after it analyses a track (WONSIN 2026-08-30).
+# Value Serato writes after it analyses a track (verified on test stick).
 _ANALYZED_FLAGS = 24
 
 

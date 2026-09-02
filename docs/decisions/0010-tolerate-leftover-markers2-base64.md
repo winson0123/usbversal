@@ -5,7 +5,7 @@
 
 ## Context
 
-Syncing WONSIN died with:
+Syncing MY_USB died with:
 
 ```text
 Invalid base64-encoded string: number of data characters (69)

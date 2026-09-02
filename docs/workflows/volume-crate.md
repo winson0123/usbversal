@@ -4,20 +4,21 @@ Every synced crate sits under a real thumbdrive-named parent so Serato
 shows one folder wrapping the Rekordbox tree.
 
 ```text
-/media/crow/WONSIN  +  (parent)          ->  WONSIN.crate          (empty)
-/media/crow/WONSIN  +  Contents          ->  WONSIN%%Contents.crate
-/media/crow/WONSIN  +  Gigs / Played / … ->  WONSIN%%Gigs%%Played%%….crate
+/media/$USER/MY_USB  +  (parent)          ->  MY_USB.crate          (empty)
+/media/$USER/MY_USB  +  Contents          ->  MY_USB%%Contents.crate
+/media/$USER/MY_USB  +  Gigs / Played / … ->  MY_USB%%Gigs%%Played%%….crate
 ```
 
-`WONSIN.crate` is written empty on every sync. Children keep the `%%`
-path. `neworder.pref` lists `WONSIN` first, then every `%%` ancestor
-(`WONSIN%%Gigs`, `WONSIN%%Gigs%%Played`) even when those folder nodes
+`MY_USB.crate` is written empty on every sync. Children keep the `%%`
+path. `neworder.pref` lists `MY_USB` first, then every `%%` ancestor
+(`MY_USB%%Gigs`, `MY_USB%%Gigs%%Played`) even when those folder nodes
 have no `.crate` file, then the leaves. Serato will not show a nested
 crate whose ancestors are missing from that list.
 
-The label is the mount folder name (`WONSIN` on `/media/$USER/WONSIN` or
-`/Volumes/WONSIN`). A path with no folder name (a bare drive letter)
-becomes `USB`.
+The label is the mount folder name (`MY_USB` on `/media/$USER/MY_USB` or
+`/Volumes/MY_USB`). On Windows the filesystem volume label is read from
+the drive letter; an unlabeled stick uses the letter (`E`). When nothing
+can be resolved, the name falls back to `USB`.
 
 A re-sync writes the new names. Older crates without the prefix stay on
 the stick until removed by hand.

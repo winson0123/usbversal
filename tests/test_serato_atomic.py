@@ -1,10 +1,11 @@
 """Tests for flushed Serato metadata replaces."""
 
+import threading
 from pathlib import Path
 
 import pytest
 
-from app.adapters.serato.atomic import replace_flushed
+from app.adapters.serato.atomic import fsync_fd, replace_flushed
 from app.adapters.serato.paths import resolve_serato_library
 from app.adapters.serato.writer import write_crate
 
@@ -77,3 +78,27 @@ def test_write_crate_overwrites_a_zero_byte_leftover(tmp_path: Path) -> None:
 
     assert crate_path == leftover
     assert crate_path.stat().st_size > 0
+
+
+def test_fsync_fd_serializes_on_windows(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Concurrent Windows fsync calls must not overlap."""
+    active = {"n": 0}
+    peak = {"n": 0}
+    lock = threading.Lock()
+
+    def _fsync(fd: int) -> None:
+        with lock:
+            active["n"] += 1
+            peak["n"] = max(peak["n"], active["n"])
+            active["n"] -= 1
+
+    monkeypatch.setattr("app.adapters.serato.atomic.platform.system", lambda: "Windows")
+    monkeypatch.setattr("app.adapters.serato.atomic.os.fsync", _fsync)
+
+    threads = [threading.Thread(target=fsync_fd, args=(idx,)) for idx in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert peak["n"] == 1

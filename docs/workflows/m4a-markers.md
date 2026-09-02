@@ -1,6 +1,6 @@
 # M4A cues and beatgrid
 
-WONSIN M4As once carried `beatgrid`, `markersv2`, and `markers`. The
+MY_USB M4As once carried `beatgrid`, `markersv2`, and `markers`. The
 grid showed in Serato, slightly late. Pads 1-5 did not.
 
 ## `markers` is not ID3 Markers_

@@ -3,7 +3,33 @@
 from __future__ import annotations
 
 import os
+import platform
+import threading
 from pathlib import Path
+
+_FSYNC_LOCK = threading.Lock()
+
+
+def fsync_fd(fd: int) -> None:
+    """
+    Flush an open file descriptor to the device.
+
+    On Windows, ``os.fsync`` can raise ``[Errno 9] Bad file descriptor``
+    when several threads flush USB files at once (crate writes beside
+    analysis tag writes). A process lock keeps those calls serial.
+    Callers must hold an open handle opened for writing or read/write.
+
+    Args:
+        fd: Descriptor returned by ``open``, ``Path.open``, or ``os.open``.
+
+    Raises:
+        OSError: The flush failed.
+    """
+    if platform.system() == "Windows":
+        with _FSYNC_LOCK:
+            os.fsync(fd)
+        return
+    os.fsync(fd)
 
 
 def replace_flushed(target: Path, data: bytes) -> None:
@@ -31,7 +57,7 @@ def replace_flushed(target: Path, data: bytes) -> None:
         with temporary.open("wb") as handle:
             handle.write(data)
             handle.flush()
-            os.fsync(handle.fileno())
+            fsync_fd(handle.fileno())
         if temporary.stat().st_size != len(data):
             raise OSError("temporary write was truncated")
         temporary.replace(target)
@@ -57,14 +83,20 @@ def fsync_replaced(path: Path) -> None:
     Fsync ``path`` and its parent after a replace.
 
     On exFAT the swap is not atomic. The new file and the directory
-    entry must both reach the device.
+    entry must both reach the device. On Windows the parent directory
+    is skipped; ``flush_mount`` handles the volume.
 
     Args:
         path: File that was just replaced.
     """
+    if platform.system() == "Windows":
+        with path.open("r+b") as handle:
+            handle.flush()
+            fsync_fd(handle.fileno())
+        return
     fd = os.open(path, os.O_RDONLY)
     try:
-        os.fsync(fd)
+        fsync_fd(fd)
     finally:
         os.close(fd)
     try:
@@ -72,7 +104,7 @@ def fsync_replaced(path: Path) -> None:
     except OSError:
         return
     try:
-        os.fsync(parent)
+        fsync_fd(parent)
     except OSError:
         return
     finally:
@@ -90,4 +122,4 @@ def _write_flushed(path: Path, data: bytes) -> None:
     with path.open("wb") as handle:
         handle.write(data)
         handle.flush()
-        os.fsync(handle.fileno())
+        fsync_fd(handle.fileno())

@@ -143,7 +143,7 @@ def test_commit_restores_the_span_when_in_place_write_fails(
             raise OSError("disk")
         real_fsync(fd)
 
-    monkeypatch.setattr("app.adapters.serato.tags.os.fsync", boom)
+    monkeypatch.setattr("app.adapters.serato.atomic.os.fsync", boom)
 
     with pytest.raises(TagFormatError, match="in-place"):
         _commit_audio_bytes(target, b"y" * 100, original)
@@ -337,7 +337,7 @@ def test_commit_restores_wav_when_tail_rewrite_fails(
             raise OSError("disk")
         real_fsync(fd)
 
-    monkeypatch.setattr("app.adapters.serato.tags.os.fsync", boom)
+    monkeypatch.setattr("app.adapters.serato.atomic.os.fsync", boom)
 
     with pytest.raises(TagFormatError, match="WAV append"):
         _commit_audio_bytes(target, new_data, original)
@@ -366,7 +366,7 @@ def test_commit_restores_wav_when_append_fails(
             raise OSError("disk")
         real_fsync(fd)
 
-    monkeypatch.setattr("app.adapters.serato.tags.os.fsync", boom)
+    monkeypatch.setattr("app.adapters.serato.atomic.os.fsync", boom)
 
     with pytest.raises(TagFormatError, match="WAV append"):
         _commit_audio_bytes(target, bytes(new_data), original)

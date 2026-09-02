@@ -19,6 +19,71 @@ _BLKFLSBUF = 0x1261
 MOUNT_ENV_VAR = "USBVERSAL_MOUNT"
 
 
+def mount_label_name(mount: Path) -> str:
+    """
+    Return the thumbdrive display name before Serato sanitization.
+
+    Linux and macOS use the mount folder name (``/media/$USER/MY_USB``,
+    ``/Volumes/MY_USB``). Windows reads the volume label from the
+    filesystem, then falls back to the drive letter when the stick is
+    unlabeled.
+
+    Args:
+        mount: Mount root of the stick.
+
+    Returns:
+        Label string, or empty when nothing could be resolved.
+    """
+    resolved = mount.resolve()
+    if platform.system() == "Windows":
+        label = _windows_mount_label(resolved)
+        if label:
+            return label
+    folder = resolved.name.strip()
+    if folder:
+        return folder
+    return ""
+
+
+def _windows_mount_label(mount: Path) -> str:
+    """
+    Read a Windows drive's volume label, or its letter when unlabeled.
+
+    Args:
+        mount: Mount root such as ``E:\\``.
+
+    Returns:
+        Volume label, drive letter, or empty string when unknown.
+    """
+    drive = mount.resolve().drive
+    if not drive:
+        return ""
+    import ctypes
+    from ctypes import wintypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_errno=True)
+    volume_name = ctypes.create_unicode_buffer(261)
+    filesystem = ctypes.create_unicode_buffer(261)
+    serial = wintypes.DWORD()
+    max_component = wintypes.DWORD()
+    flags = wintypes.DWORD()
+    root = f"{drive}\\"
+    if kernel32.GetVolumeInformationW(
+        root,
+        volume_name,
+        len(volume_name),
+        ctypes.byref(serial),
+        ctypes.byref(max_component),
+        ctypes.byref(flags),
+        filesystem,
+        len(filesystem),
+    ):
+        label = volume_name.value.strip()
+        if label:
+            return label
+    return drive.rstrip(":").strip()
+
+
 def resolve_mount_path(mount: str | Path) -> Path:
     """
     Resolve and validate a user-supplied mount path.

@@ -98,7 +98,30 @@ def test_replace_flushed_fsyncs_the_parent_directory(tmp_path: Path, monkeypatch
         fsynced.append(fd)
         real_fsync(fd)
 
+    monkeypatch.setattr("app.storage.mounts.platform.system", lambda: "Linux")
+    monkeypatch.setattr("app.adapters.serato.atomic.platform.system", lambda: "Linux")
     monkeypatch.setattr(os, "fsync", _fsync)
     replace_flushed(target, b"payload")
     assert target.read_bytes() == b"payload"
     assert len(fsynced) >= 2
+
+
+def test_fsync_replaced_on_windows_skips_the_parent_directory(tmp_path: Path, monkeypatch) -> None:
+    """Windows flushes the live file only; volume flush covers the directory."""
+    target = tmp_path / "child.crate"
+    target.write_bytes(b"crate")
+    opened: list[str] = []
+
+    def _open(path, flags, *args):
+        opened.append(str(path))
+        return 99
+
+    monkeypatch.setattr("app.adapters.serato.atomic.platform.system", lambda: "Windows")
+    monkeypatch.setattr(os, "open", _open)
+    monkeypatch.setattr(os, "fsync", lambda fd: None)
+    monkeypatch.setattr(os, "close", lambda fd: None)
+
+    from app.adapters.serato.atomic import fsync_replaced
+
+    fsync_replaced(target)
+    assert opened == []

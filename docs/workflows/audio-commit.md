@@ -32,7 +32,7 @@ replaces. A RIFF file that is not WAVE is still rejected.
 
 On exFAT that replace is not atomic. The destination can be truncated
 before the new bytes land. A re-sync once left every track in
-`WONSIN%%Gigs%%pocket 29aug2026` at 0 bytes.
+`MY_USB%%Gigs%%pocket 29aug2026` at 0 bytes.
 
 Before a swap the writer now:
 

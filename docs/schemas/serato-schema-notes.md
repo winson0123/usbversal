@@ -116,13 +116,13 @@ joined with `%%`. After syncing Rekordbox `Gigs → Played → safety day`,
 the crate sat under Played under Gigs. Empty parent crate files are
 not required. `Gigs%%Played%%safety day.crate` alone is enough. The
 parent names (`Gigs`, `Gigs%%Played`) must still appear in
-`neworder.pref`. A live WONSIN `neworder.pref` listed those folder
+`neworder.pref`. A live MY_USB `neworder.pref` listed those folder
 stems with no matching `.crate`. After a fresh export the writer only listed
 the volume and the leaves, so Serato had nothing to hang
-`WONSIN%%Gigs%%pocket …` on.
+`MY_USB%%Gigs%%pocket …` on.
 
 The thumbdrive label is the outermost parent:
-`WONSIN%%Gigs%%Played%%safety day.crate`. An empty `WONSIN.crate` is
+`MY_USB%%Gigs%%Played%%safety day.crate`. An empty `MY_USB.crate` is
 also written so Serato has a real folder node. See
 [volume-crate.md](../workflows/volume-crate.md).
 
@@ -184,7 +184,7 @@ Serato authors this file on first open by importing `database V2` and
 reading tags. Bootstrap creates `_Serato_/`, `Subcrates/`, an empty
 `database V2`, and `neworder.pref`. It does not create `Library/`.
 
-WONSIN dump 2026-08-30 (360 KB, Serato-authored):
+MY_USB dump 2026-08-30 (360 KB, Serato-authored):
 
 | Piece | What it is |
 |-------|------------|

@@ -12,7 +12,7 @@ from typing import BinaryIO
 
 import structlog
 
-from app.adapters.serato.atomic import fsync_replaced
+from app.adapters.serato.atomic import fsync_fd, fsync_replaced
 from app.adapters.serato.markers2 import _decode_serato_b64
 
 logger = structlog.get_logger(__name__)
@@ -1365,7 +1365,7 @@ def _write_flushed(path: Path, data: bytes) -> None:
     with path.open("wb") as handle:
         handle.write(data)
         handle.flush()
-        os.fsync(handle.fileno())
+        fsync_fd(handle.fileno())
 
 
 def _restore_audio_bytes(target: Path, original: bytes) -> None:
@@ -1441,7 +1441,7 @@ def _restore_span(target: Path, original: bytes, start: int, end: int) -> None:
             handle.seek(start)
             handle.write(original[start:end])
             handle.flush()
-            os.fsync(handle.fileno())
+            fsync_fd(handle.fileno())
     except OSError:
         _restore_audio_bytes(target, original)
 
@@ -1474,7 +1474,7 @@ def _patch_audio_bytes(target: Path, new_data: bytes, original: bytes) -> None:
             handle.seek(start)
             handle.write(new_data[start:end])
             handle.flush()
-            os.fsync(handle.fileno())
+            fsync_fd(handle.fileno())
     except OSError as exc:
         try:
             _restore_span(target, original, start, end)
@@ -1559,7 +1559,7 @@ def _restore_wav_append(target: Path, original: bytes, tail_start: int) -> None:
                 handle.write(original[tail_start:])
             handle.truncate(len(original))
             handle.flush()
-            os.fsync(handle.fileno())
+            fsync_fd(handle.fileno())
     except OSError:
         _restore_audio_bytes(target, original)
 
@@ -1595,7 +1595,7 @@ def _append_wav_chunk(target: Path, new_data: bytes, original: bytes) -> None:
             handle.write(new_data[tail_start:])
             handle.truncate(len(new_data))
             handle.flush()
-            os.fsync(handle.fileno())
+            fsync_fd(handle.fileno())
     except OSError as exc:
         try:
             _restore_wav_append(target, original, tail_start)

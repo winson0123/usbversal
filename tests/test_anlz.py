@@ -56,7 +56,7 @@ def _cue_with_comment(
         comment: Cue name, such as ``1.1Bars``.
 
     Returns:
-        One PCP2 entry matching WONSIN 88-byte named cues.
+        One PCP2 entry matching MY_USB 88-byte named cues.
     """
     comment_bytes = comment.encode("utf-16-be") + b"\x00\x00"
     body = bytearray(72 + len(comment_bytes))

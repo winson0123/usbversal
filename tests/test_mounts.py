@@ -13,6 +13,7 @@ from app.storage.mounts import (
     WindowsMountScanner,
     _CompositeScanner,
     get_mount_scanner,
+    mount_label_name,
 )
 
 
@@ -128,3 +129,22 @@ def test_env_mount_scanner_uses_a_custom_variable_name(tmp_path: Path, monkeypat
 
     assert len(mounts) == 1
     assert mounts[0].path == tmp_path.resolve()
+
+
+def test_mount_label_name_prefers_the_folder_name(tmp_path: Path) -> None:
+    """Linux and macOS mounts already expose the label as the folder name."""
+    mount = tmp_path / "MY_USB"
+    mount.mkdir()
+
+    assert mount_label_name(mount) == "MY_USB"
+
+
+def test_mount_label_name_reads_windows_volume_label(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Windows drive letters ask the filesystem for the volume label."""
+    monkeypatch.setattr("app.storage.mounts.platform.system", lambda: "Windows")
+    monkeypatch.setattr(
+        "app.storage.mounts._windows_mount_label",
+        lambda mount: "MY_USB",
+    )
+
+    assert mount_label_name(Path("E:/")) == "MY_USB"

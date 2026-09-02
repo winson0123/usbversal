@@ -6,9 +6,10 @@ import re
 from pathlib import Path
 
 from app.core.domain import Playlist
+from app.storage.mounts import mount_label_name
 
 # Windows forbids these in a filename. "/" is special-cased: a real slash
-# cannot live in the .crate name. Serato's own rename on WONSIN wrote
+# cannot live in the .crate name. Serato's own slash rename wrote
 # U+241B U+241B "2f" (hex for 0x2F) and then displayed a normal slash.
 # Earlier stand-ins (fullwidth solidus, division slash) stay as aliases
 # so a re-sync can delete those leftover files.
@@ -22,9 +23,10 @@ def volume_label_for(mount: Path) -> str:
     """
     Return the Serato parent-crate name for a USB mount.
 
-    Uses the mount folder name, which is the volume label on Linux
-    (``/media/$USER/WONSIN``) and macOS (``/Volumes/WONSIN``). A path with
-    no folder name (a bare drive letter) becomes ``USB``.
+    Uses the mount folder name on Linux (``/media/$USER/MY_USB``) and
+    macOS (``/Volumes/MY_USB``). On Windows the filesystem volume label
+    is read from the drive letter; an unlabeled stick falls back to the
+    letter itself (``E``). When nothing can be resolved, ``USB`` is used.
 
     Args:
         mount: Mount root of the stick.
@@ -32,7 +34,7 @@ def volume_label_for(mount: Path) -> str:
     Returns:
         Sanitized crate-name segment for the volume parent.
     """
-    name = mount.resolve().name.strip()
+    name = mount_label_name(mount)
     return sanitize_crate_name(name) if name else "USB"
 
 
@@ -132,8 +134,8 @@ def crate_name_for(
     ``.crate`` files.
 
     When ``volume`` is set, it is the outermost parent (the thumbdrive
-    label). ``Contents`` on WONSIN becomes ``WONSIN%%Contents``. Sync also
-    writes an empty ``WONSIN.crate`` so Serato has a real folder node.
+    label). ``Contents`` on MY_USB becomes ``MY_USB%%Contents``. Sync also
+    writes an empty ``MY_USB.crate`` so Serato has a real folder node.
 
     Sync state and the crate writer must agree on this mapping, so both call
     here rather than deriving names independently.
