@@ -1,36 +1,43 @@
 # Release
 
-A `v*` tag on `main` is the release. GitHub Actions builds a native
+A `v*` tag on `main` is the release. The
+[Release](../../.github/workflows/release.yml) workflow builds a native
 PyInstaller binary on Windows, macOS, and Linux and attaches them to a
 GitHub Release. PyInstaller cannot cross-compile, so each artifact is
 built on that OS.
 
-`v1.0.0` is tagged on `main` locally. There is no `origin` yet, so
-GitHub Actions has not built the three binaries. Add a remote, then
-push `main` and the tag.
+Every push and pull request to `main` runs
+[CI](../../.github/workflows/ci.yml) (`ruff` and `pytest`), including
+the version-parity test.
+
+## Version files
+
+These two must stay identical. `tests/test_version.py` fails the build
+if they drift.
+
+| File | Field |
+|------|-------|
+| `pyproject.toml` | `project.version` |
+| `app/__init__.py` | `__version__` |
+
+## Cut a version
+
+`main` must be clean and at the commit you want to ship.
+
+1. Set both version files to the same `X.Y.Z`.
+2. Commit on `main`. `[TASK-…] Release X.Y.Z.`
+3. Tag and push:
 
 ```bash
-git remote add origin git@github.com:<org>/usbversal.git
-git push -u origin main
-git push origin v1.0.0
-```
-
-## Cut v1.0.0
-
-Already done on this machine. The tag points at the 1.0.0 version
-commit. Do not move it.
-
-To publish after origin exists:
-
-```bash
+git tag -a vX.Y.Z -m "Usbversal X.Y.Z"
 git push origin main
-git push origin v1.0.0
+git push origin vX.Y.Z
 ```
 
-The [Release](../../.github/workflows/release.yml) workflow then runs
-`ruff` and `pytest` on Ubuntu, PyInstaller on `ubuntu-latest`,
-`windows-latest`, and `macos-latest`, then `gh release create v1.0.0`.
-The GitHub Release should have:
+4. The Release workflow runs `ruff` and `pytest` on Ubuntu, then
+   PyInstaller on `ubuntu-latest`, `windows-latest`, and
+   `macos-latest`, then `gh release create vX.Y.Z`.
+5. The GitHub Release should have:
 
 | Artifact | Built on |
 |----------|----------|
@@ -39,8 +46,10 @@ The GitHub Release should have:
 | `usbversal-macos-arm64` | macOS Apple Silicon |
 
 Do not move a tag onto a later commit. If the build fails, delete the
-GitHub Release, fix on `main`, and tag `v1.0.1`. Leave the old tag
-alone.
+GitHub Release, fix on `main`, and tag the next patch. Leave the old
+tag alone.
+
+Release from `main` only.
 
 ## Local build
 
@@ -54,11 +63,6 @@ Windows. Launch it. The TUI should open.
 
 Opt-in packaging test:
 `USBVERSAL_PACKAGING_BUILD=1 pytest tests/test_packaging_smoke.py`.
-
-## Later versions
-
-Bump `pyproject.toml`, commit, tag `vX.Y.Z`, push the tag. Release
-from `main` only.
 
 See [0003-use-pyinstaller.md](../decisions/0003-use-pyinstaller.md) and
 [verification-workflow.md](verification-workflow.md).
