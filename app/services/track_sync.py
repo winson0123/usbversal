@@ -2,18 +2,31 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+
+import structlog
 
 from app.adapters.rekordbox.anlz import AnlzError, extended_path, read_beats, read_hot_cues
 from app.adapters.serato.tags import TagFormatError, read_geob
 from app.core.domain import SyncState
 from app.core.track_paths import normalize_track_path
+from app.services.sync_analysis import analysis_worker_count
 from app.services.track_records import RekordboxContent, RekordboxDatabase, serato_path
+
+logger = structlog.get_logger(__name__)
 
 
 def contents_by_path(database: RekordboxDatabase) -> dict[str, RekordboxContent]:
     """
-    Map normalized and drive-relative paths to Rekordbox content rows.
+    Map track path forms to Rekordbox content rows.
+
+    Keys include the raw path, the normalized key, and the Serato
+    drive-relative form so callers can look up either shape. Real USB
+    exports sometimes hold NULL in a column rbox/Diesel marks non-null;
+    that failure returns an empty map so preview and sync can continue
+    without metadata.
 
     ``MagicMock`` adapters do not stub ``get_contents``; treating a mock
     as an iterable would hang. Only a real list or tuple is walked.
@@ -22,25 +35,53 @@ def contents_by_path(database: RekordboxDatabase) -> dict[str, RekordboxContent]
         database: Rekordbox database handle, or a test double.
 
     Returns:
-        Path string to content row. Empty when the adapter has no contents.
+        Path string to content row. Empty when the adapter has no
+        contents or the read fails.
     """
     fetch = getattr(database, "get_contents", None)
     if not callable(fetch):
         return {}
     try:
         rows = fetch()
-    except TypeError:
+    except Exception as exc:
+        logger.warning("rekordbox_contents_failed", error=str(exc))
         return {}
     if not isinstance(rows, (list, tuple)):
         return {}
     by_path: dict[str, RekordboxContent] = {}
-    for content in rows:
-        raw = getattr(content, "path", None)
-        if not raw:
-            continue
-        by_path[normalize_track_path(str(raw))] = content
-        by_path[serato_path(str(raw))] = content
+    try:
+        for content in rows:
+            raw = getattr(content, "path", None)
+            if not raw:
+                continue
+            path = str(raw)
+            by_path[path] = content
+            by_path[normalize_track_path(path)] = content
+            by_path[serato_path(path)] = content
+    except Exception as exc:
+        logger.warning("rekordbox_contents_failed", error=str(exc))
+        return {}
     return by_path
+
+
+def content_for_path(
+    contents: dict[str, RekordboxContent], raw: str
+) -> RekordboxContent | None:
+    """
+    Resolve a content row for a Rekordbox or Serato-shaped path.
+
+    Args:
+        contents: Map from ``contents_by_path``.
+        raw: Track path as stored by Rekordbox or Serato.
+
+    Returns:
+        Matching content row, or None when absent.
+    """
+    return (
+        contents.get(raw)
+        or contents.get(normalize_track_path(raw))
+        or contents.get(serato_path(raw))
+    )
 
 
 def analysis_dat_path(mount: Path, content: RekordboxContent | None) -> Path | None:
@@ -93,6 +134,48 @@ def analysis_is_ported(
     ported = _analysis_is_ported(dat_path, audio_path)
     cache[cache_key] = ported
     return ported
+
+
+def warm_analysis_ported_cache(
+    mount: Path,
+    tracks: Sequence[tuple[str, RekordboxContent | None]],
+    cache: dict[str, bool],
+) -> None:
+    """
+    Fill ``cache`` for unique tracks by reading ANLZ and tags in parallel.
+
+    Safe to call from the dedicated rekordbox thread: workers only open
+    filesystem paths, never ``PyOneLibrary``. Reuses the sync analysis
+    worker cap so a USB stick is not flooded.
+
+    Args:
+        mount: Mount root.
+        tracks: ``(raw path, content row)`` pairs to check. Duplicates
+            share one cache entry.
+        cache: Shared analysis-ported cache to fill in place.
+    """
+    pending: dict[str, tuple[Path | None, Path]] = {}
+    for raw, content in tracks:
+        dat_path = analysis_dat_path(mount, content)
+        audio_path = mount / serato_path(raw)
+        cache_key = f"{dat_path!s}|{audio_path}"
+        if cache_key in cache or cache_key in pending:
+            continue
+        pending[cache_key] = (dat_path, audio_path)
+    if not pending:
+        return
+    workers = analysis_worker_count(len(pending))
+    if workers == 1 or len(pending) == 1:
+        for cache_key, (dat_path, audio_path) in pending.items():
+            cache[cache_key] = _analysis_is_ported(dat_path, audio_path)
+        return
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {
+            pool.submit(_analysis_is_ported, dat_path, audio_path): cache_key
+            for cache_key, (dat_path, audio_path) in pending.items()
+        }
+        for future in as_completed(futures):
+            cache[futures[future]] = future.result()
 
 
 def track_sync_state(

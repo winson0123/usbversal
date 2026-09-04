@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
+import structlog
+
 TrackField = str | int | bool
 TrackRecord = list[tuple[str, TrackField]]
+
+logger = structlog.get_logger(__name__)
 
 # Serato's own names for container formats; other extensions are used verbatim.
 _TYPE_BY_SUFFIX = {
@@ -90,22 +94,53 @@ def load_lookups(database: RekordboxDatabase) -> RekordboxLookups:
     """
     Load Rekordbox id-to-name tables once for reuse across tracks.
 
+    Each table is loaded independently. Real USB exports sometimes hold
+    NULL in a column rbox/Diesel marks non-null; failing one table must
+    not wipe the others or abort the TUI/sync path.
+
     Args:
         database: Open rbox OneLibrary handle.
 
     Returns:
-        Populated RekordboxLookups.
+        Populated RekordboxLookups. A table that cannot be read is empty.
     """
 
     def table(rows: Iterable[RekordboxNamedRow]) -> dict[int, str]:
-        """Map id to name, skipping rows with no name."""
+        """
+        Map id to name, skipping rows with no name.
+
+        Args:
+            rows: Named lookup rows from the database.
+
+        Returns:
+            Id-to-name map for rows that have a name.
+        """
         return {row.id: row.name for row in rows if getattr(row, "name", None)}
 
+    def safe_table(
+        label: str, loader: Callable[[], Iterable[RekordboxNamedRow]]
+    ) -> dict[int, str]:
+        """
+        Load one lookup table, or return empty on adapter/database failure.
+
+        Args:
+            label: Table name for the warning log.
+            loader: Callable that yields named rows (e.g. ``get_albums``).
+
+        Returns:
+            Id-to-name map, or ``{}`` when the read fails.
+        """
+        try:
+            return table(loader())
+        except Exception as exc:
+            logger.warning("rekordbox_lookup_failed", table=label, error=str(exc))
+            return {}
+
     return RekordboxLookups(
-        artists=table(database.get_artists()),
-        albums=table(database.get_albums()),
-        genres=table(database.get_genres()),
-        keys=table(database.get_keys()),
+        artists=safe_table("artists", database.get_artists),
+        albums=safe_table("albums", database.get_albums),
+        genres=safe_table("genres", database.get_genres),
+        keys=safe_table("keys", database.get_keys),
     )
 
 

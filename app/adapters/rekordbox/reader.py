@@ -5,10 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 import structlog
-from rbox import OneLibrary
+from rbox import OneLibrary, OneLibraryError
 from rbox.enums import PlaylistType
 
 from app.adapters.base import (
+    AdapterError,
     DatabaseNotFoundError,
     RekordboxReadAdapter,
     UnsupportedDatabaseError,
@@ -69,9 +70,18 @@ class RboxOneLibraryAdapter(RekordboxReadAdapter):
 
         Returns:
             Playlist domain objects mapped from rbox rows.
+
+        Raises:
+            AdapterError: rbox could not read playlist rows (e.g. Diesel
+                null on a non-null column).
         """
         result: list[Playlist] = []
-        for row in self._db.get_playlists():
+        try:
+            rows = self._db.get_playlists()
+        except OneLibraryError as exc:
+            logger.warning("rekordbox_playlists_failed", error=str(exc))
+            raise AdapterError(f"Could not read Rekordbox playlists: {exc}") from exc
+        for row in rows:
             is_folder = row.attribute == PlaylistType.Folder
             track_count = None
             if not is_folder and hasattr(row, "items"):
@@ -111,13 +121,32 @@ class RboxOneLibraryAdapter(RekordboxReadAdapter):
 
         Raises:
             ValueError: If playlist_id does not exist or is a folder.
+            AdapterError: rbox could not read playlist membership rows.
         """
-        playlist = self._db.get_playlist_by_id(playlist_id)
+        try:
+            playlist = self._db.get_playlist_by_id(playlist_id)
+        except OneLibraryError as exc:
+            logger.warning(
+                "rekordbox_playlist_lookup_failed",
+                playlist_id=playlist_id,
+                error=str(exc),
+            )
+            raise AdapterError(f"Could not read Rekordbox playlist {playlist_id}: {exc}") from exc
         if playlist is None:
             raise ValueError(f"Playlist not found: {playlist_id}")
         if playlist.attribute == PlaylistType.Folder:
             raise ValueError(f"Playlist {playlist_id} is a folder, not a track list")
-        contents = self._db.get_playlist_contents(playlist_id)
+        try:
+            contents = self._db.get_playlist_contents(playlist_id)
+        except OneLibraryError as exc:
+            logger.warning(
+                "rekordbox_playlist_paths_failed",
+                playlist_id=playlist_id,
+                error=str(exc),
+            )
+            raise AdapterError(
+                f"Could not read tracks for Rekordbox playlist {playlist_id}: {exc}"
+            ) from exc
         paths: list[str] = []
         for row in contents:
             path = getattr(row, "path", None)

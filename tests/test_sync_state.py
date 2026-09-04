@@ -159,6 +159,37 @@ def test_crate_only_pass_skips_analysis_counts(tmp_path: Path) -> None:
     assert (state.in_crate, state.complete, state.total) == (2, 0, 2)
 
 
+def test_warm_analysis_cache_dedupes_shared_tracks(tmp_path: Path, monkeypatch) -> None:
+    """Shared tracks across playlists are probed once, on a worker pool."""
+    from unittest.mock import patch
+
+    from app.services.track_sync import warm_analysis_ported_cache
+
+    mount = tmp_path
+    calls: list[tuple[object, object]] = []
+
+    def counting(dat_path, audio_path):
+        calls.append((dat_path, audio_path))
+        return True
+
+    monkeypatch.setenv("USBVERSAL_SYNC_WORKERS", "4")
+    with patch("app.services.track_sync._analysis_is_ported", counting):
+        cache: dict[str, bool] = {}
+        warm_analysis_ported_cache(
+            mount,
+            [
+                ("/Contents/a.mp3", None),
+                ("/Contents/a.mp3", None),
+                ("/Contents/b.mp3", None),
+            ],
+            cache,
+        )
+
+    assert len(calls) == 2
+    assert len(cache) == 2
+    assert all(cache.values())
+
+
 def test_fully_synced_playlist_is_green(tmp_path: Path) -> None:
     """Every track present in the crate reports as synced."""
     mount = _stick(
@@ -525,3 +556,32 @@ def test_summary_counts_states(tmp_path: Path) -> None:
 
     assert [state.state for state in states] == [SyncState.SYNCED, SyncState.NOT_SYNCED]
     assert len(states) == 2
+
+
+def test_tree_survives_broken_playlist_membership(tmp_path: Path) -> None:
+    """A Diesel failure reading one playlist's tracks must not blank the tree."""
+    mount = _stick(
+        tmp_path,
+        crates={_stem(tmp_path, "Techno"): ["Contents/a.mp3"]},
+        indexed=["Contents/a.mp3"],
+    )
+    techno = Playlist(id=1, name="Techno", parent_id=None, is_folder=False)
+    trance = Playlist(id=2, name="Trance", parent_id=None, is_folder=False)
+    adapter = _adapter([techno, trance], {1: ["/Contents/a.mp3"], 2: ["/Contents/b.mp3"]})
+
+    def paths(pid: int) -> list[str]:
+        if pid == 2:
+            raise RuntimeError("Diesel error: Unexpected null for non-null column")
+        return ["/Contents/a.mp3"]
+
+    adapter.get_playlist_track_paths.side_effect = paths
+    library = make_library(mount, adapter)
+
+    states = playlist_tree_sync_states(library)
+
+    assert [s.node.playlist.name for s in states] == ["Techno", "Trance"]
+    assert states[0].state is SyncState.SYNCED
+    # Failed membership reads as an empty playlist (total=0), which the
+    # tree treats as vacuously synced rather than aborting the pass.
+    assert states[1].total == 0
+    assert states[1].leaf_ids == (2,)

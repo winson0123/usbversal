@@ -2,10 +2,12 @@
 
 from datetime import UTC, datetime
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 from app.services.track_records import (
     RekordboxLookups,
     build_track_record,
+    load_lookups,
     serato_path,
 )
 
@@ -132,3 +134,22 @@ def test_path_is_always_present_even_without_metadata() -> None:
 
     assert fields["pfil"] == "Contents/Artist/track.mp3"
     assert fields["ttyp"] == "mp3"
+
+
+def test_load_lookups_keeps_tables_that_succeed_when_one_fails() -> None:
+    """A Diesel/rbox failure on one lookup table must not empty the rest."""
+    database = MagicMock()
+    database.get_artists.return_value = [SimpleNamespace(id=1, name="Alice")]
+    database.get_albums.side_effect = RuntimeError(
+        "Diesel error: Unexpected null for non-null column"
+    )
+    database.get_genres.return_value = [SimpleNamespace(id=3, name="Techno")]
+    database.get_keys.return_value = [SimpleNamespace(id=4, name="8A")]
+
+    lookups = load_lookups(database)
+
+    assert lookups.artists == {1: "Alice"}
+    assert lookups.albums == {}
+    assert lookups.genres == {3: "Techno"}
+    assert lookups.keys == {4: "8A"}
+

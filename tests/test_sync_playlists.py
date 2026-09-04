@@ -203,6 +203,23 @@ def test_sync_indexes_missing_tracks_and_writes_a_crate(tmp_path: Path) -> None:
     ]
 
 
+def test_sync_writes_crates_when_contents_table_is_unreadable(tmp_path: Path) -> None:
+    """Content Diesel nulls skip index/analysis but still write playlist crates."""
+    mount = _stick(tmp_path, indexed=["Contents/a.mp3", "Contents/b.mp3"])
+    playlist = Playlist(id=1, name="test", parent_id=None, is_folder=False)
+    library = _library(mount, [playlist], {1: TRACKS}, [])
+    library.rekordbox.database.get_contents.side_effect = RuntimeError(
+        "Diesel error: Unexpected null for non-null column"
+    )
+
+    report = sync_playlists(library, [1])
+
+    assert report.records_added == 0
+    assert report.crates_written == 1
+    crate = mount / "_Serato_" / "Subcrates" / f"{volume_label_for(mount)}%%test.crate"
+    assert read_crate_track_paths(crate) == ["Contents/a.mp3", "Contents/b.mp3"]
+
+
 def test_already_indexed_tracks_are_not_duplicated(tmp_path: Path) -> None:
     """Tracks Serato already knows are not added a second time."""
     mount = _stick(tmp_path, indexed=["Contents/a.mp3"])

@@ -392,18 +392,24 @@ class LibraryScreen(Screen):
 
     async def _refresh(self) -> None:
         """
-        Fill the tree from crate membership, then apply analysis colours.
+        Rebuild the tree from disk after this screen becomes active again.
 
-        Crate-only is cheap enough to show playlists immediately. The
-        second pass opens ANLZ and audio tags and is what used to block
-        the Home scan bar.
+        First open from Home already ships full analysis states, so this
+        path is the post-sync resume. Keep the existing colours on screen
+        and replace them only when the full ANLZ/tag pass finishes — a
+        crate-only intermediate paint would flash every playlist as
+        ``0/N`` / not synced.
 
         Returns:
             None.
         """
         try:
-            await self._rebuild(check_analysis=False, busy="Checking analysis…")
-            await self._rebuild(check_analysis=True, busy=None)
+            if self._all_ids:
+                self._set_status("Checking analysis…")
+                await self._rebuild(check_analysis=True, busy=None)
+            else:
+                await self._rebuild(check_analysis=False, busy="Checking analysis…")
+                await self._rebuild(check_analysis=True, busy=None)
         finally:
             self._refreshing = False
 
@@ -422,9 +428,16 @@ class LibraryScreen(Screen):
         # playlist_tree_sync_states reads through library.rekordbox, which
         # must stay on the app's one dedicated thread. See
         # UsbversalApp.run_rekordbox.
-        states = await self.app.run_rekordbox(
-            playlist_tree_sync_states, self.library, check_analysis=check_analysis
-        )
+        try:
+            states = await self.app.run_rekordbox(
+                playlist_tree_sync_states, self.library, check_analysis=check_analysis
+            )
+        except Exception:
+            # Keep the existing tree. A Diesel/rbox failure must not tear
+            # down the screen or drop PyOneLibrary on the UI thread.
+            if busy is None:
+                self._update_status()
+            return
         self._apply_states(states, busy=busy)
 
     def _apply_states(self, states: tuple[PlaylistTreeSyncState, ...], *, busy: str | None) -> None:
@@ -638,9 +651,12 @@ class LibraryScreen(Screen):
                 preview_playlist_tracks, self.library, playlist_id
             )
         except Exception:
+            # Keep the pane alive. Re-raising here crashes the worker and
+            # can drop PyOneLibrary on the UI thread during teardown.
             if token == self._tracks_load_id:
                 self._set_tracks_loading(False)
-            raise
+                self._clear_table()
+            return
         if token != self._tracks_load_id:
             return
         self._set_tracks_loading(False)

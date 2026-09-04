@@ -14,9 +14,13 @@ from app.services.track_records import (
     RekordboxContent,
     RekordboxLookups,
     load_lookups,
-    serato_path,
 )
-from app.services.track_sync import contents_by_path, track_sync_state
+from app.services.track_sync import (
+    content_for_path,
+    contents_by_path,
+    track_sync_state,
+    warm_analysis_ported_cache,
+)
 
 
 @dataclass(frozen=True)
@@ -67,10 +71,19 @@ def preview_playlist_tracks(library: UsbLibrary, playlist_id: int) -> list[Track
     contents = contents_by_path(library.rekordbox.database)
     lookups = _safe_lookups(library)
     cache: dict[str, bool] = {}
+    try:
+        raw_paths = list(library.rekordbox.get_playlist_track_paths(playlist_id))
+    except Exception:
+        return []
+    warm_analysis_ported_cache(
+        library.mount,
+        [(raw, content_for_path(contents, raw)) for raw in raw_paths],
+        cache,
+    )
     rows: list[TrackPreview] = []
-    for raw in library.rekordbox.get_playlist_track_paths(playlist_id):
+    for raw in raw_paths:
         path = normalize_track_path(raw)
-        content = contents.get(path) or contents.get(serato_path(raw))
+        content = content_for_path(contents, raw)
         state = track_sync_state(
             in_crate=path in in_crate,
             mount=library.mount,
@@ -104,6 +117,10 @@ def _safe_lookups(library: UsbLibrary) -> RekordboxLookups:
     """
     Load id-to-name tables, or empty tables when the adapter has none.
 
+    ``load_lookups`` already isolates per-table Diesel/rbox failures.
+    This catches adapters that lack a database handle at all (tests,
+    stubs) so the preview pane still paints titles and sync colours.
+
     Args:
         library: Opened session handle.
 
@@ -112,7 +129,7 @@ def _safe_lookups(library: UsbLibrary) -> RekordboxLookups:
     """
     try:
         return load_lookups(library.rekordbox.database)
-    except (TypeError, AttributeError):
+    except Exception:
         return RekordboxLookups({}, {}, {}, {})
 
 

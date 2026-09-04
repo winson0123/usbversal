@@ -138,6 +138,156 @@ async def test_a_valid_mount_opens_the_library_and_hands_off(tmp_path: Path) -> 
 
 
 @pytest.mark.asyncio
+async def test_two_valid_mounts_show_a_chooser(tmp_path: Path) -> None:
+    """Two supported sticks stop on Home so the user can pick one."""
+    first = tmp_path / "ONE"
+    second = tmp_path / "TWO"
+    first.mkdir()
+    second.mkdir()
+    watcher = MountWatcher(_FakeScanner([_point(first), _point(second)]))
+    app = UsbversalApp(watcher)
+    fake_probe = type("P", (), {"is_dj_usb": True, "is_supported": True, "has_serato": False})()
+
+    with patch("app.tui.screens.home.probe_mount", return_value=fake_probe):
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            home = app.screen
+            home.poll_mounts()
+            await pilot.pause()
+
+            assert home._phase is HomePhase.CHOOSING
+            assert isinstance(app.screen, HomeScreen)
+            assert "Choose a DJ USB" in _status_text(home)
+            mount_list = home.query_one("#mount-list")
+            assert mount_list.display is True
+            assert mount_list.option_count == 2
+            assert home.query_one("#spinner").display is False
+            assert home.query_one(PathInput).display is True
+
+
+@pytest.mark.asyncio
+async def test_choosing_enter_opens_the_highlighted_mount(tmp_path: Path) -> None:
+    """Enter on the chooser opens the highlighted volume, not the other one."""
+    first = tmp_path / "ALPHA"
+    second = tmp_path / "BETA"
+    first.mkdir()
+    second.mkdir()
+    watcher = MountWatcher(_FakeScanner([_point(first), _point(second)]))
+    app = UsbversalApp(watcher)
+    fake_probe = type("P", (), {"is_dj_usb": True, "is_supported": True, "has_serato": False})()
+    fake_library = type(
+        "L", (), {"rekordbox": type("R", (), {"list_playlists": lambda self: []})()}
+    )()
+    opened: list[Path] = []
+
+    def _prepare(mount: Path):
+        opened.append(mount)
+        return fake_library
+
+    with (
+        patch("app.tui.screens.home.probe_mount", return_value=fake_probe),
+        patch("app.tui.screens.home.prepare_library", _prepare),
+        patch("app.tui.screens.home.playlist_tree_sync_states", return_value=()),
+        patch("app.tui.screens.home.LibraryScreen", _DummyLibraryScreen),
+    ):
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            home = app.screen
+            home.poll_mounts()
+            await pilot.pause()
+            assert home._phase is HomePhase.CHOOSING
+
+            await pilot.press("down")
+            await pilot.pause()
+            await pilot.press("enter")
+            await pilot.pause()
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+
+            assert opened == [second]
+            assert isinstance(app.screen, _DummyLibraryScreen)
+
+
+@pytest.mark.asyncio
+async def test_chooser_shrinks_to_one_and_auto_opens(tmp_path: Path) -> None:
+    """Unplugging down to one valid stick opens that remaining mount."""
+    first = tmp_path / "KEEP"
+    second = tmp_path / "GONE"
+    first.mkdir()
+    second.mkdir()
+    scanner = _FakeScanner([_point(first), _point(second)])
+    watcher = MountWatcher(scanner)
+    app = UsbversalApp(watcher)
+    fake_probe = type("P", (), {"is_dj_usb": True, "is_supported": True, "has_serato": False})()
+    fake_library = type(
+        "L", (), {"rekordbox": type("R", (), {"list_playlists": lambda self: []})()}
+    )()
+    opened: list[Path] = []
+
+    def _prepare(mount: Path):
+        opened.append(mount)
+        return fake_library
+
+    with (
+        patch("app.tui.screens.home.probe_mount", return_value=fake_probe),
+        patch("app.tui.screens.home.prepare_library", _prepare),
+        patch("app.tui.screens.home.playlist_tree_sync_states", return_value=()),
+        patch("app.tui.screens.home.LibraryScreen", _DummyLibraryScreen),
+    ):
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            home = app.screen
+            home.poll_mounts()
+            await pilot.pause()
+            assert home._phase is HomePhase.CHOOSING
+
+            scanner.mounts = [_point(first)]
+            home.poll_mounts()
+            await pilot.pause()
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+
+            assert opened == [first]
+            assert isinstance(app.screen, _DummyLibraryScreen)
+
+
+@pytest.mark.asyncio
+async def test_valid_stick_wins_when_an_invalid_mount_also_appears(tmp_path: Path) -> None:
+    """A non-DJ mount must not block opening a valid stick that appears with it."""
+    valid = tmp_path / "DJ"
+    other = tmp_path / "OTHER"
+    valid.mkdir()
+    other.mkdir()
+    watcher = MountWatcher(_FakeScanner([_point(other), _point(valid)]))
+    app = UsbversalApp(watcher)
+    fake_library = type(
+        "L", (), {"rekordbox": type("R", (), {"list_playlists": lambda self: []})()}
+    )()
+
+    def _probe(path: Path):
+        if path.resolve() == valid.resolve():
+            return type("P", (), {"is_dj_usb": True, "is_supported": True, "has_serato": False})()
+        return None
+
+    with (
+        patch("app.tui.screens.home.probe_mount", side_effect=_probe),
+        patch("app.tui.screens.home.prepare_library", return_value=fake_library) as prepare,
+        patch("app.tui.screens.home.playlist_tree_sync_states", return_value=()),
+        patch("app.tui.screens.home.LibraryScreen", _DummyLibraryScreen),
+    ):
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            home = app.screen
+            home.poll_mounts()
+            await pilot.pause()
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+
+            prepare.assert_called_once_with(valid)
+            assert isinstance(app.screen, _DummyLibraryScreen)
+
+
+@pytest.mark.asyncio
 async def test_opening_does_not_look_like_scanning(tmp_path: Path) -> None:
     """While prepare_library runs, the caption is Opening, not Detecting."""
     watcher = MountWatcher(_FakeScanner([_point(tmp_path)]))

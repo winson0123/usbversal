@@ -113,6 +113,47 @@ def test_list_playlists_skips_cue_analysis() -> None:
     assert [p.name for p in playlists] == ["House"]
 
 
+def test_list_playlists_wraps_one_library_errors() -> None:
+    """Diesel/rbox failures become AdapterError instead of leaking OneLibraryError."""
+    from rbox import OneLibraryError
+
+    from app.adapters.base import AdapterError
+
+    library = RekordboxLibrary(
+        mount_path=Path("/mnt/usb"),
+        database_path=Path("/mnt/usb/PIONEER/rekordbox/exportLibrary.db"),
+        db_format=RekordboxDbFormat.ONE_LIBRARY,
+    )
+    db = MagicMock()
+    db.get_playlists.side_effect = OneLibraryError(
+        "Diesel error: Unexpected null for non-null column"
+    )
+    with pytest.raises(AdapterError, match="Could not read Rekordbox playlists"):
+        RboxOneLibraryAdapter(library, db).list_playlists()
+
+
+def test_get_playlist_track_paths_wraps_one_library_errors() -> None:
+    """Membership Diesel failures become AdapterError with the playlist id."""
+    from rbox import OneLibraryError
+
+    from app.adapters.base import AdapterError
+
+    library = RekordboxLibrary(
+        mount_path=Path("/mnt/usb"),
+        database_path=Path("/mnt/usb/PIONEER/rekordbox/exportLibrary.db"),
+        db_format=RekordboxDbFormat.ONE_LIBRARY,
+    )
+    playlist = MagicMock()
+    playlist.attribute = 0
+    db = MagicMock()
+    db.get_playlist_by_id.return_value = playlist
+    db.get_playlist_contents.side_effect = OneLibraryError(
+        "Diesel error: Unexpected null for non-null column"
+    )
+    with pytest.raises(AdapterError, match="playlist 7"):
+        RboxOneLibraryAdapter(library, db).get_playlist_track_paths(7)
+
+
 def test_list_rekordbox_playlists_integration() -> None:
     """Integration test against a real mount when exportLibrary.db is present."""
     mount = integration_mount()

@@ -85,6 +85,63 @@ def test_preview_of_a_folder_is_empty(tmp_path: Path) -> None:
     assert preview_playlist_tracks(library, 9) == []
 
 
+def test_preview_survives_broken_album_lookups(tmp_path: Path) -> None:
+    """Album table Diesel nulls must not abort the track preview pane."""
+    mount = _stick(
+        tmp_path,
+        crates={f"{volume_label_for(tmp_path)}%%Techno": ["Contents/a.mp3"]},
+        indexed=["Contents/a.mp3"],
+    )
+    playlist = Playlist(id=1, name="Techno", parent_id=None, is_folder=False)
+    adapter = _adapter([playlist], {1: ["/Contents/a.mp3"]})
+    adapter.database.get_contents.return_value = [
+        _content(path="/Contents/a.mp3", title="Alpha", genre_id=1, key_id=2, bpmx100=12800),
+    ]
+    adapter.database.get_genres.return_value = [SimpleNamespace(id=1, name="Techno")]
+    adapter.database.get_keys.return_value = [SimpleNamespace(id=2, name="8A")]
+    adapter.database.get_artists.return_value = []
+    adapter.database.get_albums.side_effect = RuntimeError(
+        "Diesel error: Unexpected null for non-null column"
+    )
+    library = make_library(mount, adapter)
+
+    rows = preview_playlist_tracks(library, 1)
+
+    assert [(row.title, row.genre, row.key, row.bpm, row.state) for row in rows] == [
+        ("Alpha", "Techno", "8A", "128.00", SyncState.SYNCED),
+    ]
+
+
+def test_preview_survives_broken_contents_and_membership(tmp_path: Path) -> None:
+    """Content-table Diesel nulls leave filename rows; membership failure is empty."""
+    mount = _stick(
+        tmp_path,
+        crates={f"{volume_label_for(tmp_path)}%%Techno": ["Contents/a.mp3"]},
+        indexed=["Contents/a.mp3"],
+    )
+    playlist = Playlist(id=1, name="Techno", parent_id=None, is_folder=False)
+    adapter = _adapter([playlist], {1: ["/Contents/a.mp3"]})
+    adapter.database.get_contents.side_effect = RuntimeError(
+        "Diesel error: Unexpected null for non-null column"
+    )
+    adapter.database.get_genres.return_value = []
+    adapter.database.get_keys.return_value = []
+    adapter.database.get_artists.return_value = []
+    adapter.database.get_albums.return_value = []
+    library = make_library(mount, adapter)
+
+    rows = preview_playlist_tracks(library, 1)
+
+    assert [(row.title, row.genre, row.key, row.state) for row in rows] == [
+        ("a.mp3", "", "", SyncState.SYNCED),
+    ]
+
+    adapter.get_playlist_track_paths.side_effect = RuntimeError(
+        "Diesel error: Unexpected null for non-null column"
+    )
+    assert preview_playlist_tracks(library, 1) == []
+
+
 def test_preview_marks_missing_analysis_yellow(tmp_path: Path) -> None:
     """In-crate with ANLZ beats but no BeatGrid is yellow; no ANLZ stays green."""
     mount = _stick(

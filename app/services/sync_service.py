@@ -53,7 +53,13 @@ from app.services.track_records import (
     load_lookups,
     serato_path,
 )
-from app.services.track_sync import analysis_dat_path, analysis_is_ported, contents_by_path
+from app.services.track_sync import (
+    analysis_dat_path,
+    analysis_is_ported,
+    content_for_path,
+    contents_by_path,
+    warm_analysis_ported_cache,
+)
 from app.storage.mounts import flush_mount
 
 logger = structlog.get_logger(__name__)
@@ -104,6 +110,9 @@ def playlist_sync_states(
     skips ANLZ and tag reads so the tree can appear from crate
     membership alone.
 
+    When analysis is checked, unique in-crate tracks are probed on a
+    small thread pool (ANLZ + audio tags only; never ``PyOneLibrary``).
+
     Args:
         library: Opened session handle.
         check_analysis: When False, ``complete`` stays 0 and no audio
@@ -119,18 +128,33 @@ def playlist_sync_states(
     contents = contents_by_path(library.rekordbox.database) if check_analysis else {}
     cache: dict[str, bool] = {}
 
-    states: list[PlaylistSyncState] = []
+    leaves: list[tuple[Playlist, str, list[str], set[str]]] = []
     for playlist in playlists:
         if playlist.is_folder:
             continue
         crate_name = crate_name_for(playlist, by_id, volume=volume_label_for(library.mount))
+        crate_paths = crates.get(crate_name, set())
+        raws = _playlist_paths(library, playlist.id)
+        leaves.append((playlist, crate_name, raws, crate_paths))
+
+    if check_analysis:
+        to_check: list[tuple[str, RekordboxContent | None]] = []
+        for _playlist, _crate_name, raws, crate_paths in leaves:
+            for raw in raws:
+                if normalize_track_path(raw) not in crate_paths:
+                    continue
+                to_check.append((raw, content_for_path(contents, raw)))
+        warm_analysis_ported_cache(library.mount, to_check, cache)
+
+    states: list[PlaylistSyncState] = []
+    for playlist, crate_name, raws, crate_paths in leaves:
         total, in_crate, complete, syncable = _playlist_track_counts(
-            library,
-            playlist.id,
-            crates.get(crate_name, set()),
+            raws,
+            crate_paths,
             indexed,
             contents,
             cache,
+            mount=library.mount,
             check_analysis=check_analysis,
         )
         states.append(
@@ -149,31 +173,30 @@ def playlist_sync_states(
 
 
 def _playlist_track_counts(
-    library: UsbLibrary,
-    playlist_id: int,
+    raws: list[str],
     crate_paths: set[str],
     indexed: set[str],
     contents: dict[str, RekordboxContent],
     cache: dict[str, bool],
     *,
+    mount: Path,
     check_analysis: bool,
 ) -> tuple[int, int, int, int]:
     """
     Count total, in-crate, green, and syncable tracks for one playlist.
 
     Args:
-        library: Opened session handle.
-        playlist_id: Rekordbox playlist id.
+        raws: Ordered Rekordbox track paths for the playlist.
         crate_paths: Normalized paths already in the mapped crate.
         indexed: Normalized paths present in database V2.
         contents: Path to Rekordbox content row.
-        cache: Shared analysis-ported cache.
+        cache: Shared analysis-ported cache (pre-warmed when checking).
+        mount: Mount root.
         check_analysis: When False, skip ANLZ and tag reads.
 
     Returns:
         ``(total, in_crate, complete, syncable)``.
     """
-    raws = library.rekordbox.get_playlist_track_paths(playlist_id)
     in_crate = 0
     complete = 0
     syncable = 0
@@ -186,10 +209,33 @@ def _playlist_track_counts(
         in_crate += 1
         if not check_analysis:
             continue
-        content = contents.get(key) or contents.get(serato_path(raw))
-        if analysis_is_ported(library.mount, raw, content, cache):
+        content = content_for_path(contents, raw)
+        if analysis_is_ported(mount, raw, content, cache):
             complete += 1
     return len(raws), in_crate, complete, syncable
+
+
+def _playlist_paths(library: UsbLibrary, playlist_id: int) -> list[str]:
+    """
+    Return ordered track paths for one playlist, or empty on read failure.
+
+    Args:
+        library: Opened session handle.
+        playlist_id: Rekordbox playlist id.
+
+    Returns:
+        Content paths in playlist order. Empty when rbox cannot read the
+        membership rows (e.g. Diesel null on a non-null column).
+    """
+    try:
+        return list(library.rekordbox.get_playlist_track_paths(playlist_id))
+    except Exception as exc:
+        logger.warning(
+            "rekordbox_playlist_paths_failed",
+            playlist_id=playlist_id,
+            error=str(exc),
+        )
+        return []
 
 
 @dataclass(frozen=True)
@@ -431,7 +477,7 @@ def _analysis_jobs(
     """
     jobs: list[AnalysisJob] = []
     for raw in paths:
-        content = contents.get(raw)
+        content = content_for_path(contents, raw)
         dat_path = analysis_dat_path(mount, content)
         key = lookups.keys.get(content.key_id) if content is not None else None
         jobs.append(
@@ -569,9 +615,13 @@ def _tracks_with_analysis(
     Args:
         mount: Mount root.
         all_paths: Rekordbox track paths in the selection.
-        by_path: Content row per Rekordbox path.
+        by_path: Content row per path form from ``contents_by_path``.
     """
-    return {raw for raw in all_paths if analysis_dat_path(mount, by_path.get(raw)) is not None}
+    return {
+        raw
+        for raw in all_paths
+        if analysis_dat_path(mount, content_for_path(by_path, raw)) is not None
+    }
 
 
 def _index_missing_tracks(
@@ -587,7 +637,7 @@ def _index_missing_tracks(
     Args:
         database_path: Path to database V2.
         missing: Rekordbox paths not yet indexed.
-        by_path: Content row per Rekordbox path.
+        by_path: Content row per path form from ``contents_by_path``.
         lookups: Id-to-name tables for ``build_track_record``.
         on_progress: Optional callback after each missing path is prepared.
     """
@@ -596,8 +646,9 @@ def _index_missing_tracks(
     records = []
     total = len(missing)
     for done, raw in enumerate(missing, start=1):
-        if raw in by_path:
-            records.append(build_track_record(by_path[raw], lookups))
+        content = content_for_path(by_path, raw)
+        if content is not None:
+            records.append(build_track_record(content, lookups))
         emit_progress(on_progress, "index", done, total, raw)
     return append_database_tracks(database_path=database_path, records=records)
 
@@ -763,12 +814,14 @@ def sync_playlists(
     """
     serato_root, database_path = _require_serato_library(library)
     by_id, selected = _leaf_playlists(library, playlist_ids)
+    # Membership reads stay strict here: an empty crate would look like a
+    # successful sync. Preview/tree use ``_playlist_paths`` instead.
     tracks_by_playlist = {p.id: library.rekordbox.get_playlist_track_paths(p.id) for p in selected}
     missing, all_paths = _unindexed_tracks(tracks_by_playlist, _database_index(database_path))
 
     try:
         lookups = load_lookups(library.rekordbox.database)
-        by_path = {c.path: c for c in library.rekordbox.database.get_contents()}
+        by_path = contents_by_path(library.rekordbox.database)
         analysis_targets = _tracks_with_analysis(library.mount, all_paths, by_path)
         groups = [(p.name, tracks_by_playlist[p.id]) for p in selected]
         index_paths, index_meta = playlist_path_meta(groups, set(missing))

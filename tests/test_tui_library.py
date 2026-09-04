@@ -304,6 +304,35 @@ async def test_returning_to_the_screen_reflects_a_sync_that_just_happened(
 
 
 @pytest.mark.asyncio
+async def test_resume_skips_crate_only_pass_that_flashed_unsynced(
+    tmp_path: Path,
+) -> None:
+    """Post-sync resume must not paint a check_analysis=False 0/N tree."""
+    library = _library_with_two_playlists(tmp_path)
+    calls: list[bool] = []
+
+    def tracking(lib, *, check_analysis: bool = True):
+        calls.append(check_analysis)
+        return playlist_tree_sync_states(lib, check_analysis=check_analysis)
+
+    with patch("app.tui.screens.library.playlist_tree_sync_states", tracking):
+        app = _Harness(library)
+        async with app.run_test() as pilot:
+            await _wait_library(app, pilot)
+            # Test harness has no Home-precomputed states, so first open
+            # still does the cheap crate pass then the analysis pass.
+            assert calls == [False, True]
+            calls.clear()
+
+            app.push_screen(Screen())
+            await pilot.pause()
+            app.pop_screen()
+            await _wait_library(app, pilot)
+
+    assert calls == [True]
+
+
+@pytest.mark.asyncio
 async def test_a_toggles_select_all(tmp_path: Path) -> None:
     """^a selects every playlist, then clears the selection."""
     library = _library_with_two_playlists(tmp_path)
@@ -651,6 +680,33 @@ async def test_tracks_pane_shows_scan_bar_while_loading(tmp_path: Path) -> None:
                     break
             assert table.display is True
             assert wrap.display is False
+
+
+@pytest.mark.asyncio
+async def test_preview_failure_clears_table_without_crashing(tmp_path: Path) -> None:
+    """A broken Rekordbox lookup must leave the Library screen usable."""
+    library = _library_with_two_playlists(tmp_path)
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("Diesel error: Unexpected null for non-null column")
+
+    with patch("app.tui.screens.library.preview_playlist_tracks", boom):
+        app = _Harness(library)
+        async with app.run_test() as pilot:
+            await _wait_library(app, pilot)
+            for _ in range(20):
+                await pilot.pause()
+                table = app.screen.query_one("#track-table", DataTable)
+                if table.display:
+                    break
+            table = app.screen.query_one("#track-table", DataTable)
+            assert table.display is True
+            assert table.row_count == 0
+            assert app.screen.query_one("#track-scan-wrap").display is False
+            # Screen must still accept selection keys after the failed load.
+            await pilot.press("space")
+            status = str(app.screen.query_one("#selection-status", Static).render())
+            assert "1 playlist selected" in status
 
 
 @pytest.mark.asyncio
