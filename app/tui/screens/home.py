@@ -22,11 +22,11 @@ from app.services.library import (
     MountChangeKind,
     MountWatcher,
     UsbLibrary,
+    mount_display_name,
     prepare_library,
     probe_mount,
 )
 from app.services.sync_service import playlist_tree_sync_states
-from app.storage.mounts import mount_label_name
 from app.tui.screens.library import LibraryScreen
 from app.tui.widgets.path_input import PathInput
 from app.tui.widgets.scan_bar import ScanBar
@@ -79,23 +79,6 @@ def _busy_caption(phase: HomePhase) -> Text:
     if phase is HomePhase.OPENING:
         return Text(_OPENING, style="dim")
     return Text(_SCANNING, style="dim")
-
-
-def _candidate_label(path: Path) -> str:
-    """
-    Display name for a candidate mount in the chooser list.
-
-    Args:
-        path: Mount root of the stick.
-
-    Returns:
-        Volume label when available, otherwise the folder name or path.
-    """
-    label = mount_label_name(path).strip()
-    if label:
-        return label
-    name = path.name.strip()
-    return name or str(path)
 
 
 class HomeScreen(Screen):
@@ -216,7 +199,7 @@ class HomeScreen(Screen):
                 continue
             probe = probe_mount(change.path)
             if probe is not None and probe.is_dj_usb and probe.is_supported:
-                self._candidates[change.path] = _candidate_label(change.path)
+                self._candidates[change.path] = mount_display_name(change.path)
             else:
                 saw_invalid = True
         self._apply_candidates(saw_invalid=saw_invalid)

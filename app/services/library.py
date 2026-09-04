@@ -14,7 +14,7 @@ from app.adapters.serato.paths import resolve_serato_library
 from app.core.domain import RekordboxDbFormat
 from app.services.bootstrap_service import bootstrap_serato_library
 from app.storage.mount_watch import MountChange, MountChangeKind, MountWatcher
-from app.storage.mounts import resolve_mount_path
+from app.storage.mounts import mount_label_name, resolve_mount_path
 
 __all__ = [
     "MountChange",
@@ -22,12 +22,33 @@ __all__ = [
     "MountProbe",
     "MountWatcher",
     "UsbLibrary",
+    "mount_display_name",
     "open_library",
     "prepare_library",
     "probe_mount",
 ]
 
 logger = structlog.get_logger(__name__)
+
+
+def mount_display_name(mount: Path) -> str:
+    """
+    Return a human-readable name for a mount in the Home chooser.
+
+    Prefers the volume label (or mount folder name), then the path's
+    final component, then the full path string.
+
+    Args:
+        mount: Mount root of the stick.
+
+    Returns:
+        Non-empty display label for the UI.
+    """
+    label = mount_label_name(mount).strip()
+    if label:
+        return label
+    name = mount.name.strip()
+    return name or str(mount)
 
 
 @dataclass(frozen=True)
