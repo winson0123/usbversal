@@ -10,12 +10,19 @@ affinity to violate.
 """
 
 import threading
+import time
 
 import pytest
 from textual.app import App
 from textual.command import CommandPalette
 from textual.screen import Screen
 
+from app.services.cancellation import (
+    OperationCancelled,
+    clear_quit_request,
+    quit_requested,
+    request_quit,
+)
 from app.tui.app import (
     RekordboxThreadMixin,
     UsbversalApp,
@@ -63,8 +70,6 @@ async def test_usbversal_app_pushes_exactly_one_home_screen() -> None:
 
         assert isinstance(app.screen, HomeScreen)
         assert len(app.screen_stack) == 2  # the default screen, plus Home
-
-
 
 
 def test_command_palette_is_disabled() -> None:
@@ -210,6 +215,60 @@ async def test_ctrl_q_quits() -> None:
         await pilot.press("ctrl+q")
         await pilot.pause()
         assert not app.is_running
+
+
+@pytest.mark.asyncio
+async def test_action_quit_sets_quit_flag_and_cancels_workers() -> None:
+    """Quit must signal cooperative cancel before the UI tears down."""
+    clear_quit_request()
+    app = UsbversalApp()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert not quit_requested()
+        await app.action_quit()
+        await pilot.pause()
+        assert quit_requested()
+        assert not app.is_running
+
+
+def test_shutdown_does_not_wait_for_a_long_analysis_pass() -> None:
+    """
+    Unmount must finish quickly when analysis is mid-flight.
+
+    Reproduces the Ctrl+Q hang: park + quit left the UI, but
+    ``shutdown(wait=True)`` blocked on ``playlist_tree_sync_states`` /
+    ANLZ warm. Cooperative cancel must let Drop and join return soon.
+    """
+    clear_quit_request()
+    app = _Harness()
+    started = threading.Event()
+    finished = threading.Event()
+
+    def slow_analysis() -> None:
+        """Block like a USB ANLZ scan until quit is requested."""
+        started.set()
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline:
+            if quit_requested():
+                finished.set()
+                raise OperationCancelled("quit requested")
+            time.sleep(0.05)
+        finished.set()
+        raise AssertionError("analysis was not cancelled")
+
+    app._held_libraries.append(object())
+    future = app._rekordbox_executor.submit(slow_analysis)
+    assert started.wait(timeout=2.0)
+
+    request_quit()
+    began = time.monotonic()
+    app._shutdown_rekordbox_thread()
+    elapsed = time.monotonic() - began
+
+    assert elapsed < 1.0
+    assert finished.wait(timeout=1.0)
+    with pytest.raises(OperationCancelled):
+        future.result(timeout=1.0)
 
 
 def test_rewrite_alt_screen_swaps_on_and_off_for_a_clear() -> None:

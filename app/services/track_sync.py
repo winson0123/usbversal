@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from pathlib import Path
 
 import structlog
@@ -12,6 +12,7 @@ from app.adapters.rekordbox.anlz import AnlzError, extended_path, read_beats, re
 from app.adapters.serato.tags import TagFormatError, read_geob
 from app.core.domain import SyncState
 from app.core.track_paths import normalize_track_path
+from app.services.cancellation import OperationCancelled, quit_requested, raise_if_quit_requested
 from app.services.sync_analysis import analysis_worker_count
 from app.services.track_records import RekordboxContent, RekordboxDatabase, serato_path
 
@@ -146,12 +147,21 @@ def warm_analysis_ported_cache(
     filesystem paths, never ``PyOneLibrary``. Reuses the sync analysis
     worker cap so a USB stick is not flooded.
 
+    Polls the shared quit flag so Ctrl+Q can abort a long USB scan
+    without waiting for every track. On cancel, pending futures are
+    dropped and the pool is shut down without waiting; a few in-flight
+    file reads may finish after return.
+
     Args:
         mount: Mount root.
         tracks: ``(raw path, content row)`` pairs to check. Duplicates
             share one cache entry.
         cache: Shared analysis-ported cache to fill in place.
+
+    Raises:
+        OperationCancelled: When quit was requested before or during the warm.
     """
+    raise_if_quit_requested()
     pending: dict[str, tuple[Path | None, Path]] = {}
     for raw, content in tracks:
         dat_path = analysis_dat_path(mount, content)
@@ -165,15 +175,30 @@ def warm_analysis_ported_cache(
     workers = analysis_worker_count(len(pending))
     if workers == 1 or len(pending) == 1:
         for cache_key, (dat_path, audio_path) in pending.items():
+            raise_if_quit_requested()
             cache[cache_key] = _analysis_is_ported(dat_path, audio_path)
         return
-    with ThreadPoolExecutor(max_workers=workers) as pool:
+    pool = ThreadPoolExecutor(max_workers=workers)
+    cancelled = False
+    try:
         futures = {
             pool.submit(_analysis_is_ported, dat_path, audio_path): cache_key
             for cache_key, (dat_path, audio_path) in pending.items()
         }
-        for future in as_completed(futures):
-            cache[futures[future]] = future.result()
+        outstanding = set(futures)
+        while outstanding:
+            if quit_requested():
+                cancelled = True
+                for pending_future in outstanding:
+                    pending_future.cancel()
+                raise OperationCancelled("quit requested")
+            done, outstanding = wait(outstanding, timeout=0.1, return_when=FIRST_COMPLETED)
+            for future in done:
+                cache[futures[future]] = future.result()
+    finally:
+        # On cancel, do not wait for every in-flight ANLZ/tag read — that is
+        # what made Ctrl+Q appear to hang after the UI was gone.
+        pool.shutdown(wait=not cancelled, cancel_futures=cancelled)
 
 
 def track_sync_state(

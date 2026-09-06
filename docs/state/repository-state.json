@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-09-02T02:18:00Z",
+  "updated_at": "2026-09-06T15:52:00Z",
   "project": "usbversal",
   "language": "python",
   "python_version": "3.11+",
@@ -17,14 +17,23 @@
   "product": {
     "kind": "tui",
     "entry": "python -m app.tui",
-    "flow": ["home", "library", "progress", "done"],
+    "flow": [
+      "home",
+      "library",
+      "progress",
+      "done"
+    ],
     "writes": {
       "pioneer": false,
       "serato_crates": true,
       "database_v2_append": true,
       "location_sqlite": "update_existing_rows_only",
       "analysis_flags": 24,
-      "audio_tags": ["beatgrid", "markers2", "markers"]
+      "audio_tags": [
+        "beatgrid",
+        "markers2",
+        "markers"
+      ]
     }
   },
   "packaging": {
@@ -44,8 +53,8 @@
     "ruff": "pass",
     "ruff_format": "pass",
     "pytest": "pass",
-    "last_run": "2026-09-02T02:18:00Z",
-    "tests_passed": 333,
+    "last_run": "2026-09-06T15:52:00Z",
+    "tests_passed": 345,
     "tests_skipped": 3,
     "tests_failed": 0
   },
@@ -60,7 +69,16 @@
     "readme": true,
     "contributing": true,
     "architecture_md": true,
-    "adrs": ["0001", "0002", "0003", "0004", "0005", "0008", "0009", "0010"]
+    "adrs": [
+      "0001",
+      "0002",
+      "0003",
+      "0004",
+      "0005",
+      "0008",
+      "0009",
+      "0010"
+    ]
   },
   "execution_policy": "AGENT.md",
   "fixtures": {

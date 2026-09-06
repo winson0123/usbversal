@@ -15,6 +15,7 @@ from textual.app import App
 from textual.binding import Binding
 from textual.driver import Driver
 
+from app.services.cancellation import clear_quit_request, request_quit
 from app.services.library import MountWatcher
 from app.tui.palette import KEY
 from app.tui.screens.home import HomeScreen
@@ -98,6 +99,7 @@ class RekordboxThreadMixin:
     def __init__(self, *args: object, **kwargs: object) -> None:
         """Start the dedicated rekordbox worker and an empty park list."""
         super().__init__(*args, **kwargs)
+        clear_quit_request()
         self._rekordbox_executor = ThreadPoolExecutor(max_workers=1)
         # Live UsbLibrary handles parked here on quit so Textual can tear
         # the screen stack down without being the one that drops them.
@@ -121,12 +123,17 @@ class RekordboxThreadMixin:
         Called from ``on_unmount``, after Textual has already left the
         alternate screen. The user sees the shell again while Drop
         finishes, rather than staring at a frozen last frame.
+
+        In-flight ANLZ warm must notice ``request_quit`` and return soon
+        so this join does not wait for a full USB scan. Pending executor
+        jobs are cancelled; the running one is expected to exit via the
+        shared quit flag before Drop is submitted below.
         """
         try:
             if self._held_libraries:
                 self._rekordbox_executor.submit(self._drop_parked_libraries).result()
         finally:
-            self._rekordbox_executor.shutdown(wait=True)
+            self._rekordbox_executor.shutdown(wait=True, cancel_futures=True)
 
     async def run_rekordbox(self, func: Callable[..., _T], *args: object, **kwargs: object) -> _T:
         """
@@ -250,6 +257,8 @@ class UsbversalApp(RekordboxThreadMixin, App):
 
     async def action_quit(self) -> None:
         """Park library handles and leave the UI; Drop runs after unmount."""
+        request_quit()
+        self.workers.cancel_all()
         self._park_library_handles()
         await super().action_quit()
 

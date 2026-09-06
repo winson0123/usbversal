@@ -36,6 +36,7 @@ from app.adapters.serato.writer import (
 from app.core.domain import Playlist, PlaylistSyncState, SyncState
 from app.core.playlist_tree import PlaylistNode, build_playlist_tree
 from app.core.track_paths import normalize_track_path
+from app.services.cancellation import raise_if_quit_requested
 from app.services.errors import PlaylistNotFoundError, SeratoLibraryRequiredError
 from app.services.library import UsbLibrary
 from app.services.sync_analysis import AnalysisJob, AnalysisTrackResult, begin_analysis_jobs
@@ -120,7 +121,11 @@ def playlist_sync_states(
 
     Returns:
         PlaylistSyncState per non-folder playlist, in Rekordbox order.
+
+    Raises:
+        OperationCancelled: When quit was requested during the scan.
     """
+    raise_if_quit_requested()
     crates = _crate_contents(library.serato_root)
     indexed = _database_index(library.serato_database)
     playlists = library.rekordbox.list_playlists()
@@ -146,6 +151,7 @@ def playlist_sync_states(
                 to_check.append((raw, content_for_path(contents, raw)))
         warm_analysis_ported_cache(library.mount, to_check, cache)
 
+    raise_if_quit_requested()
     states: list[PlaylistSyncState] = []
     for playlist, crate_name, raws, crate_paths in leaves:
         total, in_crate, complete, syncable = _playlist_track_counts(

@@ -17,6 +17,7 @@ from textual.screen import Screen
 from textual.widgets import Input, OptionList, Static
 from textual.widgets.option_list import Option
 
+from app.services.cancellation import OperationCancelled
 from app.services.errors import AdapterError, DatabaseNotFoundError, UnsupportedDatabaseError
 from app.services.library import (
     MountChangeKind,
@@ -272,6 +273,8 @@ class HomeScreen(Screen):
             states = await self.app.run_rekordbox(
                 playlist_tree_sync_states, library, check_analysis=True
             )
+        except OperationCancelled:
+            return
         except (OSError, AdapterError, DatabaseNotFoundError, UnsupportedDatabaseError) as exc:
             self._enter(HomePhase.FAILED, f"{_NONE_FOUND} ({exc})")
             return
