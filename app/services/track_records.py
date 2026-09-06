@@ -117,9 +117,7 @@ def load_lookups(database: RekordboxDatabase) -> RekordboxLookups:
         """
         return {row.id: row.name for row in rows if getattr(row, "name", None)}
 
-    def safe_table(
-        label: str, loader: Callable[[], Iterable[RekordboxNamedRow]]
-    ) -> dict[int, str]:
+    def safe_table(label: str, loader: Callable[[], Iterable[RekordboxNamedRow]]) -> dict[int, str]:
         """
         Load one lookup table, or return empty on adapter/database failure.
 

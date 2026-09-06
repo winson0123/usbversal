@@ -64,9 +64,7 @@ def contents_by_path(database: RekordboxDatabase) -> dict[str, RekordboxContent]
     return by_path
 
 
-def content_for_path(
-    contents: dict[str, RekordboxContent], raw: str
-) -> RekordboxContent | None:
+def content_for_path(contents: dict[str, RekordboxContent], raw: str) -> RekordboxContent | None:
     """
     Resolve a content row for a Rekordbox or Serato-shaped path.
 

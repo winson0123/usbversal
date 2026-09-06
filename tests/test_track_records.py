@@ -152,4 +152,3 @@ def test_load_lookups_keeps_tables_that_succeed_when_one_fails() -> None:
     assert lookups.albums == {}
     assert lookups.genres == {3: "Techno"}
     assert lookups.keys == {4: "8A"}
-
