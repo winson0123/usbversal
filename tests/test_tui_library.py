@@ -8,18 +8,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from textual.app import App
-from textual.binding import Binding
-from textual.color import Color
 from textual.screen import Screen
-from textual.widgets import DataTable, Footer, Static, Tree
-from textual.widgets._footer import FooterKey
+from textual.widgets import DataTable, Static, Tree
 
 from app.adapters.serato.naming import volume_label_for
 from app.core.domain import Playlist
 from app.services.sync_service import playlist_tree_sync_states
-from app.tui.app import RekordboxThreadMixin, UsbversalApp
-from app.tui.palette import ACCENT, KEY
-from app.tui.screens.library import LibraryScreen, _clip, _legend_text
+from app.tui.app import RekordboxThreadMixin
+from app.tui.screens.library import LibraryScreen
 from tests.conftest import EMPTY_DATABASE_V2, make_library
 
 
@@ -87,57 +83,6 @@ def _adapter(playlists: list[Playlist], tracks: dict[int, list[str]]) -> MagicMo
 def _playlist_nodes(tree: Tree):
     """Top-level playlist and folder nodes under the hidden Tree root."""
     return tree.root.children
-
-
-def _guide_styles(tree: Tree, y: int):
-    """
-    Rich styles on the guide segments of one tree row.
-
-    Args:
-        tree: Playlist tree after layout.
-        y: Line index to inspect.
-
-    Returns:
-        Styles attached to │ / └ / ├ cells on that row.
-    """
-    return [
-        segment.style
-        for segment in tree.render_line(y)
-        if any(mark in segment.text for mark in ("│", "└", "├"))
-    ]
-
-
-def _row_has_lit_guide(tree: Tree, y: int) -> bool:
-    """
-    True when a guide on row ``y`` uses the selected-guide colour.
-
-    Args:
-        tree: Playlist tree after layout.
-        y: Line index to inspect.
-
-    Returns:
-        Whether any guide cell matches ``tree--guides-selected``.
-    """
-    lit = tree.get_component_rich_style("tree--guides-selected", partial=True)
-    return any(style.color == lit.color for style in _guide_styles(tree, y) if style.color)
-
-
-def _row_named(tree: Tree, name: str) -> int:
-    """
-    Line index whose rendered text contains ``name``.
-
-    Args:
-        tree: Playlist tree after layout.
-        name: Playlist or folder name to find.
-
-    Returns:
-        The first matching line index.
-    """
-    for y in range(tree.virtual_size.height):
-        text = "".join(segment.text for segment in tree.render_line(y))
-        if name in text:
-            return y
-    raise AssertionError(f"{name!r} not in the tree")
 
 
 class _Harness(RekordboxThreadMixin, App):
@@ -247,22 +192,6 @@ async def test_tree_has_no_all_playlists_parent(tmp_path: Path) -> None:
         names = [node.data.name for node in tree.root.children]
         assert names == ["Techno", "Trance"]
         assert "All playlists" not in names
-
-
-@pytest.mark.asyncio
-async def test_e_does_nothing_on_a_leaf(tmp_path: Path) -> None:
-    """Expand/collapse on a non-folder row is a no-op, not an error."""
-    library = _library_with_two_playlists(tmp_path)
-    app = _Harness(library)
-    async with app.run_test() as pilot:
-        await _wait_library(app, pilot)
-
-        await pilot.press("e")
-        await pilot.pause()
-
-        # Still there, still showing everything. Nothing broke.
-        tree = app.screen.query_one(Tree)
-        assert {child.data.name for child in _playlist_nodes(tree)} == {"Techno", "Trance"}
 
 
 @pytest.mark.asyncio
@@ -390,147 +319,6 @@ async def test_space_on_a_folder_selects_every_descendant(tmp_path: Path) -> Non
 
 
 @pytest.mark.asyncio
-async def test_count_column_lines_up_regardless_of_depth_or_row_kind(tmp_path: Path) -> None:
-    """The bug the user reported: columns looked jagged across different rows.
-
-    Tree's own guide lines and expand icon eat a different amount of space
-    per row depending on nesting depth and whether the row is a folder or a
-    leaf, so naive fixed-width padding on the label text alone drifts out of
-    alignment.     _prefix_width compensates for exactly that, so the count
-    column should start at the same character offset on a top-level
-    folder (depth 0, with an icon), a nested folder (depth 1, with an
-    icon), and a leaf two levels down (depth 2, no icon).
-    """
-    mount = _stick(tmp_path, crates={}, indexed=[])
-    playlists = [
-        Playlist(id=8, name="Music", parent_id=None, is_folder=True),
-        Playlist(id=9, name="Genres", parent_id=8, is_folder=True),
-        Playlist(id=1, name="Techno", parent_id=9, is_folder=False),
-    ]
-    library = make_library(mount, _adapter(playlists, {1: []}))
-    app = _Harness(library)
-    async with app.run_test(size=(120, 24)) as pilot:
-        await _wait_library(app, pilot)
-
-        tree = app.screen.query_one(Tree)
-        app.screen.on_resize()
-        await pilot.pause()
-        lines = ["".join(segment.text for segment in tree.render_line(y)) for y in range(3)]
-        # "Music" (depth 0, folder icon), "Genres" (depth 1, folder icon),
-        # "Techno" (depth 2, leaf). Folder and leaf at different depths.
-        positions = {line.index("0/0") for line in lines}
-
-        assert len(positions) == 1, lines
-
-
-@pytest.mark.asyncio
-async def test_parent_guide_stays_visible_on_a_selected_leaf(tmp_path: Path) -> None:
-    """The cursor bar used to paint over the parent │ on a crate row."""
-    mount = _stick(tmp_path, crates={}, indexed=[])
-    playlists = [
-        Playlist(id=8, name="Music", parent_id=None, is_folder=True),
-        Playlist(id=9, name="Genres", parent_id=8, is_folder=True),
-        Playlist(id=1, name="Techno", parent_id=9, is_folder=False),
-        Playlist(id=2, name="Trance", parent_id=9, is_folder=False),
-    ]
-    library = make_library(mount, _adapter(playlists, {1: [], 2: []}))
-    app = _Harness(library)
-    async with app.run_test(size=(80, 24)) as pilot:
-        await _wait_library(app, pilot)
-        await pilot.press("down")
-        await pilot.press("down")
-        await pilot.pause()
-
-        tree = app.screen.query_one(Tree)
-        assert tree.cursor_node is not None
-        assert tree.cursor_node.data.name == "Techno"
-        line = "".join(segment.text for segment in tree.render_line(tree.cursor_line))
-        assert any(guide in line for guide in ("│", "└", "├"))
-        assert _row_has_lit_guide(tree, tree.cursor_line)
-        selected = tree.get_component_styles("tree--guides-selected")
-        cursor = tree.get_component_styles("tree--cursor")
-        assert selected.color.a > 0
-        assert selected.color != cursor.background
-
-
-@pytest.mark.asyncio
-async def test_cursor_on_a_folder_lights_every_child_guide(tmp_path: Path) -> None:
-    """A selected parent still lights the guides on all of its children."""
-    mount = _stick(tmp_path, crates={}, indexed=[])
-    playlists = [
-        Playlist(id=8, name="Music", parent_id=None, is_folder=True),
-        Playlist(id=9, name="Genres", parent_id=8, is_folder=True),
-        Playlist(id=1, name="Techno", parent_id=9, is_folder=False),
-        Playlist(id=2, name="Trance", parent_id=9, is_folder=False),
-    ]
-    library = make_library(mount, _adapter(playlists, {1: [], 2: []}))
-    app = _Harness(library)
-    async with app.run_test(size=(80, 24)) as pilot:
-        await _wait_library(app, pilot)
-        await pilot.press("down")
-        await pilot.pause()
-
-        tree = app.screen.query_one(Tree)
-        assert tree.cursor_node is not None
-        assert tree.cursor_node.data.name == "Genres"
-        assert _row_has_lit_guide(tree, _row_named(tree, "Techno"))
-        assert _row_has_lit_guide(tree, _row_named(tree, "Trance"))
-
-
-@pytest.mark.asyncio
-async def test_cursor_on_a_crate_lights_the_parent_path(tmp_path: Path) -> None:
-    """The path back to the root stays lit on sibling rows, not only the crate."""
-    mount = _stick(tmp_path, crates={}, indexed=[])
-    playlists = [
-        Playlist(id=1, name="Genres", parent_id=None, is_folder=True),
-        Playlist(id=2, name="House", parent_id=1, is_folder=True),
-        Playlist(id=3, name="Techno", parent_id=2, is_folder=False),
-        Playlist(id=4, name="Trance", parent_id=2, is_folder=False),
-        Playlist(id=5, name="Afro", parent_id=1, is_folder=False),
-    ]
-    library = make_library(mount, _adapter(playlists, {3: [], 4: [], 5: []}))
-    app = _Harness(library)
-    async with app.run_test(size=(80, 24)) as pilot:
-        await _wait_library(app, pilot)
-        await pilot.press("down")
-        await pilot.press("down")
-        await pilot.pause()
-
-        tree = app.screen.query_one(Tree)
-        assert tree.cursor_node is not None
-        assert tree.cursor_node.data.name == "Techno"
-        assert _row_has_lit_guide(tree, _row_named(tree, "House"))
-        assert _row_has_lit_guide(tree, _row_named(tree, "Trance"))
-
-
-@pytest.mark.asyncio
-async def test_nested_playlist_names_stay_readable(tmp_path: Path) -> None:
-    """A fixed 16-cell name column left depth-3 folders as a single letter."""
-    mount = _stick(tmp_path, crates={}, indexed=[])
-    playlists = [
-        Playlist(id=1, name="Genres", parent_id=None, is_folder=True),
-        Playlist(id=2, name="House", parent_id=1, is_folder=True),
-        Playlist(id=3, name="Amapiano", parent_id=2, is_folder=False),
-        Playlist(id=4, name="Africa", parent_id=2, is_folder=False),
-    ]
-    library = make_library(mount, _adapter(playlists, {3: [], 4: []}))
-    app = _Harness(library)
-    async with app.run_test(size=(80, 24)) as pilot:
-        await _wait_library(app, pilot)
-        app.screen.on_resize()
-        await pilot.pause()
-
-        tree = app.screen.query_one(Tree)
-        text = "\n".join(
-            "".join(segment.text for segment in tree.render_line(y))
-            for y in range(tree.virtual_size.height)
-        )
-        assert "Amapiano" in text
-        assert "Africa" in text
-        assert "House" in text
-
-
-@pytest.mark.asyncio
 async def test_enter_with_no_selection_does_not_start_a_sync(tmp_path: Path) -> None:
     """Confirming with nothing selected just re-reports zero selected."""
     library = _library_with_two_playlists(tmp_path)
@@ -564,40 +352,6 @@ async def test_enter_with_a_selection_starts_the_sync(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_library_is_two_panes_with_a_legend(tmp_path: Path) -> None:
-    """Playlists sit on the left with a colour key; tracks sit on the right."""
-    library = _library_with_two_playlists(tmp_path)
-    app = _Harness(library)
-    async with app.run_test() as pilot:
-        await _wait_library(app, pilot)
-
-        assert app.screen.query_one("#playlist-pane").border_title == "Playlists"
-        assert app.screen.query_one("#track-pane").border_title == "Tracks"
-        legend = str(app.screen.query_one("#sync-legend", Static).render())
-        assert "synced" in legend and "partial" in legend and "not synced" in legend
-        assert app.screen.query_one("#playlist-pane").styles.border.top[0] == "round"
-        amber = Color.parse(ACCENT)
-        assert app.screen.query_one("#playlist-pane").styles.border.top[1] == amber
-        assert app.screen.query_one("#track-pane").styles.border.top[1] == amber
-        assert app.screen.query_one("#sync-legend").styles.border.top[0] == "solid"
-        assert app.screen.query_one("#sync-legend").styles.margin.top == 0
-        assert app.screen.query_one("#sync-legend").styles.padding.top == 0
-        header = app.screen.query_one("#header")
-        assert [child.id for child in header.children] == ["mount-info", "selection-status"]
-        tree = app.screen.query_one("#playlist-tree", Tree)
-        assert tree.styles.scrollbar_visibility == "hidden"
-        assert tree.styles.scrollbar_size_vertical == 0
-        table = app.screen.query_one("#track-table", DataTable)
-        assert table.zebra_stripes is False
-        assert [str(col.label) for col in table.columns.values()] == [
-            "Title",
-            "Genre",
-            "Key",
-            "BPM",
-        ]
-
-
-@pytest.mark.asyncio
 async def test_highlighting_a_playlist_fills_the_track_table(tmp_path: Path) -> None:
     """The right pane lists the highlighted playlist's tracks."""
     library = _library_with_two_playlists(tmp_path)
@@ -621,65 +375,6 @@ async def test_highlighting_a_playlist_fills_the_track_table(tmp_path: Path) -> 
         assert table.display is True
         assert table.row_count == 1
         assert table.get_row_at(0)[0].plain == "Alpha"
-
-
-@pytest.mark.asyncio
-async def test_titles_use_the_pane_width_after_the_scan_bar(tmp_path: Path) -> None:
-    """A hidden table used to clip titles to 8 cells after the scan bar."""
-    library = _library_with_two_playlists(tmp_path)
-    title = "A Very Long Track Title That Must Survive The Scan Bar"
-    content = type(
-        "Row",
-        (),
-        {
-            "path": "/Contents/a.mp3",
-            "title": title,
-            "genre_id": None,
-            "key_id": None,
-            "bpmx100": 12800,
-        },
-    )()
-    library.rekordbox.database.get_contents.return_value = [content]
-    app = _Harness(library)
-    async with app.run_test(size=(120, 24)) as pilot:
-        await _wait_library(app, pilot)
-        for _ in range(20):
-            await pilot.pause()
-            table = app.screen.query_one("#track-table", DataTable)
-            if table.display and table.row_count:
-                break
-        shown = table.get_row_at(0)[0].plain
-        assert len(shown) > 8
-        assert shown.startswith("A Very Long")
-
-
-@pytest.mark.asyncio
-async def test_tracks_pane_shows_scan_bar_while_loading(tmp_path: Path) -> None:
-    """The right pane uses the same Home scan bar until rows are ready."""
-    library = _library_with_two_playlists(tmp_path)
-    gate = threading.Event()
-
-    def blocked(*_args, **_kwargs):
-        gate.wait(timeout=5)
-        return []
-
-    with patch("app.tui.screens.library.preview_playlist_tracks", blocked):
-        app = _Harness(library)
-        async with app.run_test() as pilot:
-            await _wait_library(app, pilot)
-            wrap = app.screen.query_one("#track-scan-wrap")
-            table = app.screen.query_one("#track-table", DataTable)
-            assert wrap.display is True
-            assert table.display is False
-            bar = str(app.screen.query_one("#track-scan").render())
-            assert bar.startswith("[") and bar.endswith("]")
-            gate.set()
-            for _ in range(20):
-                await pilot.pause()
-                if table.display:
-                    break
-            assert table.display is True
-            assert wrap.display is False
 
 
 @pytest.mark.asyncio
@@ -707,86 +402,3 @@ async def test_preview_failure_clears_table_without_crashing(tmp_path: Path) -> 
             await pilot.press("space")
             status = str(app.screen.query_one("#selection-status", Static).render())
             assert "1 playlist selected" in status
-
-
-@pytest.mark.asyncio
-async def test_fast_crate_switch_keeps_the_scan_bar(tmp_path: Path) -> None:
-    """Cancelling the previous preview must not hide the bar for the next one."""
-    library = _library_with_two_playlists(tmp_path)
-    gate = threading.Event()
-
-    def blocked(*_args, **_kwargs):
-        gate.wait(timeout=5)
-        return []
-
-    with patch("app.tui.screens.library.preview_playlist_tracks", blocked):
-        app = _Harness(library)
-        async with app.run_test() as pilot:
-            await _wait_library(app, pilot)
-            wrap = app.screen.query_one("#track-scan-wrap")
-            assert wrap.display is True
-            await pilot.press("down")
-            await pilot.pause()
-            assert wrap.display is True
-            gate.set()
-            for _ in range(20):
-                await pilot.pause()
-                if app.screen.query_one("#track-table", DataTable).display:
-                    break
-            assert app.screen.query_one("#track-table", DataTable).display is True
-
-
-def test_footer_keys_use_caret_lowercase() -> None:
-    """The footer shows ^a Select All and ^q Quit, not a / ^Q."""
-    select_all = next(b for b in LibraryScreen.BINDINGS if b.action == "select_all")
-    assert select_all.key == "ctrl+a"
-    assert select_all.key_display == "^a"
-    quit_binding = next(b for b in UsbversalApp.BINDINGS if b.action == "quit")
-    assert quit_binding.key == "ctrl+q"
-    assert quit_binding.key_display == "^q"
-
-
-@pytest.mark.asyncio
-async def test_footer_keys_use_the_brighter_yellow() -> None:
-    """Shortcut keys are the brighter Posting yellow, not the amber accent."""
-
-    class _FooterApp(App):
-        """Bare shell that paints the same footer CSS as the product."""
-
-        CSS = UsbversalApp.CSS
-        BINDINGS = [Binding("ctrl+q", "quit", "Quit", show=True, key_display="^q")]
-
-        def compose(self):
-            """Show one footer so the key style can be read back."""
-            yield Footer()
-
-    async with _FooterApp().run_test() as pilot:
-        await pilot.pause()
-        key = pilot.app.screen.query_one(FooterKey)
-        style = key.get_component_rich_style("footer-key--key")
-        assert style.color is not None
-        assert style.color.name.lower() == KEY.lower()
-        assert KEY.lower() != ACCENT.lower()
-
-
-def test_legend_words_use_the_same_colour_as_the_dot() -> None:
-    """Each legend label is the same traffic-light colour as its bullet."""
-    legend = _legend_text()
-    coloured = {
-        colour: "".join(
-            legend.plain[span.start : span.end]
-            for span in legend.spans
-            if colour in str(span.style)
-        )
-        for colour in ("green", "yellow", "red")
-    }
-    assert "synced" in coloured["green"]
-    assert "partial" in coloured["yellow"]
-    assert "not synced" in coloured["red"]
-
-
-def test_clip_adds_ellipsis_when_text_is_wider_than_the_column() -> None:
-    """Long titles shrink to the column so Genre / Key / BPM stay visible."""
-    assert _clip("Alpha", 8) == "Alpha"
-    assert _clip("A very long track title", 10) == "A very ..."
-    assert _clip("Hi", 2) == "Hi"

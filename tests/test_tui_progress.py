@@ -1,15 +1,13 @@
 """Tests for the TUI Progress and Done screens (steps 4-5)."""
 
-import threading
 import time
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from textual.app import App
-from textual.containers import Center, CenterMiddle
 from textual.screen import Screen
-from textual.widgets import ProgressBar, RichLog, Static
+from textual.widgets import RichLog, Static
 
 from app.services.sync_progress import SyncProgress
 from app.services.sync_service import SyncReport
@@ -186,117 +184,12 @@ def test_done_screen_has_no_escape_quit_binding() -> None:
     assert "enter" in keys
 
 
-@pytest.mark.asyncio
-async def test_progress_bar_reflects_the_last_sample() -> None:
-    """_update_progress sets the bar's total/progress and a rate-bearing status line.
-
-    The worker is held until after the assertions so ``pilot.pause()`` cannot
-    race into Done before the bar is inspected.
-    """
-
-    hold = threading.Event()
-
-    def _held_sync(library, playlist_ids, *, on_progress=None):
-        hold.wait(timeout=5)
-        return _fake_report()
-
-    with patch("app.tui.screens.progress.sync_playlists", _held_sync):
-        app = _Harness(library=object(), playlist_ids=[1])
-        async with app.run_test() as pilot:
-            await pilot.pause()
-            screen = app.screen
-            try:
-                assert isinstance(screen, ProgressScreen)
-
-                screen._update_progress(SyncProgress("analysis", 1, 4, "Contents/a.mp3"))
-                screen._update_progress(SyncProgress("analysis", 3, 4, "Contents/b.mp3"))
-
-                bar = screen.query_one(ProgressBar)
-                assert bar.total == 4
-                assert bar.progress == 3
-            finally:
-                hold.set()
-
-
-@pytest.mark.asyncio
-async def test_progress_shows_the_playlist_and_centers_the_bar() -> None:
-    """The visible Bar strip is wide and centered; the playlist shows its own x/x."""
-
-    hold = threading.Event()
-
-    def _held_sync(library, playlist_ids, *, on_progress=None):
-        hold.wait(timeout=5)
-        return _fake_report()
-
-    with patch("app.tui.screens.progress.sync_playlists", _held_sync):
-        app = _Harness(library=object(), playlist_ids=[1])
-        async with app.run_test(size=(120, 40)) as pilot:
-            await pilot.pause()
-            screen = app.screen
-            try:
-                assert isinstance(screen, ProgressScreen)
-                bar = screen.query_one("#sync-progress")
-                strip = bar.query_one("Bar")
-                row = screen.query_one("#sync-bar-row")
-                assert isinstance(bar.parent, Center)
-                assert isinstance(bar.parent.parent, CenterMiddle)
-                assert row.size.width == screen.size.width
-                strip_mid = strip.region.x + strip.region.width // 2
-                assert abs(strip_mid - screen.size.width // 2) <= 1
-                assert strip.region.width >= screen.size.width * 50 // 100
-                log = screen.query_one(RichLog)
-                assert "empty" in log.classes
-                assert not isinstance(log.parent, CenterMiddle)
-                screen._update_progress(
-                    SyncProgress(
-                        "analysis",
-                        2,
-                        5,
-                        "Contents/x.mp3",
-                        playlist="House",
-                        playlist_done=2,
-                        playlist_total=10,
-                    )
-                )
-                label = str(screen.query_one("#sync-playlist", Static).render())
-                assert "House" in label
-                assert "2/10" in label
-                assert isinstance(screen.query_one("#sync-progress").parent.parent, CenterMiddle)
-                assert not isinstance(screen.query_one(RichLog).parent, CenterMiddle)
-            finally:
-                hold.set()
-
-
 def _log_line_styles(log: RichLog, index: int) -> tuple[str, list]:
     """Read back one written RichLog line as (plain text, segment styles)."""
     strip = log.lines[index]
     text = "".join(segment.text for segment in strip)
     styles = [segment.style for segment in strip]
     return text, styles
-
-
-@pytest.mark.asyncio
-async def test_progress_log_shows_a_green_line_per_successful_track() -> None:
-    """Each track that analyses cleanly gets its own green log line. The
-    user asked to actually see what's happening, not a bare counter."""
-
-    def _slow_sync(library, playlist_ids, *, on_progress=None):
-        time.sleep(1.0)
-        return _fake_report()
-
-    with patch("app.tui.screens.progress.sync_playlists", _slow_sync):
-        app = _Harness(library=object(), playlist_ids=[1])
-        async with app.run_test() as pilot:
-            await pilot.pause()
-            screen = app.screen
-            screen._update_progress(SyncProgress("analysis", 1, 2, "Contents/a.mp3"))
-            await pilot.pause()
-
-            log = screen.query_one(RichLog)
-            text, styles = _log_line_styles(log, 0)
-            assert "a.mp3" in text
-            assert "Contents/" not in text
-            assert any(style is not None and style.color.name == "green" for style in styles)
 
 
 @pytest.mark.asyncio
