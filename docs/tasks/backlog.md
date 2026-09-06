@@ -2,4 +2,6 @@
 
 Queued work. Only one task may be active. See [`AGENT.md`](../../AGENT.md).
 
-Nothing is queued. Next id is `TASK-338`.
+- TASK-336: Quit promptly during ANLZ analysis
+
+Next id after that is `TASK-339`.

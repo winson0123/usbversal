@@ -154,6 +154,11 @@ class UsbversalApp(RekordboxThreadMixin, App):
     """
 
     TITLE = "usbversal"
+    # Stock Textual chrome: ctrl+p opens a command palette whose default
+    # system commands include "Change theme", help panel, maximize, and
+    # screenshot. None of that is part of the product; the Footer would
+    # also show "^p palette". Keep the app on its own bindings only.
+    ENABLE_COMMAND_PALETTE = False
     BINDINGS = [
         Binding("ctrl+q", "quit", "Quit", show=True, key_display="^q"),
         Binding("q", "quit_hint", "Quit", show=False),

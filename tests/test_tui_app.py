@@ -13,6 +13,7 @@ import threading
 
 import pytest
 from textual.app import App
+from textual.command import CommandPalette
 from textual.screen import Screen
 
 from app.tui.app import (
@@ -62,6 +63,26 @@ async def test_usbversal_app_pushes_exactly_one_home_screen() -> None:
 
         assert isinstance(app.screen, HomeScreen)
         assert len(app.screen_stack) == 2  # the default screen, plus Home
+
+
+
+
+def test_command_palette_is_disabled() -> None:
+    """Theme picker and other stock palette commands must not be reachable."""
+    assert UsbversalApp.ENABLE_COMMAND_PALETTE is False
+
+
+@pytest.mark.asyncio
+async def test_ctrl_p_does_not_open_command_palette() -> None:
+    """ctrl+p is Textual's palette binding; with the palette off it is a no-op."""
+    app = UsbversalApp()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+p")
+        await pilot.pause()
+
+        assert isinstance(app.screen, HomeScreen)
+        assert not any(isinstance(screen, CommandPalette) for screen in app.screen_stack)
 
 
 class _FakeLibraryScreen(Screen):
