@@ -652,6 +652,7 @@ def _index_missing_tracks(
     records = []
     total = len(missing)
     for done, raw in enumerate(missing, start=1):
+        raise_if_quit_requested()
         content = content_for_path(by_path, raw)
         if content is not None:
             records.append(build_track_record(content, lookups))
@@ -735,6 +736,7 @@ def _write_playlist_crates(
     results: list[PlaylistSyncResult] = []
     total = len(selected)
     for done, playlist in enumerate(selected, start=1):
+        raise_if_quit_requested()
         crate_name = crate_name_for(playlist, by_id, volume=volume)
         paths = [serato_path(raw) for raw in tracks_by_playlist[playlist.id]]
         error: str | None = None
@@ -817,7 +819,9 @@ def sync_playlists(
     Raises:
         SeratoLibraryRequiredError: The mount has no Serato library.
         PlaylistNotFoundError: A selected id is missing or is a folder.
+        OperationCancelled: When quit was requested mid-sync.
     """
+    raise_if_quit_requested()
     serato_root, database_path = _require_serato_library(library)
     by_id, selected = _leaf_playlists(library, playlist_ids)
     # Membership reads stay strict here: an empty crate would look like a
@@ -826,6 +830,7 @@ def sync_playlists(
     missing, all_paths = _unindexed_tracks(tracks_by_playlist, _database_index(database_path))
 
     try:
+        raise_if_quit_requested()
         lookups = load_lookups(library.rekordbox.database)
         by_path = contents_by_path(library.rekordbox.database)
         analysis_targets = _tracks_with_analysis(library.mount, all_paths, by_path)
@@ -833,6 +838,7 @@ def sync_playlists(
         index_paths, index_meta = playlist_path_meta(groups, set(missing))
         analysis_paths, analysis_meta = playlist_path_meta(groups, analysis_targets)
         sync_total = len(missing) + len(analysis_targets) + len(selected)
+        raise_if_quit_requested()
         records_added = _index_missing_tracks(
             database_path,
             index_paths,
@@ -840,11 +846,13 @@ def sync_playlists(
             lookups,
             attach_playlist(rebase_progress(on_progress, 0, sync_total), index_meta),
         )
+        raise_if_quit_requested()
         session = begin_analysis_jobs(
             _analysis_jobs(library.mount, by_path, analysis_paths, lookups),
             attach_playlist(rebase_progress(on_progress, len(missing), sync_total), analysis_meta),
         )
         try:
+            raise_if_quit_requested()
             volume = volume_label_for(library.mount)
             results = _write_playlist_crates(
                 serato_root,
@@ -854,6 +862,7 @@ def sync_playlists(
                 rebase_progress(on_progress, len(missing) + len(analysis_targets), sync_total),
                 volume=volume,
             )
+            raise_if_quit_requested()
             _publish_crate_order(serato_root, results, volume)
             track_results = session.wait()
         finally:

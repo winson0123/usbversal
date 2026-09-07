@@ -30,6 +30,7 @@ from textual.widgets import DataTable, Footer, Static, Tree
 from textual.widgets.tree import TreeNode
 
 from app.core.domain import SyncState
+from app.services.cancellation import OperationCancelled
 from app.services.library import UsbLibrary
 from app.services.sync_service import (
     PlaylistTreeSyncState,
@@ -350,6 +351,7 @@ class LibraryScreen(Screen):
         self._preview_cache: dict[int, list[TrackPreview]] = {}
         self._preview_playlist_id: int | None = None
         self._prefetch_generation = 0
+        self._prefetch_skip: set[int] = set()
 
     def compose(self) -> ComposeResult:
         with Horizontal(id=_HEADER_ID):
@@ -411,11 +413,15 @@ class LibraryScreen(Screen):
         path is the post-sync resume. Keep the existing colours on screen
         and replace them only when the full ANLZ/tag pass finishes — a
         crate-only intermediate paint would flash every playlist as
-        ``0/N`` / not synced.
+        ``0/N`` / not synced. Drop the preview cache at the start so a
+        failed rebuild cannot keep pre-sync track rows.
 
         Returns:
             None.
         """
+        self._preview_cache.clear()
+        self._prefetch_generation += 1
+        self._prefetch_skip.clear()
         try:
             if self._all_ids:
                 self._set_status("Checking analysis…")
@@ -445,11 +451,15 @@ class LibraryScreen(Screen):
             states = await self.app.run_rekordbox(
                 playlist_tree_sync_states, self.library, check_analysis=check_analysis
             )
+        except OperationCancelled:
+            return
         except Exception:
             # Keep the existing tree. A Diesel/rbox failure must not tear
-            # down the screen or drop PyOneLibrary on the UI thread.
-            if busy is None:
-                self._update_status()
+            # down the screen or drop PyOneLibrary on the UI thread. Preview
+            # cache was already cleared in ``_refresh`` so stale rows cannot
+            # masquerade as post-sync state.
+            self._set_status("Could not refresh library")
+            self._set_tracks_loading(False)
             return
         self._apply_states(states, busy=busy)
 
@@ -471,6 +481,7 @@ class LibraryScreen(Screen):
         self._selected.clear()
         self._preview_cache.clear()
         self._preview_playlist_id = None
+        self._prefetch_skip.clear()
         self._all_ids = tuple(i for state in states for i in state.leaf_ids)
         for state in states:
             self._add_node(tree.root, state, depth=0)
@@ -481,9 +492,12 @@ class LibraryScreen(Screen):
             tree.cursor_line = cursor
             tree.focus()
         self._refresh_labels(tree.root, depth=0)
-        self._set_tracks_loading(True)
         self._clear_table()
         self._apply_column_widths()
+        if not self._all_ids:
+            self._set_tracks_loading(False)
+        else:
+            self._set_tracks_loading(True)
         if busy is not None:
             self._set_status(busy)
         else:
@@ -669,6 +683,7 @@ class LibraryScreen(Screen):
             self._set_tracks_loading(False)
             self._fill_table(cached)
             return
+        self._prefetch_skip.discard(playlist_id)
         self._set_tracks_loading(True)
         # Abandon in-flight prefetch results so this row is cached next
         # after the load; the dedicated thread still finishes any current
@@ -688,15 +703,28 @@ class LibraryScreen(Screen):
         pass must not hide the scan bar or overwrite the table. On
         success the rows are cached so returning to this playlist is
         instant. Prefetch resumes afterward for the remaining leaves.
+        Failures and cancels are not cached.
 
         Args:
             playlist_id: Highlighted leaf playlist id.
             token: ``_tracks_load_id`` at the time this load was started.
         """
+
+        def stale() -> bool:
+            """True when a newer highlight replaced this load."""
+            return token != self._tracks_load_id
+
         try:
             tracks = await self.app.run_rekordbox(
-                preview_playlist_tracks, self.library, playlist_id
+                preview_playlist_tracks,
+                self.library,
+                playlist_id,
+                should_cancel=stale,
             )
+        except OperationCancelled:
+            if token == self._tracks_load_id:
+                self._start_preview_prefetch()
+            return
         except Exception:
             # Keep the pane alive. Re-raising here crashes the worker and
             # can drop PyOneLibrary on the UI thread during teardown.
@@ -725,6 +753,8 @@ class LibraryScreen(Screen):
             None.
         """
         if self._next_uncached_playlist_id() is None:
+            if not self._all_ids:
+                self._set_tracks_loading(False)
             return
         self._prefetch_generation += 1
         generation = self._prefetch_generation
@@ -743,10 +773,14 @@ class LibraryScreen(Screen):
             A leaf playlist id not yet in ``_preview_cache``, or None.
         """
         highlighted = self._preview_playlist_id
-        if highlighted is not None and highlighted not in self._preview_cache:
+        if (
+            highlighted is not None
+            and highlighted not in self._preview_cache
+            and highlighted not in self._prefetch_skip
+        ):
             return highlighted
         for playlist_id in self._all_ids:
-            if playlist_id not in self._preview_cache:
+            if playlist_id not in self._preview_cache and playlist_id not in self._prefetch_skip:
                 return playlist_id
         return None
 
@@ -755,22 +789,40 @@ class LibraryScreen(Screen):
         Fill ``_preview_cache`` for remaining leaves on the Rekordbox thread.
 
         Stops when a newer prefetch generation starts or every leaf is
-        cached. If the row just loaded is still highlighted and the pane
-        is waiting, paint it without another round trip.
+        cached. Failures are skipped for this generation (not cached) so
+        a later highlight can retry. If the row just loaded is still
+        highlighted and the pane is waiting, paint it without another
+        round trip.
 
         Args:
             generation: ``_prefetch_generation`` when this worker started.
         """
+
+        def stale() -> bool:
+            """True when a newer prefetch or highlight replaced this warm."""
+            return generation != self._prefetch_generation
+
         while generation == self._prefetch_generation:
             playlist_id = self._next_uncached_playlist_id()
             if playlist_id is None:
                 return
             try:
                 tracks = await self.app.run_rekordbox(
-                    preview_playlist_tracks, self.library, playlist_id
+                    preview_playlist_tracks,
+                    self.library,
+                    playlist_id,
+                    should_cancel=stale,
                 )
+            except OperationCancelled:
+                return
             except Exception:
-                tracks = []
+                if generation != self._prefetch_generation:
+                    return
+                self._prefetch_skip.add(playlist_id)
+                if playlist_id == self._preview_playlist_id:
+                    self._set_tracks_loading(False)
+                    self._clear_table()
+                continue
             if generation != self._prefetch_generation:
                 return
             self._preview_cache[playlist_id] = tracks

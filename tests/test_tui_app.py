@@ -318,3 +318,41 @@ def test_suppress_alt_screen_filters_driver_writes() -> None:
     driver.write("\x1b[?1049l\x1b[?25h")
 
     assert written == ["\x1b[2J\x1b[H", "payload", "\x1b[2J\x1b[H\x1b[?25h"]
+
+
+def test_guarded_rekordbox_call_parks_library_when_quit_wins(tmp_path) -> None:
+    """
+    A library returned after quit must be parked, not dropped on the UI thread.
+
+    Reproduces quitting while prepare_library is still opening: the waiter
+    is cancelled before HomeScreen.library is set.
+    """
+    from app.core.domain import RekordboxDbFormat
+    from app.services.library import MountProbe, UsbLibrary
+
+    clear_quit_request()
+    app = _Harness()
+    mount = tmp_path
+    (mount / "PIONEER" / "rekordbox").mkdir(parents=True)
+    (mount / "PIONEER" / "rekordbox" / "exportLibrary.db").write_bytes(b"x")
+    probe = MountProbe(
+        mount=mount,
+        rekordbox_database=mount / "PIONEER" / "rekordbox" / "exportLibrary.db",
+        rekordbox_format=RekordboxDbFormat.ONE_LIBRARY,
+        serato_root=None,
+        serato_database=None,
+    )
+    fake = UsbLibrary(probe=probe, rekordbox=object())
+
+    def open_then_quit() -> UsbLibrary:
+        """Simulate prepare_library finishing after Ctrl+Q."""
+        request_quit()
+        return fake
+
+    with pytest.raises(OperationCancelled):
+        app._guarded_rekordbox_call(open_then_quit)
+
+    assert fake in app._held_libraries
+    # Prevent Drop on the wrong thread when the harness tears down.
+    app._held_libraries.clear()
+    clear_quit_request()

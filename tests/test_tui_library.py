@@ -413,10 +413,10 @@ async def test_revisiting_a_playlist_uses_the_preview_cache(tmp_path: Path) -> N
         "app.services.track_preview", fromlist=["preview_playlist_tracks"]
     ).preview_playlist_tracks
 
-    def counting_preview(lib, playlist_id: int):
+    def counting_preview(lib, playlist_id: int, **kwargs):
         """Record each preview load while still returning real rows."""
         calls.append(playlist_id)
-        return real_preview(lib, playlist_id)
+        return real_preview(lib, playlist_id, **kwargs)
 
     app = _Harness(library)
     with patch("app.tui.screens.library.preview_playlist_tracks", counting_preview):
@@ -493,3 +493,22 @@ async def test_preview_failure_clears_table_without_crashing(tmp_path: Path) -> 
             await pilot.press("space")
             status = str(app.screen.query_one("#selection-status", Static).render())
             assert "1 playlist selected" in status
+            # Failed prefetch must not permanently cache an empty playlist.
+            screen = app.screen
+            assert isinstance(screen, LibraryScreen)
+            assert 1 not in screen._preview_cache
+
+
+@pytest.mark.asyncio
+async def test_empty_library_hides_the_track_scan_bar(tmp_path: Path) -> None:
+    """No leaf playlists must not leave the Tracks pane spinning forever."""
+    mount = _stick(tmp_path, crates={}, indexed=[])
+    folder = Playlist(id=9, name="Empty", parent_id=None, is_folder=True)
+    library = make_library(mount, _adapter([folder], {}))
+    app = _Harness(library)
+    async with app.run_test() as pilot:
+        await _wait_library(app, pilot)
+        screen = app.screen
+        assert isinstance(screen, LibraryScreen)
+        assert screen.query_one("#track-scan-wrap").display is False
+        assert screen.query_one("#track-table", DataTable).display is True

@@ -264,6 +264,8 @@ class HomeScreen(Screen):
             # prepare_library opens Rekordbox, so it must stay on the app's
             # one dedicated thread. See UsbversalApp.run_rekordbox.
             library = await self.app.run_rekordbox(prepare_library, mount)
+        except OperationCancelled:
+            return
         except (OSError, AdapterError, DatabaseNotFoundError, UnsupportedDatabaseError) as exc:
             self._enter(HomePhase.FAILED, f"{_NONE_FOUND} ({exc})")
             return

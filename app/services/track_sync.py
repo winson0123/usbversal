@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from pathlib import Path
 
@@ -12,7 +12,10 @@ from app.adapters.rekordbox.anlz import AnlzError, extended_path, read_beats, re
 from app.adapters.serato.tags import TagFormatError, read_geob
 from app.core.domain import SyncState
 from app.core.track_paths import normalize_track_path
-from app.services.cancellation import OperationCancelled, quit_requested, raise_if_quit_requested
+from app.services.cancellation import (
+    quit_requested,
+    raise_if_cancelled,
+)
 from app.services.sync_analysis import analysis_worker_count
 from app.services.track_records import RekordboxContent, RekordboxDatabase, serato_path
 
@@ -139,6 +142,8 @@ def warm_analysis_ported_cache(
     mount: Path,
     tracks: Sequence[tuple[str, RekordboxContent | None]],
     cache: dict[str, bool],
+    *,
+    should_cancel: Callable[[], bool] | None = None,
 ) -> None:
     """
     Fill ``cache`` for unique tracks by reading ANLZ and tags in parallel.
@@ -147,21 +152,23 @@ def warm_analysis_ported_cache(
     filesystem paths, never ``PyOneLibrary``. Reuses the sync analysis
     worker cap so a USB stick is not flooded.
 
-    Polls the shared quit flag so Ctrl+Q can abort a long USB scan
-    without waiting for every track. On cancel, pending futures are
-    dropped and the pool is shut down without waiting; a few in-flight
-    file reads may finish after return.
+    Polls the shared quit flag (and optional ``should_cancel``) so Ctrl+Q
+    or a stale preview generation can abort a long USB scan without
+    waiting for every track. On cancel, pending futures are dropped and
+    the pool is shut down without waiting; a few in-flight file reads may
+    finish after return.
 
     Args:
         mount: Mount root.
         tracks: ``(raw path, content row)`` pairs to check. Duplicates
             share one cache entry.
         cache: Shared analysis-ported cache to fill in place.
+        should_cancel: Optional extra cancel predicate (e.g. preview gen).
 
     Raises:
-        OperationCancelled: When quit was requested before or during the warm.
+        OperationCancelled: When quit or ``should_cancel`` stops the warm.
     """
-    raise_if_quit_requested()
+    raise_if_cancelled(should_cancel)
     pending: dict[str, tuple[Path | None, Path]] = {}
     for raw, content in tracks:
         dat_path = analysis_dat_path(mount, content)
@@ -175,7 +182,7 @@ def warm_analysis_ported_cache(
     workers = analysis_worker_count(len(pending))
     if workers == 1 or len(pending) == 1:
         for cache_key, (dat_path, audio_path) in pending.items():
-            raise_if_quit_requested()
+            raise_if_cancelled(should_cancel)
             cache[cache_key] = _analysis_is_ported(dat_path, audio_path)
         return
     pool = ThreadPoolExecutor(max_workers=workers)
@@ -187,11 +194,11 @@ def warm_analysis_ported_cache(
         }
         outstanding = set(futures)
         while outstanding:
-            if quit_requested():
+            if quit_requested() or (should_cancel is not None and should_cancel()):
                 cancelled = True
                 for pending_future in outstanding:
                     pending_future.cancel()
-                raise OperationCancelled("quit requested")
+                raise_if_cancelled(should_cancel)
             done, outstanding = wait(outstanding, timeout=0.1, return_when=FIRST_COMPLETED)
             for future in done:
                 cache[futures[future]] = future.result()

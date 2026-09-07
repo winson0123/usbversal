@@ -561,3 +561,41 @@ def test_on_progress_skips_analysis_when_nothing_has_analysis_data(tmp_path: Pat
         playlist_done=1,
         playlist_total=1,
     )
+
+
+def test_sync_playlists_stops_when_quit_is_requested(tmp_path: Path, monkeypatch) -> None:
+    """Ctrl+Q mid-sync must raise instead of finishing every write phase."""
+    from app.services.cancellation import (
+        OperationCancelled,
+        clear_quit_request,
+        request_quit,
+    )
+
+    clear_quit_request()
+    mount = _stick(tmp_path, indexed=[])
+    playlists = [
+        Playlist(id=1, name="A", parent_id=None, is_folder=False),
+        Playlist(id=2, name="B", parent_id=None, is_folder=False),
+    ]
+    library = _library(
+        mount,
+        playlists,
+        {1: ["/Contents/a.mp3"], 2: ["/Contents/b.mp3"]},
+        [_content("/Contents/a.mp3"), _content("/Contents/b.mp3")],
+    )
+    crates: list[str] = []
+
+    def write_and_quit(**kwargs):
+        """Write the first crate, then signal quit before the second."""
+        crates.append(kwargs["crate_name"])
+        if len(crates) == 1:
+            request_quit()
+        from app.adapters.serato.writer import write_crate as real
+
+        return real(**kwargs)
+
+    monkeypatch.setattr("app.services.sync_service.write_crate", write_and_quit)
+    with pytest.raises(OperationCancelled):
+        sync_playlists(library, [1, 2])
+    assert len(crates) == 1
+    clear_quit_request()

@@ -3,6 +3,8 @@
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from app.adapters.serato.naming import volume_label_for
 from app.core.domain import Playlist, SyncState
 from app.services.track_preview import preview_playlist_tracks
@@ -182,3 +184,31 @@ def test_preview_marks_missing_analysis_yellow(tmp_path: Path) -> None:
         SyncState.SYNCED,
     ]
     assert [row.title for row in rows] == ["Alpha", "Beta", "Gamma"]
+
+
+def test_preview_stops_when_should_cancel_flips(tmp_path: Path) -> None:
+    """A stale highlight must abort mid-preview instead of finishing every track."""
+    from app.services.cancellation import OperationCancelled, clear_quit_request
+
+    clear_quit_request()
+    mount = _stick(tmp_path, crates={}, indexed=[])
+    playlist = Playlist(id=1, name="Techno", parent_id=None, is_folder=False)
+    paths = [f"/Contents/t{i}.mp3" for i in range(20)]
+    adapter = _adapter([playlist], {1: paths})
+    adapter.database.get_contents.return_value = [
+        _content(path=p, title=p, genre_id=1, key_id=2, bpmx100=12000) for p in paths
+    ]
+    adapter.database.get_genres.return_value = [SimpleNamespace(id=1, name="Techno")]
+    adapter.database.get_keys.return_value = [SimpleNamespace(id=2, name="8A")]
+    adapter.database.get_artists.return_value = []
+    adapter.database.get_albums.return_value = []
+    library = make_library(mount, adapter)
+    cancel_after = {"n": 0}
+
+    def should_cancel() -> bool:
+        """Flip true after the first track row is built."""
+        cancel_after["n"] += 1
+        return cancel_after["n"] > 3
+
+    with pytest.raises(OperationCancelled):
+        preview_playlist_tracks(library, 1, should_cancel=should_cancel)

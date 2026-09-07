@@ -7,6 +7,7 @@ holding the dedicated rekordbox thread until a full USB scan finishes.
 from __future__ import annotations
 
 import threading
+from collections.abc import Callable
 
 _quit_requested = threading.Event()
 
@@ -53,3 +54,19 @@ def raise_if_quit_requested() -> None:
     """
     if quit_requested():
         raise OperationCancelled("quit requested")
+
+
+def raise_if_cancelled(should_cancel: Callable[[], bool] | None = None) -> None:
+    """
+    Raise when quit was requested or ``should_cancel`` is true.
+
+    Args:
+        should_cancel: Optional extra predicate (e.g. a stale preview
+            generation). Checked after the process-wide quit flag.
+
+    Raises:
+        OperationCancelled: When work should stop.
+    """
+    raise_if_quit_requested()
+    if should_cancel is not None and should_cancel():
+        raise OperationCancelled("operation cancelled")

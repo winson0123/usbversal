@@ -10,7 +10,7 @@ from __future__ import annotations
 import binascii
 import os
 from collections.abc import Sequence
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -34,6 +34,7 @@ from app.adapters.serato.markers2 import (
 )
 from app.adapters.serato.mp4_tags import is_mp4, m4a_encoder_delay_ms
 from app.adapters.serato.tags import TagFormatError, read_geob, write_geob
+from app.services.cancellation import quit_requested, raise_if_quit_requested
 from app.services.sync_progress import SyncProgressCallback, emit_progress
 
 SYNC_WORKERS_ENV = "USBVERSAL_SYNC_WORKERS"
@@ -195,6 +196,8 @@ def process_analysis_track(job: AnalysisJob) -> AnalysisTrackResult:
     Returns:
         What was written, or the error if the track failed.
     """
+    if quit_requested():
+        return AnalysisTrackResult(job.raw, "quit requested", None, False)
     if job.dat_path is None:
         return AnalysisTrackResult(job.raw, None, None, False)
     if not job.audio_path.is_file():
@@ -256,32 +259,74 @@ class AnalysisSession:
 
         Returns:
             One result per job, in completion order.
+
+        Raises:
+            OperationCancelled: When quit was requested; pending jobs are
+                cancelled and the pool is shut down without waiting.
         """
         if self._results is not None:
             return self._results
         results: list[AnalysisTrackResult] = []
         done = 0
-        for future in as_completed(self._futures):
-            result = future.result()
-            results.append(result)
-            done += 1
-            emit_progress(
-                self._on_progress,
-                "analysis",
-                done,
-                len(self._jobs),
-                result.raw,
-                result.error,
-            )
+        outstanding = set(self._futures)
+        while outstanding:
+            if quit_requested():
+                for future in outstanding:
+                    future.cancel()
+                raise_if_quit_requested()
+            finished, outstanding = _wait_some(outstanding)
+            for future in finished:
+                result = future.result()
+                results.append(result)
+                done += 1
+                emit_progress(
+                    self._on_progress,
+                    "analysis",
+                    done,
+                    len(self._jobs),
+                    result.raw,
+                    result.error,
+                )
         self._results = results
         return results
 
     def close(self) -> None:
-        """Shut down the worker pool."""
+        """Shut down the worker pool; skip waiting when quit was requested."""
         if self._pool is None:
             return
-        self._pool.shutdown(wait=True)
+        cancel = quit_requested()
+        if cancel:
+            for future in self._futures:
+                future.cancel()
+        self._pool.shutdown(wait=not cancel, cancel_futures=cancel)
         self._pool = None
+
+
+def _wait_some(
+    futures: set[Future[AnalysisTrackResult]],
+) -> tuple[set[Future[AnalysisTrackResult]], set[Future[AnalysisTrackResult]]]:
+    """
+    Wait briefly for at least one analysis future, or until quit.
+
+    Args:
+        futures: Outstanding analysis futures.
+
+    Returns:
+        ``(done, not_done)`` like ``concurrent.futures.wait``.
+
+    Raises:
+        OperationCancelled: When quit was requested.
+    """
+    while True:
+        if quit_requested():
+            for future in futures:
+                future.cancel()
+            raise_if_quit_requested()
+        done, not_done = wait(futures, timeout=0.1, return_when=FIRST_COMPLETED)
+        if done:
+            return done, not_done
+        if not not_done:
+            return set(), set()
 
 
 def begin_analysis_jobs(

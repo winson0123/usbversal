@@ -16,6 +16,7 @@ from textual.containers import Center, CenterMiddle
 from textual.screen import Screen
 from textual.widgets import Footer, ProgressBar, RichLog, Static
 
+from app.services.cancellation import OperationCancelled
 from app.services.library import UsbLibrary
 from app.services.sync_errors import (
     failures_from_report,
@@ -110,6 +111,9 @@ class ProgressScreen(Screen):
                 self._playlist_ids,
                 on_progress=self._report_progress,
             )
+        except OperationCancelled:
+            # Quit owns teardown; do not push Done over a dying UI.
+            return
         except Exception as exc:  # reported on the Done screen, not raised
             log = self.query_one(RichLog)
             log.remove_class("empty")

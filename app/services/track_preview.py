@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -9,6 +10,7 @@ from app.adapters.serato import crate_name_for, read_crate_track_paths, volume_l
 from app.adapters.serato.paths import list_crate_files
 from app.core.domain import SyncState
 from app.core.track_paths import normalize_track_path
+from app.services.cancellation import raise_if_cancelled
 from app.services.library import UsbLibrary
 from app.services.track_records import (
     RekordboxContent,
@@ -46,20 +48,31 @@ class TrackPreview:
     state: SyncState
 
 
-def preview_playlist_tracks(library: UsbLibrary, playlist_id: int) -> list[TrackPreview]:
+def preview_playlist_tracks(
+    library: UsbLibrary,
+    playlist_id: int,
+    *,
+    should_cancel: Callable[[], bool] | None = None,
+) -> list[TrackPreview]:
     """
     Build preview rows for one playlist, in playlist order.
 
     Colour follows crate membership and whether Rekordbox analysis is
-    already on the audio file.
+    already on the audio file. ``should_cancel`` lets a newer highlight
+    abandon a large in-flight preview without waiting for every track.
 
     Args:
         library: Opened session handle.
         playlist_id: Rekordbox playlist id (a leaf, not a folder).
+        should_cancel: Optional predicate checked between stages/tracks.
 
     Returns:
         One row per path in the playlist. Missing metadata stays blank.
+
+    Raises:
+        OperationCancelled: When quit or ``should_cancel`` stops the load.
     """
+    raise_if_cancelled(should_cancel)
     playlists = library.rekordbox.list_playlists()
     by_id = {playlist.id: playlist for playlist in playlists}
     playlist = by_id.get(playlist_id)
@@ -68,6 +81,7 @@ def preview_playlist_tracks(library: UsbLibrary, playlist_id: int) -> list[Track
 
     crate_name = crate_name_for(playlist, by_id, volume=volume_label_for(library.mount))
     in_crate = _crate_paths(library.serato_root).get(crate_name, set())
+    raise_if_cancelled(should_cancel)
     contents = contents_by_path(library.rekordbox.database)
     lookups = _safe_lookups(library)
     cache: dict[str, bool] = {}
@@ -75,13 +89,16 @@ def preview_playlist_tracks(library: UsbLibrary, playlist_id: int) -> list[Track
         raw_paths = list(library.rekordbox.get_playlist_track_paths(playlist_id))
     except Exception:
         return []
+    raise_if_cancelled(should_cancel)
     warm_analysis_ported_cache(
         library.mount,
         [(raw, content_for_path(contents, raw)) for raw in raw_paths],
         cache,
+        should_cancel=should_cancel,
     )
     rows: list[TrackPreview] = []
     for raw in raw_paths:
+        raise_if_cancelled(should_cancel)
         path = normalize_track_path(raw)
         content = content_for_path(contents, raw)
         state = track_sync_state(

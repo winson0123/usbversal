@@ -6,6 +6,16 @@
 
 ## Recently completed
 
-- TASK-341: Avoid unawaited prefetch coroutines when exclusive workers replace each other
+- TASK-342: Fix residual quit/preview bugs from review
 
-Next id is `TASK-342`.
+## Verification
+
+```bash
+.venv/bin/ruff check .
+.venv/bin/ruff format --check .
+.venv/bin/pytest -q
+```
+
+Pass: 348 passed, 3 skipped.
+
+Next id is `TASK-343`.

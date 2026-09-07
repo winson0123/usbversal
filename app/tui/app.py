@@ -15,8 +15,14 @@ from textual.app import App
 from textual.binding import Binding
 from textual.driver import Driver
 
-from app.services.cancellation import clear_quit_request, request_quit
-from app.services.library import MountWatcher
+from app.services.cancellation import (
+    OperationCancelled,
+    clear_quit_request,
+    quit_requested,
+    raise_if_quit_requested,
+    request_quit,
+)
+from app.services.library import MountWatcher, UsbLibrary
 from app.tui.palette import KEY
 from app.tui.screens.home import HomeScreen
 
@@ -135,6 +141,37 @@ class RekordboxThreadMixin:
         finally:
             self._rekordbox_executor.shutdown(wait=True, cancel_futures=True)
 
+    def _guarded_rekordbox_call(
+        self, func: Callable[..., _T], *args: object, **kwargs: object
+    ) -> _T:
+        """
+        Run ``func`` on this thread, parking a returned library if quit won.
+
+        If the user quits while ``prepare_library`` (or similar) is still
+        opening PyOneLibrary, the asyncio waiter may be cancelled before
+        ``HomeScreen.library`` is set. Parking the result here keeps Drop
+        on the dedicated thread.
+
+        Args:
+            func: Blocking callable that may touch ``UsbLibrary.rekordbox``.
+            *args: Positional arguments for ``func``.
+            **kwargs: Keyword arguments for ``func``.
+
+        Returns:
+            Whatever ``func`` returns.
+
+        Raises:
+            OperationCancelled: When quit was requested before or after
+                ``func``, including when a fresh ``UsbLibrary`` is parked.
+        """
+        raise_if_quit_requested()
+        result = func(*args, **kwargs)
+        if quit_requested():
+            if isinstance(result, UsbLibrary):
+                self._held_libraries.append(result)
+            raise OperationCancelled("quit requested")
+        return result
+
     async def run_rekordbox(self, func: Callable[..., _T], *args: object, **kwargs: object) -> _T:
         """
         Run a blocking call that touches ``UsbLibrary.rekordbox`` off the UI
@@ -149,7 +186,7 @@ class RekordboxThreadMixin:
             Whatever ``func`` returns.
         """
         loop = asyncio.get_running_loop()
-        call = functools.partial(func, *args, **kwargs)
+        call = functools.partial(self._guarded_rekordbox_call, func, *args, **kwargs)
         return await loop.run_in_executor(self._rekordbox_executor, call)
 
 
