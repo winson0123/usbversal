@@ -34,6 +34,8 @@ from app.services.cancellation import OperationCancelled
 from app.services.library import UsbLibrary
 from app.services.sync_service import (
     PlaylistTreeSyncState,
+    SyncReport,
+    combine_sync_states,
     playlist_tree_sync_states,
 )
 from app.services.track_preview import TrackPreview, preview_playlist_tracks
@@ -352,6 +354,7 @@ class LibraryScreen(Screen):
         self._preview_playlist_id: int | None = None
         self._prefetch_generation = 0
         self._prefetch_skip: set[int] = set()
+        self._skip_analysis_refresh = False
 
     def compose(self) -> ComposeResult:
         with Horizontal(id=_HEADER_ID):
@@ -388,11 +391,18 @@ class LibraryScreen(Screen):
         kept Home on screen with a frozen scan bar. Fires on the first
         activation as well as later resumes (Textual gives no separate
         first-time signal), so this is the one place the tree is built.
+        After a successful sync, Done already applied the report and set
+        ``_skip_analysis_refresh`` so this resume does not re-read ANLZ.
         """
         if self._initial_states is not None:
             states = self._initial_states
             self._initial_states = None
             self._apply_states(states, busy=None)
+            return
+        if self._skip_analysis_refresh:
+            self._skip_analysis_refresh = False
+            self._update_status()
+            self._start_preview_prefetch()
             return
         if self._refreshing:
             return
@@ -404,6 +414,92 @@ class LibraryScreen(Screen):
             group="library-refresh",
             name="library-refresh",
         )
+
+    def apply_sync_report(self, report: SyncReport) -> None:
+        """
+        Paint playlists that just synced as complete without re-reading ANLZ.
+
+        Called from Done before popping back here. Successful crate writes
+        become green ``total/total`` rows; folder colours roll up from their
+        children. Preview cache for those playlists is dropped so the next
+        highlight reloads tracks. Sets ``_skip_analysis_refresh`` so the
+        following resume does not run the full USB analysis pass.
+
+        Args:
+            report: Outcome of the sync that just finished.
+        """
+        succeeded = {result.playlist_id for result in report.results if result.error is None}
+        if not succeeded:
+            return
+        for playlist_id in succeeded:
+            self._preview_cache.pop(playlist_id, None)
+            self._prefetch_skip.discard(playlist_id)
+        tree = self.query_one(Tree)
+        self._mark_leaves_synced(tree.root, succeeded)
+        self._rollup_folder_rows(tree.root)
+        self._refresh_labels(tree.root, depth=0)
+        self._skip_analysis_refresh = True
+        # Highlighted playlist may have been one we just synced; reload later.
+        if self._preview_playlist_id in succeeded:
+            self._tracks_load_id += 1
+            self._set_tracks_loading(True)
+            self._clear_table()
+
+    def _mark_leaves_synced(self, node: TreeNode[_Row], succeeded: set[int]) -> None:
+        """
+        Set leaf rows in ``succeeded`` to a fully synced count.
+
+        Args:
+            node: Tree node to walk.
+            succeeded: Playlist ids whose crate write succeeded.
+        """
+        row = node.data
+        if row is not None and not row.is_folder and len(row.ids) == 1:
+            playlist_id = row.ids[0]
+            if playlist_id in succeeded:
+                node.data = _Row(
+                    name=row.name,
+                    state=SyncState.SYNCED,
+                    synced=row.total,
+                    total=row.total,
+                    ids=row.ids,
+                    is_folder=False,
+                )
+        for child in node.children:
+            self._mark_leaves_synced(child, succeeded)
+
+    def _rollup_folder_rows(self, node: TreeNode[_Row]) -> tuple[int, int, SyncState]:
+        """
+        Recompute folder synced/total/state from descendant leaves.
+
+        Args:
+            node: Tree node to roll up.
+
+        Returns:
+            ``(synced, total, state)`` for ``node`` after updating folders.
+        """
+        row = node.data
+        if row is not None and not row.is_folder:
+            return row.synced, row.total, row.state
+        synced = 0
+        total = 0
+        child_states: list[SyncState] = []
+        for child in node.children:
+            child_synced, child_total, child_state = self._rollup_folder_rows(child)
+            synced += child_synced
+            total += child_total
+            child_states.append(child_state)
+        state = combine_sync_states(child_states)
+        if row is not None and row.is_folder:
+            node.data = _Row(
+                name=row.name,
+                state=state,
+                synced=synced,
+                total=total,
+                ids=row.ids,
+                is_folder=True,
+            )
+        return synced, total, state
 
     async def _refresh(self) -> None:
         """

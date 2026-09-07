@@ -240,4 +240,11 @@ class DoneScreen(Screen):
         return Text("\n".join(lines), style=style)
 
     def action_return_to_library(self) -> None:
+        """Hand the sync report to Library, then pop back without an ANLZ re-scan."""
+        if self._report is not None:
+            for screen in self.app.screen_stack:
+                apply = getattr(screen, "apply_sync_report", None)
+                if callable(apply):
+                    apply(self._report)
+                    break
         self.app.pop_screen()

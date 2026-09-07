@@ -198,12 +198,10 @@ async def test_tree_has_no_all_playlists_parent(tmp_path: Path) -> None:
 async def test_returning_to_the_screen_reflects_a_sync_that_just_happened(
     tmp_path: Path,
 ) -> None:
-    """The bug this closes: the tree used to stay stale until the app restarted.
+    """Done applies the sync report so the tree updates without an ANLZ re-scan."""
+    from app.services.sync_service import PlaylistSyncResult, SyncReport
+    from app.tui.screens.progress import DoneScreen
 
-    LibraryScreen built its tree once in on_mount and never again, so
-    Done -> enter -> pop_screen landed back on a screen still showing
-    whatever was true before the sync ran. on_screen_resume now rebuilds it.
-    """
     library = _library_with_two_playlists(tmp_path)
     app = _Harness(library)
     async with app.run_test() as pilot:
@@ -211,32 +209,78 @@ async def test_returning_to_the_screen_reflects_a_sync_that_just_happened(
         tree = app.screen.query_one(Tree)
         before = {node.data.name: str(node.label) for node in _playlist_nodes(tree)}
         assert "0/1" in before["Trance"]
+        assert "1/1" in before["Techno"]
 
-        # Simulate what a completed sync writes: Trance now has a crate.
-        _write_crate(
-            library.mount / "_Serato_",
-            f"{volume_label_for(library.mount)}%%Trance",
-            ["Contents/b.mp3"],
+        report = SyncReport(
+            mount=library.mount,
+            records_added=0,
+            results=(
+                PlaylistSyncResult(
+                    playlist_id=2,
+                    playlist_name="Trance",
+                    crate_name=f"{volume_label_for(library.mount)}%%Trance",
+                    tracks=1,
+                ),
+            ),
         )
-
-        # Simulate returning from Progress/Done: push another screen, then
-        # pop back to this one, the same path DoneScreen's enter takes.
-        app.push_screen(Screen())
+        # Same stack path as a real sync: Library -> Progress-like -> Done -> pop.
+        app.push_screen(DoneScreen(report=report))
         await pilot.pause()
-        app.pop_screen()
-        await _wait_library(app, pilot)
+        await pilot.press("enter")
+        await pilot.pause()
 
-        tree = app.screen.query_one(Tree)
+        screen = app.screen
+        assert isinstance(screen, LibraryScreen)
+        tree = screen.query_one(Tree)
         after = {node.data.name: str(node.label) for node in _playlist_nodes(tree)}
         assert "1/1" in after["Trance"]
-        assert "not synced" not in after["Trance"]
+        assert "1/1" in after["Techno"]
+
+
+@pytest.mark.asyncio
+async def test_post_sync_resume_skips_analysis_refresh(tmp_path: Path) -> None:
+    """Returning from Done must not re-run playlist_tree_sync_states."""
+    from app.services.sync_service import PlaylistSyncResult, SyncReport
+    from app.tui.screens.progress import DoneScreen
+
+    library = _library_with_two_playlists(tmp_path)
+    calls: list[bool] = []
+
+    def tracking(lib, *, check_analysis: bool = True):
+        calls.append(check_analysis)
+        return playlist_tree_sync_states(lib, check_analysis=check_analysis)
+
+    with patch("app.tui.screens.library.playlist_tree_sync_states", tracking):
+        app = _Harness(library)
+        async with app.run_test() as pilot:
+            await _wait_library(app, pilot)
+            calls.clear()
+
+            report = SyncReport(
+                mount=library.mount,
+                records_added=0,
+                results=(
+                    PlaylistSyncResult(
+                        playlist_id=1,
+                        playlist_name="Techno",
+                        crate_name=f"{volume_label_for(library.mount)}%%Techno",
+                        tracks=1,
+                    ),
+                ),
+            )
+            app.push_screen(DoneScreen(report=report))
+            await pilot.pause()
+            await pilot.press("enter")
+            await pilot.pause()
+
+    assert calls == []
 
 
 @pytest.mark.asyncio
 async def test_resume_skips_crate_only_pass_that_flashed_unsynced(
     tmp_path: Path,
 ) -> None:
-    """Post-sync resume must not paint a check_analysis=False 0/N tree."""
+    """A plain resume (not post-sync) still does a full analysis pass only."""
     library = _library_with_two_playlists(tmp_path)
     calls: list[bool] = []
 
