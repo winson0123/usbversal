@@ -909,8 +909,9 @@ def verify_geob_rewrite(
     write: the audio stream is unchanged, and the frames actually read back.
     An MP3 tag may grow when it has no ``Serato Offsets_``. A tagless MPEG
     MP3 or WAV may gain an ID3 tag. A WAVE ``id3 `` that sits after
-    ``data`` may grow. An AIFF ``ID3 `` chunk may grow or be inserted.
-    MP4 ``moov`` may grow; ``mdat`` must not change. This check
+    ``data`` may grow in place; one that sits before ``data`` may grow by
+    relocating after ``data``. An AIFF ``ID3 `` chunk may grow or be
+    inserted. MP4 ``moov`` may grow; ``mdat`` must not change. This check
     caught two real defects during that work: a silent no-op when a frame
     did not already exist, and a false positive from hashing a WAV file
     whole instead of just its `data` chunk.
@@ -944,6 +945,19 @@ def verify_geob_rewrite(
             raise TagFormatError("Write would move the audio stream")
     original_start, original_size = _audio_span(original)
     rebuilt_start, rebuilt_size = _audio_span(rebuilt)
+    if _is_wav(original) and len(rebuilt) != len(original):
+        found = _wav_id3_span(original)
+        if found is not None and not _wav_id3_is_after_audio(original, found[0]):
+            # Pre-audio id3 may only grow by relocating after ``data``,
+            # which moves the PCM earlier. Growing in place would push
+            # ``data`` later and is refused.
+            new_id3 = _wav_id3_span(rebuilt)
+            if (
+                rebuilt_start > original_start
+                or new_id3 is None
+                or not _wav_id3_is_after_audio(rebuilt, new_id3[0])
+            ):
+                raise TagFormatError("Write would move the audio stream")
     original_hash = hashlib.sha256(
         original[original_start : original_start + original_size]
     ).digest()
@@ -968,18 +982,14 @@ def _size_change_allowed(original: bytes) -> bool:
         original: File contents before the rewrite.
 
     Returns:
-        True for AIFF / AIFC, a tagless MPEG MP3, a WAVE whose ``id3 ``
-        is missing or sits after ``data``, and an MP3 with no
-        ``Serato Offsets_``.
+        True for AIFF / AIFC, a tagless MPEG MP3, any WAVE (missing
+        ``id3 ``, ``id3 `` after ``data``, or a relocate of pre-audio
+        ``id3 ``), and an MP3 with no ``Serato Offsets_``.
     """
     if _is_aiff(original):
         return True
     if _is_wav(original):
-        found = _wav_id3_span(original)
-        if found is None:
-            return True
-        start, _size = found
-        return _wav_id3_is_after_audio(original, start)
+        return True
     if _is_mpeg(original):
         return True
     return original[:3] == b"ID3" and _SERATO_OFFSETS not in _read_geob_bytes(original)
@@ -1170,6 +1180,12 @@ def _splice_wav_id3(data: bytes, new_tag: bytes) -> bytearray:
     """
     Replace or append the ``id3 `` chunk and fix the RIFF size.
 
+    When an existing ``id3 `` sits before ``data`` and the new chunk is
+    larger, the old chunk is removed and the new one is appended after
+    EOF so the PCM payload bytes stay identical (they may shift earlier
+    in the file). Growing an ``id3 `` that already sits after ``data``
+    keeps it in place.
+
     Args:
         data: Original WAVE file.
         new_tag: Full ID3 tag to store as the chunk payload.
@@ -1184,7 +1200,13 @@ def _splice_wav_id3(data: bytes, new_tag: bytes) -> bytearray:
     else:
         start, size = found
         old_end = start + size + (size & 1)
-        rebuilt = bytearray(data[: start - 8] + chunk + data[old_end:])
+        old_chunk = data[start - 8 : old_end]
+        if len(chunk) > len(old_chunk) and not _wav_id3_is_after_audio(data, start):
+            without = bytearray(data[: start - 8] + data[old_end:])
+            without[4:8] = struct.pack("<I", len(without) - 8)
+            rebuilt = bytearray(without + chunk)
+        else:
+            rebuilt = bytearray(data[: start - 8] + chunk + data[old_end:])
     rebuilt[4:8] = struct.pack("<I", len(rebuilt) - 8)
     return rebuilt
 
@@ -1250,8 +1272,8 @@ def _can_grow_id3(data: bytes, start: int, size: int) -> bool:
 
     A new tag, an AIFF chunk, or a tagless MPEG may grow. An existing
     MP3 tag may grow only when it has no ``Serato Offsets_``. An existing
-    WAV ``id3 `` may grow when the whole chunk sits after the ``data``
-    payload so enlarging it does not move the audio stream.
+    WAV ``id3 `` may always grow: after ``data`` it enlarges in place;
+    before ``data`` ``_splice_wav_id3`` relocates the chunk to EOF.
 
     Args:
         data: Whole file contents.
@@ -1259,12 +1281,12 @@ def _can_grow_id3(data: bytes, start: int, size: int) -> bool:
         size: Original tag length from ``_id3_write_source``.
 
     Returns:
-        True when growing the tag cannot move the audio payload.
+        True when growing the tag cannot corrupt the audio payload.
     """
     if _is_aiff(data) or start < 0 or (start == 0 and size == 0):
         return True
     if _is_wav(data) and start > 0:
-        return _wav_id3_is_after_audio(data, start)
+        return True
     return start == 0 and _SERATO_OFFSETS not in _read_geob_bytes(data)
 
 
@@ -1616,11 +1638,13 @@ def _commit_audio_bytes(target: Path, new_data: bytes, original: bytes) -> None:
     ``.tmp`` and ``replace`` on padded MP3 / WAV tags. When ``new_data``
     is the same WAVE with a longer metadata tail (a new ``id3 `` chunk,
     or a grown ``id3 `` that sits after ``data``), the RIFF size is
-    patched and only that tail is written. Other size-changing writes
-    go through a sibling ``.tmp``, flushed, size-checked, and swapped
-    onto ``target``. The live file and its parent directory are fsynced
-    after a swap. If the destination is missing or shorter than
-    ``new_data`` after the swap, ``original`` is written back.
+    patched and only that tail is written. Relocating a pre-audio
+    ``id3 `` to after ``data`` changes the prefix and uses a sibling
+    ``.tmp`` swap. Other size-changing writes go through a sibling
+    ``.tmp``, flushed, size-checked, and swapped onto ``target``. The
+    live file and its parent directory are fsynced after a swap. If the
+    destination is missing or shorter than ``new_data`` after the swap,
+    ``original`` is written back.
 
     Args:
         target: Live audio path to replace.
@@ -1680,16 +1704,16 @@ def write_geob(
     use ``GEOB``. ID3 tags keep their original size when padding
     allows; an MP3 tag with no ``Serato Offsets_`` may grow. A tagless MPEG
     MP3 or WAVE gains an empty ID3v2.4 tag that then grows. A WAVE ``id3 ``
-    that sits after ``data`` may grow; one that sits before ``data`` may
-    not. An AIFF ``ID3 `` chunk may grow or be created. FLAC Vorbis
-    comments and MP4 ``moov`` may grow; STREAMINFO / ``mdat`` stay
-    identical. Before anything reaches disk, the rebuilt file is verified
-    against the original. The original file is untouched if verification
-    fails. A same-size rewrite patches only the changed bytes on the live
-    path. A WAVE that only changes bytes after ``data`` patches the RIFF
-    size and rewrites that tail. Other size-changing rewrites use a
-    sibling ``.tmp`` and ``replace``, then fsync the live file and its
-    directory.
+    that sits after ``data`` may grow in place; one that sits before
+    ``data`` relocates to after ``data`` when it must grow. An AIFF
+    ``ID3 `` chunk may grow or be created. FLAC Vorbis comments and MP4
+    ``moov`` may grow; STREAMINFO / ``mdat`` stay identical. Before
+    anything reaches disk, the rebuilt file is verified against the
+    original. The original file is untouched if verification fails. A
+    same-size rewrite patches only the changed bytes on the live path. A
+    WAVE that only changes bytes after ``data`` patches the RIFF size and
+    rewrites that tail. Other size-changing rewrites use a sibling
+    ``.tmp`` and ``replace``, then fsync the live file and its directory.
     A short or missing destination is overwritten with the original bytes.
     An empty file is refused. When every requested payload already matches
     and nothing is being removed, only the tag is read and the file is not
@@ -1749,7 +1773,8 @@ def write_geob(
     # Prefer absorbing the edit into padding. An MP3 with no Offsets_ may
     # grow: Offsets_ addresses audio by byte position, so moving that
     # stream would invalidate the waveform. Tagless MPEG and AIFF may
-    # grow or gain an ID3 tag. A WAV id3 after data may grow.
+    # grow or gain an ID3 tag. A WAV id3 after data may grow in place;
+    # one before data relocates to EOF when it must grow.
     new_tag = _padded_tag(tag, rebuilt, declared, grow=_can_grow_id3(data, start, size))
     new_data = _splice_id3_container(data, start, size, new_tag)
 

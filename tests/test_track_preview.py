@@ -52,6 +52,7 @@ def test_preview_marks_crate_membership_and_fills_metadata(tmp_path: Path) -> No
         crates={f"{volume_label_for(tmp_path)}%%Techno": ["Contents/a.mp3"]},
         indexed=["Contents/a.mp3", "Contents/b.mp3"],
     )
+    _write_audio(mount, "Contents/a.mp3", beatgrid=False)
     playlist = Playlist(id=1, name="Techno", parent_id=None, is_folder=False)
     adapter = _adapter([playlist], {1: ["/Contents/a.mp3", "/Contents/b.mp3"]})
     adapter.database.get_contents.return_value = [
@@ -94,6 +95,7 @@ def test_preview_survives_broken_album_lookups(tmp_path: Path) -> None:
         crates={f"{volume_label_for(tmp_path)}%%Techno": ["Contents/a.mp3"]},
         indexed=["Contents/a.mp3"],
     )
+    _write_audio(mount, "Contents/a.mp3", beatgrid=False)
     playlist = Playlist(id=1, name="Techno", parent_id=None, is_folder=False)
     adapter = _adapter([playlist], {1: ["/Contents/a.mp3"]})
     adapter.database.get_contents.return_value = [
@@ -121,6 +123,7 @@ def test_preview_survives_broken_contents_and_membership(tmp_path: Path) -> None
         crates={f"{volume_label_for(tmp_path)}%%Techno": ["Contents/a.mp3"]},
         indexed=["Contents/a.mp3"],
     )
+    _write_audio(mount, "Contents/a.mp3", beatgrid=False)
     playlist = Playlist(id=1, name="Techno", parent_id=None, is_folder=False)
     adapter = _adapter([playlist], {1: ["/Contents/a.mp3"]})
     adapter.database.get_contents.side_effect = RuntimeError(
@@ -153,6 +156,7 @@ def test_preview_marks_missing_analysis_yellow(tmp_path: Path) -> None:
     )
     _write_dat(mount, _DAT_REL, [(1, 128.0, 0)])
     _write_audio(mount, "Contents/a.mp3", beatgrid=False)
+    _write_audio(mount, "Contents/c.mp3", beatgrid=False)
     playlist = Playlist(id=1, name="Techno", parent_id=None, is_folder=False)
     adapter = _adapter(
         [playlist],
@@ -184,6 +188,38 @@ def test_preview_marks_missing_analysis_yellow(tmp_path: Path) -> None:
         SyncState.SYNCED,
     ]
     assert [row.title for row in rows] == ["Alpha", "Beta", "Gamma"]
+
+
+def test_preview_marks_missing_audio_red(tmp_path: Path) -> None:
+    """In-crate with ANLZ but no audio file on disk is red, not yellow."""
+    mount = _stick(
+        tmp_path,
+        crates={f"{volume_label_for(tmp_path)}%%Techno": ["Contents/a.mp3"]},
+        indexed=["Contents/a.mp3"],
+    )
+    _write_dat(mount, _DAT_REL, [(1, 128.0, 0)])
+    playlist = Playlist(id=1, name="Techno", parent_id=None, is_folder=False)
+    adapter = _adapter([playlist], {1: ["/Contents/a.mp3"]})
+    adapter.database.get_contents.return_value = [
+        _content(
+            path="/Contents/a.mp3",
+            title="Alpha",
+            genre_id=1,
+            key_id=2,
+            bpmx100=12800,
+            analysis_data_file_path=f"/{_DAT_REL}",
+        ),
+    ]
+    adapter.database.get_genres.return_value = [SimpleNamespace(id=1, name="Techno")]
+    adapter.database.get_keys.return_value = [SimpleNamespace(id=2, name="8A")]
+    adapter.database.get_artists.return_value = []
+    adapter.database.get_albums.return_value = []
+    library = make_library(mount, adapter)
+
+    rows = preview_playlist_tracks(library, 1)
+
+    assert [row.state for row in rows] == [SyncState.NOT_SYNCED]
+    assert [row.title for row in rows] == ["Alpha"]
 
 
 def test_preview_stops_when_should_cancel_flips(tmp_path: Path) -> None:

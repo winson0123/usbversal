@@ -219,10 +219,10 @@ def track_sync_state(
     """
     Return the traffic-light colour for one playlist track.
 
-    Red when the track is not in the crate. Yellow when it is in the
-    crate but Rekordbox analysis is not on the file. Green when it is
-    in the crate and analysis is on the file, or Rekordbox had nothing
-    to port.
+    Red when the track is not in the crate, or the audio file is missing
+    on the mount. Yellow when it is in the crate but Rekordbox analysis
+    is not on the file. Green when it is in the crate and analysis is on
+    the file, or Rekordbox had nothing to port.
 
     Args:
         in_crate: Whether the crate already lists this path.
@@ -235,6 +235,8 @@ def track_sync_state(
         ``NOT_SYNCED``, ``PARTIAL``, or ``SYNCED``.
     """
     if not in_crate:
+        return SyncState.NOT_SYNCED
+    if not (mount / serato_path(raw)).is_file():
         return SyncState.NOT_SYNCED
     if analysis_is_ported(mount, raw, content, cache):
         return SyncState.SYNCED

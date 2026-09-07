@@ -6,6 +6,15 @@
 
 ## Recently completed
 
-- TASK-343: Update Library tree from SyncReport on Done return; skip ANLZ re-check
+- TASK-344: Missing audio shows red in Library track list; WAV
+  pre-audio `id3 ` relocates when growing Serato frames
 
-Next id is `TASK-344`.
+Next id is `TASK-345`.
+
+## Results (TASK-344)
+
+```
+ruff check: pass
+ruff format --check: pass
+pytest: 350 passed, 3 skipped
+```

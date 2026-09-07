@@ -265,10 +265,10 @@ def test_verify_accepts_an_unchanged_rewrite(wav: Path) -> None:
 
 
 def test_verify_rejects_a_size_change_when_id3_is_before_data() -> None:
-    """Growing an ``id3 `` that sits before ``data`` would move the audio."""
+    """Appending junk with pre-audio ``id3 `` still moves or leaves the tag wrong."""
     original = _wav_with_tight_id3(before_data=True)
 
-    with pytest.raises(TagFormatError, match="file size"):
+    with pytest.raises(TagFormatError, match="audio stream"):
         verify_geob_rewrite(original, original + b"\x00", {})
 
 
@@ -285,16 +285,18 @@ def test_tight_wav_id3_after_data_grows(tmp_path: Path) -> None:
     assert b"LIST" in path.read_bytes()
 
 
-def test_tight_wav_id3_before_data_refuses_to_grow(tmp_path: Path) -> None:
-    """A tight ``id3 `` before ``data`` must not move the audio stream."""
+def test_tight_wav_id3_before_data_relocates_when_growing(tmp_path: Path) -> None:
+    """A tight ``id3 `` before ``data`` moves to EOF; PCM bytes stay identical."""
     path = tmp_path / "before.wav"
-    original = _wav_with_tight_id3(before_data=True)
-    path.write_bytes(original)
+    path.write_bytes(_wav_with_tight_id3(before_data=True))
+    before = _audio_chunk(path)
 
-    with pytest.raises(TagFormatError, match="move the audio stream"):
-        write_geob(path, {"Serato BeatGrid": b"\x01\x00\x00\x00\x00\x00\x00"})
+    write_geob(path, {"Serato BeatGrid": b"\x01\x00\x00\x00\x00\x00\x00"})
 
-    assert path.read_bytes() == original
+    data = path.read_bytes()
+    assert read_geob(path)["Serato BeatGrid"] == b"\x01\x00\x00\x00\x00\x00\x00"
+    assert _audio_chunk(path) == before
+    assert data.find(b"id3 ") > data.find(b"data")
 
 
 def test_verify_rejects_a_moved_or_altered_audio_stream(wav: Path) -> None:
