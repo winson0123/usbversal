@@ -13,11 +13,21 @@ from app.adapters.serato.tags import TagFormatError, read_geob
 from app.core.domain import SyncState
 from app.core.track_paths import normalize_track_path
 from app.services.cancellation import (
+    OperationCancelled,
     quit_requested,
     raise_if_cancelled,
 )
-from app.services.sync_analysis import analysis_worker_count
+from app.services.sync_analysis import AnalysisTrackResult, analysis_worker_count
 from app.services.track_records import RekordboxContent, RekordboxDatabase, serato_path
+from app.storage.analysis_cache import (
+    cache_key,
+    entry_fingerprints_match,
+    fingerprint,
+    load_analysis_cache,
+    make_entry,
+    relative_to_mount,
+    save_analysis_cache,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -129,12 +139,12 @@ def analysis_is_ported(
     """
     dat_path = analysis_dat_path(mount, content)
     audio_path = mount / serato_path(raw)
-    cache_key = f"{dat_path!s}|{audio_path}"
-    cached = cache.get(cache_key)
+    mem_key = _memory_key(dat_path, audio_path)
+    cached = cache.get(mem_key)
     if cached is not None:
         return cached
     ported = _analysis_is_ported(dat_path, audio_path)
-    cache[cache_key] = ported
+    cache[mem_key] = ported
     return ported
 
 
@@ -148,6 +158,10 @@ def warm_analysis_ported_cache(
     """
     Fill ``cache`` for unique tracks by reading ANLZ and tags in parallel.
 
+    Seeds hits from the host ``analysis-cache.json`` when audio/DAT/EXT
+    fingerprints still match. Probes the rest, then rewrites the disk
+    cache only when the warm finishes without cancel.
+
     Safe to call from the dedicated rekordbox thread: workers only open
     filesystem paths, never ``PyOneLibrary``. Reuses the sync analysis
     worker cap so a USB stick is not flooded.
@@ -156,7 +170,7 @@ def warm_analysis_ported_cache(
     or a stale preview generation can abort a long USB scan without
     waiting for every track. On cancel, pending futures are dropped and
     the pool is shut down without waiting; a few in-flight file reads may
-    finish after return.
+    finish after return. Cancelled warms do not write the disk cache.
 
     Args:
         mount: Mount root.
@@ -173,39 +187,72 @@ def warm_analysis_ported_cache(
     for raw, content in tracks:
         dat_path = analysis_dat_path(mount, content)
         audio_path = mount / serato_path(raw)
-        cache_key = f"{dat_path!s}|{audio_path}"
-        if cache_key in cache or cache_key in pending:
+        mem_key = _memory_key(dat_path, audio_path)
+        if mem_key in cache or mem_key in pending:
             continue
-        pending[cache_key] = (dat_path, audio_path)
+        pending[mem_key] = (dat_path, audio_path)
     if not pending:
         return
-    workers = analysis_worker_count(len(pending))
-    if workers == 1 or len(pending) == 1:
-        for cache_key, (dat_path, audio_path) in pending.items():
-            raise_if_cancelled(should_cancel)
-            cache[cache_key] = _analysis_is_ported(dat_path, audio_path)
-        return
-    pool = ThreadPoolExecutor(max_workers=workers)
-    cancelled = False
+
+    disk = load_analysis_cache(mount)
+    disk_updates: dict[str, dict] = dict(disk)
+    to_probe: dict[str, tuple[Path | None, Path]] = {}
+    for mem_key, (dat_path, audio_path) in pending.items():
+        disk_key, fps = _disk_lookup(mount, dat_path, audio_path)
+        entry = disk.get(disk_key)
+        if entry is not None and entry_fingerprints_match(entry, **fps):
+            cache[mem_key] = bool(entry["ported"])
+            disk_updates[disk_key] = make_entry(ported=bool(entry["ported"]), **fps)
+            continue
+        to_probe[mem_key] = (dat_path, audio_path)
+
     try:
-        futures = {
-            pool.submit(_analysis_is_ported, dat_path, audio_path): cache_key
-            for cache_key, (dat_path, audio_path) in pending.items()
-        }
-        outstanding = set(futures)
-        while outstanding:
-            if quit_requested() or (should_cancel is not None and should_cancel()):
-                cancelled = True
-                for pending_future in outstanding:
-                    pending_future.cancel()
-                raise_if_cancelled(should_cancel)
-            done, outstanding = wait(outstanding, timeout=0.1, return_when=FIRST_COMPLETED)
-            for future in done:
-                cache[futures[future]] = future.result()
-    finally:
-        # On cancel, do not wait for every in-flight ANLZ/tag read — that is
-        # what made Ctrl+Q appear to hang after the UI was gone.
-        pool.shutdown(wait=not cancelled, cancel_futures=cancelled)
+        if to_probe:
+            _probe_ported(to_probe, cache, should_cancel=should_cancel)
+        for mem_key, (dat_path, audio_path) in to_probe.items():
+            if mem_key not in cache:
+                continue
+            disk_key, fps = _disk_lookup(mount, dat_path, audio_path)
+            disk_updates[disk_key] = make_entry(ported=cache[mem_key], **fps)
+        save_analysis_cache(mount, disk_updates)
+    except OperationCancelled:
+        raise
+
+
+def apply_analysis_cache_from_results(
+    mount: Path,
+    results: Sequence[AnalysisTrackResult],
+    contents: dict[str, RekordboxContent],
+) -> None:
+    """
+    Patch the host analysis cache from finished sync analysis results.
+
+    Tracks with no error are marked ported with fresh fingerprints.
+    Failed tracks are removed so the next check re-probes.
+
+    Args:
+        mount: Mount root.
+        results: Per-track outcomes from the analysis pool.
+        contents: Map from ``contents_by_path``.
+    """
+    if not results:
+        return
+    entries = load_analysis_cache(mount)
+    changed = False
+    for result in results:
+        content = content_for_path(contents, result.raw)
+        dat_path = analysis_dat_path(mount, content)
+        audio_path = mount / serato_path(result.raw)
+        disk_key, fps = _disk_lookup(mount, dat_path, audio_path)
+        if result.error is not None:
+            if disk_key in entries:
+                del entries[disk_key]
+                changed = True
+            continue
+        entries[disk_key] = make_entry(ported=True, **fps)
+        changed = True
+    if changed:
+        save_analysis_cache(mount, entries)
 
 
 def track_sync_state(
@@ -241,6 +288,88 @@ def track_sync_state(
     if analysis_is_ported(mount, raw, content, cache):
         return SyncState.SYNCED
     return SyncState.PARTIAL
+
+
+def _memory_key(dat_path: Path | None, audio_path: Path) -> str:
+    """
+    Return the in-process cache key for one track.
+
+    Args:
+        dat_path: ANLZ ``.DAT``, or None.
+        audio_path: Audio file on the mount.
+
+    Returns:
+        Key string used by ``analysis_is_ported``.
+    """
+    return f"{dat_path!s}|{audio_path}"
+
+
+def _disk_lookup(
+    mount: Path, dat_path: Path | None, audio_path: Path
+) -> tuple[str, dict[str, tuple[int, int]]]:
+    """
+    Return the disk cache key and live fingerprints for one track.
+
+    Args:
+        mount: Mount root.
+        dat_path: ANLZ ``.DAT``, or None.
+        audio_path: Audio file on the mount.
+
+    Returns:
+        ``(disk_key, {audio, dat, ext} fingerprints)``.
+    """
+    ext_path = extended_path(dat_path) if dat_path is not None else None
+    fps = {
+        "audio": fingerprint(audio_path),
+        "dat": fingerprint(dat_path),
+        "ext": fingerprint(ext_path),
+    }
+    key = cache_key(relative_to_mount(mount, dat_path), relative_to_mount(mount, audio_path))
+    return key, fps
+
+
+def _probe_ported(
+    pending: dict[str, tuple[Path | None, Path]],
+    cache: dict[str, bool],
+    *,
+    should_cancel: Callable[[], bool] | None,
+) -> None:
+    """
+    Probe ANLZ and tags for ``pending`` keys into ``cache``.
+
+    Args:
+        pending: Memory key to ``(dat_path, audio_path)``.
+        cache: In-memory verdict map to fill.
+        should_cancel: Optional cancel predicate.
+
+    Raises:
+        OperationCancelled: When quit or ``should_cancel`` stops the probe.
+    """
+    workers = analysis_worker_count(len(pending))
+    if workers == 1 or len(pending) == 1:
+        for mem_key, (dat_path, audio_path) in pending.items():
+            raise_if_cancelled(should_cancel)
+            cache[mem_key] = _analysis_is_ported(dat_path, audio_path)
+        return
+    pool = ThreadPoolExecutor(max_workers=workers)
+    cancelled = False
+    try:
+        futures = {
+            pool.submit(_analysis_is_ported, dat_path, audio_path): mem_key
+            for mem_key, (dat_path, audio_path) in pending.items()
+        }
+        outstanding = set(futures)
+        while outstanding:
+            if quit_requested() or (should_cancel is not None and should_cancel()):
+                cancelled = True
+                for pending_future in outstanding:
+                    pending_future.cancel()
+                raise_if_cancelled(should_cancel)
+            done, outstanding = wait(outstanding, timeout=0.1, return_when=FIRST_COMPLETED)
+            for future in done:
+                cache[futures[future]] = future.result()
+    finally:
+        pool.shutdown(wait=not cancelled, cancel_futures=cancelled)
 
 
 def _analysis_is_ported(dat_path: Path | None, audio_path: Path) -> bool:

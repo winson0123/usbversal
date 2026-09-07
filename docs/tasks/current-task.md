@@ -6,15 +6,14 @@
 
 ## Recently completed
 
-- TASK-344: Missing audio shows red in Library track list; WAV
-  pre-audio `id3 ` relocates when growing Serato frames
+- TASK-345: Host analysis-ported cache next to error.log
 
-Next id is `TASK-345`.
+Next id is `TASK-346`.
 
-## Results (TASK-344)
+## Results (TASK-345)
 
 ```
 ruff check: pass
 ruff format --check: pass
-pytest: 350 passed, 3 skipped
+pytest: 357 passed, 3 skipped
 ```

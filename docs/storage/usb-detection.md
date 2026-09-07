@@ -23,7 +23,16 @@ default.
 A Rekordbox-only stick gets an empty `_Serato_` before sync.
 `export.pdb` without `exportLibrary.db` is rejected.
 
-## Host logs
+## Host data
 
-Failed sync items go under `~/.local/share/usbversal/<volume>/`.
-Do not keep a host backup. Recovery is restoring the Rekordbox USB.
+Per stick, under `~/.local/share/usbversal/<volume>/` (Windows:
+`%LOCALAPPDATA%\usbversal\<volume>\`), or `USBVERSAL_DATA_ROOT`:
+
+| File | Meaning |
+|------|---------|
+| `error.log` | Failed sync items from the last run that had failures |
+| `analysis-cache.json` | Analysis-ported verdicts keyed by volume label |
+
+`<volume>` is the Serato volume label (filesystem label on Windows,
+mount folder name on Linux/macOS). Do not keep a host backup. Recovery
+is restoring the Rekordbox USB.

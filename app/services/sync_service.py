@@ -57,6 +57,7 @@ from app.services.track_records import (
 from app.services.track_sync import (
     analysis_dat_path,
     analysis_is_ported,
+    apply_analysis_cache_from_results,
     content_for_path,
     contents_by_path,
     warm_analysis_ported_cache,
@@ -868,6 +869,7 @@ def sync_playlists(
         finally:
             session.close()
         analysis = _analysis_from_results(track_results, _existing_index_path(serato_root))
+        apply_analysis_cache_from_results(library.mount, track_results, by_path)
 
         logger.info(
             "sync_completed",
