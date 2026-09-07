@@ -1,82 +1,78 @@
 # Usbversal
 
 Usbversal is a terminal app that copies Rekordbox playlists, beatgrids,
-and hot cues onto the Serato side of the same USB stick. The audio
-stays put. Rekordbox files under `PIONEER/` stay put.
+and hot cues onto the Serato side of the **same** USB stick.
 
 Export the library from Rekordbox onto the stick first. Then run
-usbversal, pick playlists, and sync. Unmount the stick on this machine
-before Serato or Windows opens it.
+usbversal, pick playlists, and sync.
 
-## Use it
+## Before you start
 
-A built release is a single file. Launch it:
+1. In Rekordbox, export your playlists (and analysis) to the USB.
+2. Mount the stick on this machine (Linux, macOS, Windows, or WSL).
+3. Leave Serato closed. Do not open the stick from Serato or Explorer
+   while usbversal is writing.
 
-```bash
-usbversal
-```
+Usbversal only reads the Rekordbox export. It never writes under
+`PIONEER/`. If a sync goes wrong, restore the Rekordbox USB.
 
-Windows, Linux, and macOS. The TUI watches the usual removable-media
-roots (`/media/$USER`, `/Volumes`, drive letters). If the scanner
-misses the stick, type the mount path, or set `USBVERSAL_MOUNT` before
-launch.
+## Using it
 
-Quit with `Ctrl+Q`.
+### On launch
 
-## Run from source
+Usbversal automatically looks for a Rekordbox USB.
 
-From a checkout, use the Python package. No release binary required.
+![On launch: looking for a DJ USB](docs/images/home-scanning.png)
 
-```bash
-./scripts/setup-dev.sh
-source .venv/bin/activate
+If nothing shows up, press Enter to scan again, or type an absolute path.
 
-python -m app.tui
-```
+![On launch: enter a path when auto-detect misses](docs/images/home-path-entry.png)
 
-`setup-dev.sh` creates `.venv` and installs the package with the dev
-extras. After that, `python`, `ruff`, and `pytest` are on `PATH` while
-the venv is active.
+### Pick playlists
 
-```bash
-ruff check .
-ruff format --check .
-pytest
-```
+Once a stick is open, playlists appear on the left and a track preview
+on the right. Each playlist row is red, yellow, or green:
 
-Or call them as `.venv/bin/ruff` and `.venv/bin/pytest` without
-activating. Same TUI, same screens, same `USBVERSAL_MOUNT` override.
+| Colour | Meaning |
+|--------|---------|
+| Red | Nothing synced |
+| Yellow | Some tracks synced |
+| Green | All tracks synced |
 
-Python 3.11 or newer. Task rules and review notes live in
-[`CONTRIBUTING.md`](CONTRIBUTING.md). Agents start at
-[`AGENT.md`](AGENT.md). Layout and internals live in
-[`ARCHITECTURE.md`](ARCHITECTURE.md) and [`docs/`](docs/).
+Space selects a playlist (a folder selects every playlist under it).
+`Ctrl+A` selects or clears every playlist. `e` expands or collapses a
+folder. Enter starts the sync when at least one playlist is selected.
 
-## Screens
+![Playlist picker with track preview](docs/images/library.png)
 
-Home looks for a Rekordbox USB. If nothing shows up, press Enter to
-scan again, or type a path. Tab cycles matching folders.
+### While syncing
 
-Library is the playlist tree. Each row is red, yellow, or green:
-nothing synced, some tracks synced, all tracks synced. Space selects a
-playlist. `Ctrl+A` selects every playlist. `e` expands or collapses a
-folder. Enter starts the sync.
+Usbversal copies the selected playlists as Serato crates and writes
+beatgrids and hot cues onto the audio files. Status, a progress bar,
+and a live log update as tracks finish.
 
-Progress copies the playlists and writes grids and cues. Done shows
-counts. Failed tracks stay on that screen and also land in
-`~/.local/share/usbversal/<volume>/error.log`. Enter goes back to
-Library.
+![Sync in progress](docs/images/progress.png)
+
+### When it finishes
+
+You get counts (playlists, grids, cues). Failed tracks stay on screen
+and also land in
+`~/.local/share/usbversal/<volume>/error.log`. Enter goes back to the
+playlist list so you can sync again.
+
+![Sync finished](docs/images/done.png)
+
+Unmount the stick yourself when the sync finishes.
 
 ## How a sync works
 
-Home finds the stick and reads the Rekordbox playlists. If Serato has
-never seen this stick, usbversal sets up an empty Serato library next
-to the songs. Library then colours each playlist by how much of it is
-already on the Serato side.
+On launch, usbversal finds the stick and reads the Rekordbox playlists.
+If Serato has never seen this stick, it sets up an empty Serato library
+next to the songs.
 
-Progress takes the playlists you selected and writes them as Serato
-crates. Folders stay folders, nested under the stick name. A Rekordbox
-library on a volume called `MYUSB` shows in Serato like this:
+The sync writes the playlists you selected as Serato crates, nested 
+under the stick name. A Rekordbox library on a volume called `MYUSB`
+shows in Serato like this:
 
 ```text
 MYUSB
@@ -94,9 +90,37 @@ you open the stick in Serato, Serato finishes building its own list.
 
 A later sync updates what is already there. It does not wipe the
 Serato library. If writing a file fails, the original song is put
-back. If a sync goes wrong, restore the Rekordbox USB.
+back.
 
-Unmount the stick yourself when Done appears.
+## Run it
+
+A built release is a single file:
+
+```bash
+usbversal
+```
+
+Windows, Linux, and macOS. On launch it watches the usual
+removable-media roots (`/media/$USER`, `/Volumes`, drive letters). If
+it misses the stick, type the mount path, or set `USBVERSAL_MOUNT`
+before launch.
+
+## Run from source
+
+From a checkout:
+
+```bash
+./scripts/setup-dev.sh
+source .venv/bin/activate
+
+python -m app.tui
+```
+
+`setup-dev.sh` creates `.venv` and installs the package with the
+dev extras. Python 3.11 or newer.
+
+Same app, same `USBVERSAL_MOUNT` override. Contributor setup (lint,
+tests, task rules) is in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Build
 
@@ -109,3 +133,9 @@ this machine:
 
 That writes `dist/usbversal` or `dist/usbversal.exe`. See
 [docs/workflows/release-workflow.md](docs/workflows/release-workflow.md).
+
+## Contributing
+
+Dev setup, tests, and review notes:
+[`CONTRIBUTING.md`](CONTRIBUTING.md). Internals and layout:
+[`ARCHITECTURE.md`](ARCHITECTURE.md).
