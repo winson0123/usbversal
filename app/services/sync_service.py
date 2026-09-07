@@ -202,7 +202,8 @@ def _playlist_track_counts(
         check_analysis: When False, skip ANLZ and tag reads.
 
     Returns:
-        ``(total, in_crate, complete, syncable)``.
+        ``(total, in_crate, complete, syncable)``. Complete counts only
+        in-crate tracks whose audio file exists and analysis is ported.
     """
     in_crate = 0
     complete = 0
@@ -215,6 +216,8 @@ def _playlist_track_counts(
             continue
         in_crate += 1
         if not check_analysis:
+            continue
+        if not (mount / serato_path(raw)).is_file():
             continue
         content = content_for_path(contents, raw)
         if analysis_is_ported(mount, raw, content, cache):

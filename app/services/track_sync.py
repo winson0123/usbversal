@@ -200,7 +200,9 @@ def warm_analysis_ported_cache(
     for mem_key, (dat_path, audio_path) in pending.items():
         disk_key, fps = _disk_lookup(mount, dat_path, audio_path)
         entry = disk.get(disk_key)
-        if entry is not None and entry_fingerprints_match(entry, **fps):
+        # Missing audio must not reuse a cached "ported" hit — green requires
+        # a file on disk (playlist rollup and the track list agree).
+        if entry is not None and fps["audio"] != (0, 0) and entry_fingerprints_match(entry, **fps):
             cache[mem_key] = bool(entry["ported"])
             disk_updates[disk_key] = make_entry(ported=bool(entry["ported"]), **fps)
             continue
@@ -381,8 +383,10 @@ def _analysis_is_ported(dat_path: Path | None, audio_path: Path) -> bool:
         audio_path: Audio file on the mount.
 
     Returns:
-        True when there is nothing left to write.
+        True when the audio file exists and there is nothing left to write.
     """
+    if not audio_path.is_file():
+        return False
     if dat_path is None or not dat_path.is_file():
         return True
     try:
@@ -395,8 +399,6 @@ def _analysis_is_ported(dat_path: Path | None, audio_path: Path) -> bool:
         cues = []
     if not beats and not cues:
         return True
-    if not audio_path.is_file():
-        return False
     try:
         frames = read_geob(audio_path)
     except (TagFormatError, OSError):

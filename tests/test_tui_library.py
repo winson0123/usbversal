@@ -17,6 +17,7 @@ from app.services.sync_service import playlist_tree_sync_states
 from app.tui.app import RekordboxThreadMixin
 from app.tui.screens.library import LibraryScreen
 from tests.conftest import EMPTY_DATABASE_V2, make_library
+from tests.test_sync_state import _write_audio
 
 
 class _DummyProgressScreen(Screen):
@@ -133,6 +134,7 @@ def _library_with_two_playlists(tmp_path: Path):
         crates={f"{volume_label_for(tmp_path)}%%Techno": ["Contents/a.mp3"]},
         indexed=["Contents/a.mp3", "Contents/b.mp3"],
     )
+    _write_audio(mount, "Contents/a.mp3", beatgrid=False)
     playlists = [
         Playlist(id=1, name="Techno", parent_id=None, is_folder=False),
         Playlist(id=2, name="Trance", parent_id=None, is_folder=False),

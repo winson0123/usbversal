@@ -197,6 +197,8 @@ def test_fully_synced_playlist_is_green(tmp_path: Path) -> None:
         crates={_stem(tmp_path, "Pocket"): ["Contents/a.mp3", "Contents/b.mp3"]},
         indexed=["Contents/a.mp3", "Contents/b.mp3"],
     )
+    _write_audio(mount, "Contents/a.mp3", beatgrid=False)
+    _write_audio(mount, "Contents/b.mp3", beatgrid=False)
     playlist = Playlist(id=1, name="Pocket", parent_id=None, is_folder=False)
     library = make_library(mount, _adapter([playlist], {1: ["/Contents/a.mp3", "/Contents/b.mp3"]}))
 
@@ -213,6 +215,7 @@ def test_partially_synced_playlist_is_yellow(tmp_path: Path) -> None:
         crates={_stem(tmp_path, "Pocket"): ["Contents/a.mp3"]},
         indexed=["Contents/a.mp3", "Contents/b.mp3"],
     )
+    _write_audio(mount, "Contents/a.mp3", beatgrid=False)
     playlist = Playlist(id=1, name="Pocket", parent_id=None, is_folder=False)
     library = make_library(mount, _adapter([playlist], {1: ["/Contents/a.mp3", "/Contents/b.mp3"]}))
 
@@ -220,6 +223,22 @@ def test_partially_synced_playlist_is_yellow(tmp_path: Path) -> None:
 
     assert state.state is SyncState.PARTIAL
     assert (state.in_crate, state.complete, state.total) == (1, 1, 2)
+
+
+def test_in_crate_with_missing_audio_is_yellow(tmp_path: Path) -> None:
+    """Crate membership without the audio file on disk is not green."""
+    mount = _stick(
+        tmp_path,
+        crates={_stem(tmp_path, "Pocket"): ["Contents/a.mp3"]},
+        indexed=["Contents/a.mp3"],
+    )
+    playlist = Playlist(id=1, name="Pocket", parent_id=None, is_folder=False)
+    library = make_library(mount, _adapter([playlist], {1: ["/Contents/a.mp3"]}))
+
+    (state,) = playlist_sync_states(library)
+
+    assert state.state is SyncState.PARTIAL
+    assert (state.in_crate, state.complete, state.total) == (1, 0, 1)
 
 
 def test_missing_crate_is_red(tmp_path: Path) -> None:
@@ -292,6 +311,8 @@ def test_path_matching_ignores_leading_slash_and_case(tmp_path: Path) -> None:
         crates={_stem(tmp_path, "P"): ["Contents/Artist/Song.mp3"]},
         indexed=["Contents/Artist/Song.mp3"],
     )
+    # Audio path follows the Rekordbox spelling; crate membership is case-insensitive.
+    _write_audio(mount, "contents/artist/song.MP3", beatgrid=False)
     playlist = Playlist(id=1, name="P", parent_id=None, is_folder=False)
     library = make_library(mount, _adapter([playlist], {1: ["/contents/artist/song.MP3"]}))
 
@@ -324,6 +345,8 @@ def test_tree_folder_is_green_only_when_every_child_is_synced(tmp_path: Path) ->
         },
         indexed=["Contents/a.mp3", "Contents/b.mp3"],
     )
+    _write_audio(mount, "Contents/a.mp3", beatgrid=False)
+    _write_audio(mount, "Contents/b.mp3", beatgrid=False)
     folder = Playlist(id=9, name="Genres", parent_id=None, is_folder=True)
     techno = Playlist(id=1, name="Techno", parent_id=9, is_folder=False)
     trance = Playlist(id=2, name="Trance", parent_id=9, is_folder=False)
@@ -345,6 +368,7 @@ def test_tree_folder_is_yellow_when_children_disagree(tmp_path: Path) -> None:
         crates={_stem(tmp_path, "Genres%%Techno"): ["Contents/a.mp3"]},
         indexed=["Contents/a.mp3", "Contents/b.mp3"],
     )
+    _write_audio(mount, "Contents/a.mp3", beatgrid=False)
     folder = Playlist(id=9, name="Genres", parent_id=None, is_folder=True)
     techno = Playlist(id=1, name="Techno", parent_id=9, is_folder=False)
     trance = Playlist(id=2, name="Trance", parent_id=9, is_folder=False)
@@ -376,6 +400,7 @@ def test_in_crate_without_anlz_is_green(tmp_path: Path) -> None:
         crates={_stem(tmp_path, "Pocket"): ["Contents/a.mp3"]},
         indexed=["Contents/a.mp3"],
     )
+    _write_audio(mount, "Contents/a.mp3", beatgrid=False)
     playlist = Playlist(id=1, name="Pocket", parent_id=None, is_folder=False)
     adapter = _adapter([playlist], {1: ["/Contents/a.mp3"]})
     adapter.database.get_contents.return_value = [_content("/Contents/a.mp3")]
@@ -435,6 +460,7 @@ def test_empty_anlz_is_green(tmp_path: Path) -> None:
         indexed=["Contents/a.mp3"],
     )
     _write_dat(mount, _DAT_REL, [])
+    _write_audio(mount, "Contents/a.mp3", beatgrid=False)
     playlist = Playlist(id=1, name="Pocket", parent_id=None, is_folder=False)
     adapter = _adapter([playlist], {1: ["/Contents/a.mp3"]})
     adapter.database.get_contents.return_value = [_content("/Contents/a.mp3", _DAT_REL)]
@@ -457,6 +483,7 @@ def test_tree_folder_counts_only_green_tracks(tmp_path: Path) -> None:
         indexed=["Contents/a.mp3", "Contents/b.mp3"],
     )
     _write_dat(mount, _DAT_REL, [(1, 128.0, 0)])
+    _write_audio(mount, "Contents/a.mp3", beatgrid=False)
     folder = Playlist(id=9, name="Genres", parent_id=None, is_folder=True)
     techno = Playlist(id=1, name="Techno", parent_id=9, is_folder=False)
     trance = Playlist(id=2, name="Trance", parent_id=9, is_folder=False)
@@ -484,6 +511,7 @@ def test_tree_leaf_carries_its_own_synced_and_total_counts(tmp_path: Path) -> No
         crates={_stem(tmp_path, "Pocket"): ["Contents/a.mp3"]},
         indexed=["Contents/a.mp3", "Contents/b.mp3", "Contents/c.mp3"],
     )
+    _write_audio(mount, "Contents/a.mp3", beatgrid=False)
     playlist = Playlist(id=1, name="Pocket", parent_id=None, is_folder=False)
     tracks = {1: ["/Contents/a.mp3", "/Contents/b.mp3", "/Contents/c.mp3"]}
     library = make_library(mount, _adapter([playlist], tracks))
@@ -500,6 +528,7 @@ def test_tree_folder_counts_sum_its_children(tmp_path: Path) -> None:
         crates={_stem(tmp_path, "Genres%%Techno"): ["Contents/a.mp3"]},
         indexed=["Contents/a.mp3", "Contents/b.mp3", "Contents/c.mp3"],
     )
+    _write_audio(mount, "Contents/a.mp3", beatgrid=False)
     folder = Playlist(id=9, name="Genres", parent_id=None, is_folder=True)
     techno = Playlist(id=1, name="Techno", parent_id=9, is_folder=False)
     trance = Playlist(id=2, name="Trance", parent_id=9, is_folder=False)
@@ -524,6 +553,7 @@ def test_tree_rollup_composes_through_nested_folders(tmp_path: Path) -> None:
         crates={_stem(tmp_path, "Music%%Genres%%Techno"): ["Contents/a.mp3"]},
         indexed=["Contents/a.mp3"],
     )
+    _write_audio(mount, "Contents/a.mp3", beatgrid=False)
     outer = Playlist(id=8, name="Music", parent_id=None, is_folder=True)
     inner = Playlist(id=9, name="Genres", parent_id=8, is_folder=True)
     techno = Playlist(id=1, name="Techno", parent_id=9, is_folder=False)
@@ -544,6 +574,7 @@ def test_summary_counts_states(tmp_path: Path) -> None:
     mount = _stick(
         tmp_path, crates={_stem(tmp_path, "A"): ["Contents/a.mp3"]}, indexed=["Contents/a.mp3"]
     )
+    _write_audio(mount, "Contents/a.mp3", beatgrid=False)
     playlists = [
         Playlist(id=1, name="A", parent_id=None, is_folder=False),
         Playlist(id=2, name="B", parent_id=None, is_folder=False),
@@ -565,6 +596,7 @@ def test_tree_survives_broken_playlist_membership(tmp_path: Path) -> None:
         crates={_stem(tmp_path, "Techno"): ["Contents/a.mp3"]},
         indexed=["Contents/a.mp3"],
     )
+    _write_audio(mount, "Contents/a.mp3", beatgrid=False)
     techno = Playlist(id=1, name="Techno", parent_id=None, is_folder=False)
     trance = Playlist(id=2, name="Trance", parent_id=None, is_folder=False)
     adapter = _adapter([techno, trance], {1: ["/Contents/a.mp3"], 2: ["/Contents/b.mp3"]})
