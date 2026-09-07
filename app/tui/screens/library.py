@@ -1,12 +1,13 @@
 """Library screen: playlist tree on the left, track preview on the right.
 
-Arrow keys move, space toggles selection (a folder toggles every descendant
-playlist at once), "^a" selects or clears the whole library, "e" expands or
-collapses the highlighted folder, enter confirms and, with at least one
-playlist selected, starts the sync (step 4, the Progress screen).
-Highlighting a playlist fills the right pane. Coming back here after a
-sync (Done -> enter -> pop_screen) re-reads sync state from disk rather
-than showing whatever was true when the screen first loaded.
+Arrow keys move. Space or a mouse click toggles selection (a folder
+toggles every descendant playlist at once). "^a" selects or clears the
+whole library. "e" expands or collapses the highlighted folder. Enter
+confirms and, with at least one playlist selected, starts the sync.
+Highlighting a playlist fills the right pane from a cache when possible;
+uncached playlists load in the background with the highlighted one first.
+Coming back here after a sync re-reads sync state from disk rather than
+showing whatever was true when the screen first loaded.
 """
 
 from __future__ import annotations
@@ -239,6 +240,9 @@ class LibraryScreen(Screen):
 
     BINDINGS = [
         Binding("space", "toggle_selection", "Select", show=True, priority=True),
+        # Priority so Enter starts sync instead of Tree's select_cursor
+        # (which also fires on mouse click and must only toggle selection).
+        Binding("enter", "confirm_sync", "Sync", show=True, priority=True),
         Binding("ctrl+a", "select_all", "Select All", show=True, key_display="^a"),
         Binding("e", "toggle_expand", "Expand/collapse", show=True),
     ]
@@ -342,6 +346,9 @@ class LibraryScreen(Screen):
         self._refreshing = False
         self._initial_states = states
         self._tracks_load_id = 0
+        self._preview_cache: dict[int, list[TrackPreview]] = {}
+        self._preview_playlist_id: int | None = None
+        self._prefetch_generation = 0
 
     def compose(self) -> ComposeResult:
         with Horizontal(id=_HEADER_ID):
@@ -353,6 +360,8 @@ class LibraryScreen(Screen):
             with playlist_pane:
                 tree: PlaylistTree = PlaylistTree("Playlists", id="playlist-tree")
                 tree.show_root = False
+                # Expand/collapse stays on "e"; click must only select.
+                tree.auto_expand = False
                 yield tree
                 yield Static(_legend_text(), id=_LEGEND_ID)
             track_pane = Vertical(id="track-pane")
@@ -456,6 +465,8 @@ class LibraryScreen(Screen):
         kept = set(self._selected)
         tree.clear()
         self._selected.clear()
+        self._preview_cache.clear()
+        self._preview_playlist_id = None
         self._all_ids = tuple(i for state in states for i in state.leaf_ids)
         for state in states:
             self._add_node(tree.root, state, depth=0)
@@ -473,6 +484,7 @@ class LibraryScreen(Screen):
             self._set_status(busy)
         else:
             self._update_status()
+        self._start_preview_prefetch()
 
     def _set_status(self, message: str) -> None:
         """
@@ -581,6 +593,18 @@ class LibraryScreen(Screen):
         self._refresh_labels(tree.root, depth=0)
         self._update_status()
 
+    def action_confirm_sync(self) -> None:
+        """
+        Start the sync when at least one playlist is selected.
+
+        Bound to Enter with priority so it wins over Tree's select_cursor.
+        Mouse click still goes through ``NodeSelected`` and only toggles.
+        """
+        if not self._selected:
+            self._update_status()
+            return
+        self.app.push_screen(ProgressScreen(self.library, sorted(self._selected)))
+
     def _refresh_labels(self, node: TreeNode, depth: int) -> None:
         """
         Rewrite every label so checkbox, clip width, and count stay in sync.
@@ -614,33 +638,52 @@ class LibraryScreen(Screen):
             message += ", press enter to sync"
         self.query_one(f"#{_STATUS_ID}", Static).update(message)
 
-    def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
-        """Enter on a node: with a selection, start the sync."""
+    def on_tree_node_selected(self, event: Tree.NodeSelected[_Row]) -> None:
+        """
+        Mouse click (Tree select_cursor): toggle selection, never sync.
+
+        Enter is handled by ``action_confirm_sync`` via a priority binding.
+        """
         event.stop()
-        if not self._selected:
-            self._update_status()
-            return
-        self.app.push_screen(ProgressScreen(self.library, sorted(self._selected)))
+        self.action_toggle_selection()
 
     def on_tree_node_highlighted(self, event: Tree.NodeHighlighted[_Row]) -> None:
-        """Fill the track table from the highlighted playlist."""
+        """Fill the track table from the highlighted playlist, using the cache."""
         row = event.node.data
         if row is None or row.is_folder or len(row.ids) != 1:
             self._tracks_load_id += 1
+            self._preview_playlist_id = None
             self._set_tracks_loading(False)
             self._clear_table()
             return
+        playlist_id = row.ids[0]
+        self._preview_playlist_id = playlist_id
         self._tracks_load_id += 1
         token = self._tracks_load_id
+        cached = self._preview_cache.get(playlist_id)
+        if cached is not None:
+            self._set_tracks_loading(False)
+            self._fill_table(cached)
+            return
         self._set_tracks_loading(True)
-        self.run_worker(self._show_tracks(row.ids[0], token), exclusive=True, group="track-preview")
+        # Abandon in-flight prefetch results so this row is cached next
+        # after the load; the dedicated thread still finishes any current
+        # call, then serves ``_show_tracks``.
+        self._prefetch_generation += 1
+        self.run_worker(
+            self._show_tracks(playlist_id, token),
+            exclusive=True,
+            group="track-preview",
+        )
 
     async def _show_tracks(self, playlist_id: int, token: int) -> None:
         """
         Load preview rows on the Rekordbox thread and paint the table.
 
         A stale token means a later highlight owns the pane, so this
-        pass must not hide the scan bar or overwrite the table.
+        pass must not hide the scan bar or overwrite the table. On
+        success the rows are cached so returning to this playlist is
+        instant. Prefetch resumes afterward for the remaining leaves.
 
         Args:
             playlist_id: Highlighted leaf playlist id.
@@ -656,11 +699,74 @@ class LibraryScreen(Screen):
             if token == self._tracks_load_id:
                 self._set_tracks_loading(False)
                 self._clear_table()
+                self._start_preview_prefetch()
             return
         if token != self._tracks_load_id:
+            self._start_preview_prefetch()
             return
+        self._preview_cache[playlist_id] = tracks
         self._set_tracks_loading(False)
         self._fill_table(tracks)
+        self._start_preview_prefetch()
+
+    def _start_preview_prefetch(self) -> None:
+        """
+        Warm preview rows for every leaf, highlighted playlist first.
+
+        Returns:
+            None.
+        """
+        self._prefetch_generation += 1
+        generation = self._prefetch_generation
+        self.run_worker(
+            self._prefetch_previews(generation),
+            exclusive=True,
+            group="track-prefetch",
+            name="track-prefetch",
+        )
+
+    def _next_uncached_playlist_id(self) -> int | None:
+        """
+        Pick the next playlist to warm: current highlight, then tree order.
+
+        Returns:
+            A leaf playlist id not yet in ``_preview_cache``, or None.
+        """
+        highlighted = self._preview_playlist_id
+        if highlighted is not None and highlighted not in self._preview_cache:
+            return highlighted
+        for playlist_id in self._all_ids:
+            if playlist_id not in self._preview_cache:
+                return playlist_id
+        return None
+
+    async def _prefetch_previews(self, generation: int) -> None:
+        """
+        Fill ``_preview_cache`` for remaining leaves on the Rekordbox thread.
+
+        Stops when a newer prefetch generation starts or every leaf is
+        cached. If the row just loaded is still highlighted and the pane
+        is waiting, paint it without another round trip.
+
+        Args:
+            generation: ``_prefetch_generation`` when this worker started.
+        """
+        while generation == self._prefetch_generation:
+            playlist_id = self._next_uncached_playlist_id()
+            if playlist_id is None:
+                return
+            try:
+                tracks = await self.app.run_rekordbox(
+                    preview_playlist_tracks, self.library, playlist_id
+                )
+            except Exception:
+                tracks = []
+            if generation != self._prefetch_generation:
+                return
+            self._preview_cache[playlist_id] = tracks
+            if playlist_id == self._preview_playlist_id:
+                self._set_tracks_loading(False)
+                self._fill_table(tracks)
 
     def _set_tracks_loading(self, loading: bool) -> None:
         """

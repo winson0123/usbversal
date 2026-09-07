@@ -2,24 +2,20 @@
 
 **Status:** `idle`
 **Task ID:** none
-**Last updated:** 2026-09-06
+**Last updated:** 2026-09-07
 
 ## Recently completed
 
-- TASK-337: Drop cosmetic TUI tests
-- TASK-338: Disable Textual command palette / theme picker
-- TASK-336: Quit promptly during ANLZ analysis (cooperative cancel)
+- TASK-339: Library click selects (not sync); track preview cache + prefetch
 
-## Verification (TASK-336)
+## Verification (TASK-339)
 
 ```bash
 .venv/bin/ruff check .
 .venv/bin/ruff format --check .
-.venv/bin/pytest tests/test_tui_app.py tests/test_track_sync_cancel.py tests/test_tui_home.py tests/test_sync_state.py -q
+.venv/bin/pytest tests/test_tui_library.py tests/test_track_preview.py -q
 ```
 
-Pass: ruff clean; quit-during-analysis tests finish without multi-second waits.
+Pass: 19 tests green; click toggles selection; enter syncs; revisit uses cache.
 
-README screenshot refresh left uncommitted until PNGs exist.
-
-Next id is `TASK-339`.
+Next id is `TASK-340`.

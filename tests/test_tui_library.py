@@ -352,6 +352,97 @@ async def test_enter_with_a_selection_starts_the_sync(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_tree_node_selected_toggles_without_starting_sync(tmp_path: Path) -> None:
+    """
+    Mouse click posts NodeSelected; that must select, not sync.
+
+    Enter alone starts the sync (priority binding). Click must not.
+    """
+    library = _library_with_two_playlists(tmp_path)
+    app = _Harness(library)
+    with patch("app.tui.screens.library.ProgressScreen", _DummyProgressScreen):
+        async with app.run_test() as pilot:
+            await _wait_library(app, pilot)
+            screen = app.screen
+            assert isinstance(screen, LibraryScreen)
+            tree = screen.query_one(Tree)
+            node = tree.root.children[0]
+            tree.post_message(Tree.NodeSelected(node))
+            await pilot.pause()
+
+            assert isinstance(app.screen, LibraryScreen)
+            status = str(app.screen.query_one("#selection-status", Static).render())
+            assert "1 playlist selected" in status
+
+            tree.post_message(Tree.NodeSelected(node))
+            await pilot.pause()
+            status = str(app.screen.query_one("#selection-status", Static).render())
+            assert "0 playlists selected" in status
+
+
+@pytest.mark.asyncio
+async def test_revisiting_a_playlist_uses_the_preview_cache(tmp_path: Path) -> None:
+    """Moving away and back must not reload the same playlist from Rekordbox."""
+    library = _library_with_two_playlists(tmp_path)
+    content_a = type(
+        "Row",
+        (),
+        {
+            "path": "/Contents/a.mp3",
+            "title": "Alpha",
+            "genre_id": None,
+            "key_id": None,
+            "bpmx100": 12800,
+        },
+    )()
+    content_b = type(
+        "Row",
+        (),
+        {
+            "path": "/Contents/b.mp3",
+            "title": "Beta",
+            "genre_id": None,
+            "key_id": None,
+            "bpmx100": 14000,
+        },
+    )()
+    library.rekordbox.database.get_contents.return_value = [content_a, content_b]
+
+    calls: list[int] = []
+    real_preview = __import__(
+        "app.services.track_preview", fromlist=["preview_playlist_tracks"]
+    ).preview_playlist_tracks
+
+    def counting_preview(lib, playlist_id: int):
+        """Record each preview load while still returning real rows."""
+        calls.append(playlist_id)
+        return real_preview(lib, playlist_id)
+
+    app = _Harness(library)
+    with patch("app.tui.screens.library.preview_playlist_tracks", counting_preview):
+        async with app.run_test() as pilot:
+            await _wait_library(app, pilot)
+            screen = app.screen
+            assert isinstance(screen, LibraryScreen)
+            for _ in range(40):
+                await pilot.pause()
+                if 1 in screen._preview_cache and 2 in screen._preview_cache:
+                    break
+            first_loads = list(calls)
+            assert 1 in first_loads
+
+            await pilot.press("down")
+            await pilot.pause()
+            await pilot.press("up")
+            await pilot.pause()
+
+            assert calls.count(1) == first_loads.count(1)
+            table = screen.query_one("#track-table", DataTable)
+            assert table.display is True
+            assert table.get_row_at(0)[0].plain == "Alpha"
+
+
+@pytest.mark.asyncio
 async def test_highlighting_a_playlist_fills_the_track_table(tmp_path: Path) -> None:
     """The right pane lists the highlighted playlist's tracks."""
     library = _library_with_two_playlists(tmp_path)
