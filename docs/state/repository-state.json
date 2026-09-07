@@ -38,9 +38,9 @@
   },
   "packaging": {
     "pyinstaller": true,
-    "readiness": "v1.0.0",
-    "version": "1.0.0",
-    "tag": "v1.0.0",
+    "readiness": "v1.1.0",
+    "version": "1.1.0",
+    "tag": "v1.1.0",
     "workflow": ".github/workflows/release.yml",
     "ci": ".github/workflows/ci.yml",
     "artifacts": [
