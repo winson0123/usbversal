@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+from functools import partial
 from typing import cast
 
 from rich.cells import cell_len
@@ -396,7 +397,10 @@ class LibraryScreen(Screen):
         self._refreshing = True
         self._set_status("Reading library…")
         self.run_worker(
-            self._refresh(), exclusive=True, group="library-refresh", name="library-refresh"
+            self._refresh,
+            exclusive=True,
+            group="library-refresh",
+            name="library-refresh",
         )
 
     async def _refresh(self) -> None:
@@ -671,7 +675,7 @@ class LibraryScreen(Screen):
         # call, then serves ``_show_tracks``.
         self._prefetch_generation += 1
         self.run_worker(
-            self._show_tracks(playlist_id, token),
+            partial(self._show_tracks, playlist_id, token),
             exclusive=True,
             group="track-preview",
         )
@@ -713,13 +717,19 @@ class LibraryScreen(Screen):
         """
         Warm preview rows for every leaf, highlighted playlist first.
 
+        Passes a bound callable into ``run_worker`` (not a pre-created
+        coroutine) so exclusive cancel cannot leave an unawaited coro
+        when a newer prefetch replaces this one before it starts.
+
         Returns:
             None.
         """
+        if self._next_uncached_playlist_id() is None:
+            return
         self._prefetch_generation += 1
         generation = self._prefetch_generation
         self.run_worker(
-            self._prefetch_previews(generation),
+            partial(self._prefetch_previews, generation),
             exclusive=True,
             group="track-prefetch",
             name="track-prefetch",

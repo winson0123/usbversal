@@ -6,6 +6,6 @@
 
 ## Recently completed
 
-- TASK-340: End-user README with screenshots; drop docs/images capture notes
+- TASK-341: Avoid unawaited prefetch coroutines when exclusive workers replace each other
 
-Next id is `TASK-341`.
+Next id is `TASK-342`.
